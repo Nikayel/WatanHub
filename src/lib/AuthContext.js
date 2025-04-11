@@ -10,9 +10,13 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         // Get the session from local storage
-        const session = supabase.auth.getSession();
-        setUser(session?.user ?? null);
-        setLoading(false);
+        const fetchSession = async () => {
+            const { data, error } = await supabase.auth.getSession();
+            setUser(data?.session?.user ?? null);
+            setLoading(false);
+        };
+
+        fetchSession();
 
         // Listen for changes to auth state
         const { data: { subscription } } = supabase.auth.onAuthStateChange(

@@ -1,15 +1,27 @@
-import React from 'react';
-import { Menu } from 'lucide-react';
+import React, { useState } from 'react';
+import { Menu, User, LogOut } from 'lucide-react';
 import { Button } from "../ui/button";
 import {
     Sheet,
     SheetContent,
     SheetTrigger,
 } from "../ui/sheet";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { cn } from "../../lib/utils";
+import AuthDialog from '../Auth/AuthDialog';
+import { useAuth } from '../../lib/AuthContext';
 import './Navbar.css';
 
 const Navbar = () => {
+    const { user, signOut } = useAuth();
+    const [authMode, setAuthMode] = useState('login');
+
     const navItems = [
         { href: "#", label: "Home" },
         { href: "#mentors", label: "Mentors" },
@@ -38,6 +50,18 @@ const Navbar = () => {
                 block: "start"
             });
         }
+    };
+
+    const handleLogin = () => {
+        setAuthMode('login');
+    };
+
+    const handleSignUp = () => {
+        setAuthMode('signup');
+    };
+
+    const handleLogout = async () => {
+        await signOut();
     };
 
     return (
@@ -91,16 +115,106 @@ const Navbar = () => {
                                         {item.label}
                                     </a>
                                 ))}
+
+                                {/* Auth buttons in mobile menu */}
+                                {!user ? (
+                                    <>
+                                        <AuthDialog
+                                            mode="login"
+                                            trigger={
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full mt-2"
+                                                    onClick={handleLogin}
+                                                >
+                                                    Login
+                                                </Button>
+                                            }
+                                        />
+                                        <AuthDialog
+                                            mode="signup"
+                                            trigger={
+                                                <Button
+                                                    className="w-full mt-2"
+                                                    onClick={handleSignUp}
+                                                >
+                                                    Join Now
+                                                </Button>
+                                            }
+                                        />
+                                    </>
+                                ) : (
+                                    <Button
+                                        variant="outline"
+                                        className="w-full mt-2"
+                                        onClick={handleLogout}
+                                    >
+                                        <LogOut className="h-4 w-4 mr-2" />
+                                        Logout
+                                    </Button>
+                                )}
                             </nav>
                         </SheetContent>
                     </Sheet>
                 </div>
 
-                {/* Join Now Button */}
-                <div className="hidden md:block">
-                    <Button className="ml-4" aria-label="Join our mentorship program">
-                        Join Now
-                    </Button>
+                {/* Auth Buttons (Desktop) */}
+                <div className="hidden md:flex items-center gap-2">
+                    {!user ? (
+                        <>
+                            <AuthDialog
+                                mode="login"
+                                trigger={
+                                    <Button
+                                        variant="ghost"
+                                        onClick={handleLogin}
+                                    >
+                                        Login
+                                    </Button>
+                                }
+                            />
+                            <AuthDialog
+                                mode="signup"
+                                trigger={
+                                    <Button
+                                        onClick={handleSignUp}
+                                    >
+                                        Join Now
+                                    </Button>
+                                }
+                            />
+                        </>
+                    ) : (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                                    <User className="h-5 w-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <div className="flex items-center justify-start gap-2 p-2">
+                                    <div className="flex flex-col space-y-1 leading-none">
+                                        <p className="font-medium">{user.email}</p>
+                                    </div>
+                                </div>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem asChild>
+                                    <a href="/profile">Profile</a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <a href="/dashboard">Dashboard</a>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    className="cursor-pointer"
+                                    onClick={handleLogout}
+                                >
+                                    <LogOut className="h-4 w-4 mr-2" />
+                                    <span>Logout</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
                 </div>
             </nav>
         </header>
