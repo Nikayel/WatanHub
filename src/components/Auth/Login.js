@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import { Button } from '../ui/button';
+import { useNavigate } from 'react-router-dom';
 
 const Login = ({ onClose }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const { signIn, signInWithGoogle, error, loading } = useAuth();
-
+    const navigate = useNavigate();
+    useEffect(() => {
+        if (user) {
+            navigate('/dashboard');
+        }
+    },[user,navigate]);
     const handleSubmit = async (e) => {
         e.preventDefault();
         await signIn(email, password);
