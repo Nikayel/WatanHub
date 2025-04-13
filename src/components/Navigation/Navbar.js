@@ -176,7 +176,7 @@ const Navbar = () => {
                             <AuthDialog
                                 mode="signup"
                                 trigger={
-                                    <Button
+                                    <Button className="cta-button animate-Glow"
                                         onClick={handleSignUp}
                                     >
                                         Join Now

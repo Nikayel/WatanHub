@@ -1,0 +1,49 @@
+/* Navbar.css */
+.navbar {
+    /* Glass effect: translucent background with backdrop blur */
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem 1rem;
+    transition: background 0.3s ease;
+  }
+  
+  .navbar:hover {
+    background: rgba(255, 255, 255, 0.95);
+  }
+  
+  .nav-links a {
+    position: relative;
+    transition: color 0.3s ease;
+  }
+  
+  /* Underline animation on hover */
+  .nav-links a::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -4px;
+    width: 0%;
+    height: 2px;
+    background: #3B82F6; /* Primary color */
+    transition: width 0.3s ease;
+  }
+  
+  .nav-links a:hover::after {
+    width: 100%;
+  }
+  
+  .cta-button {
+    padding: 0.5rem 1rem;
+    background: linear-gradient(90deg, #3B82F6, #10B981);
+    color: #fff;
+    border: none;
+    border-radius: 0.375rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .cta-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.5);
+  }
+  
