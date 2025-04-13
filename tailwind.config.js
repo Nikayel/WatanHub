@@ -1,4 +1,3 @@
-// tailwind.config.js
 module.exports = {
     content: ['./src/**/*.{js,jsx,ts,tsx}'],
     theme: {
@@ -21,10 +20,17 @@ module.exports = {
             '0%, 100%': { boxShadow: '0 0 0px rgba(16,185,129, 0.5)' },
             '50%': { boxShadow: '0 0 10px rgba(16,185,129, 1)' },
           },
+          // New fadeIn animation keyframes
+          fadeIn: {
+            '0%': { opacity: 0, transform: 'scale(0.95)' },
+            '100%': { opacity: 1, transform: 'scale(1)' },
+          },
         },
         animation: {
           spinSlow: 'spinSlow 20s linear infinite',
           pulseGlow: 'pulseGlow 2s ease-in-out infinite',
+          // New fadeIn animation
+          fadeIn: 'fadeIn 0.3s ease-out',
         },
       },
     },
