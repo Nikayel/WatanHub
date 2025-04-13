@@ -1,9 +1,9 @@
-import logo from './logo.svg';
+import {BrowserRouter as Router,Routes} from 'react-router-dom';
 import './App.css';
-import './components/Auth/Login';
-import './components/Auth/SignUp';
-import './components/HomePage';
-import { Route } from 'lucide-react';
+import Login from './components/Auth/Login';
+import SignUp from './components/Auth/SignUp';
+import HomePage from './components/HomePage';
+import { Route } from 'react-router-dom';
 function App() {
   return(
     <Router>
