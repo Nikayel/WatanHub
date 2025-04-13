@@ -1,11 +1,8 @@
+// src/components/Navigation/Navbar.js
 import React, { useState } from 'react';
 import { Menu, User, LogOut } from 'lucide-react';
 import { Button } from "../ui/button";
-import {
-    Sheet,
-    SheetContent,
-    SheetTrigger,
-} from "../ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -16,48 +13,35 @@ import {
 import { cn } from "../../lib/utils";
 import AuthDialog from '../Auth/AuthDialog';
 import { useAuth } from '../../lib/AuthContext';
+import { Link } from 'react-router-dom'; // <-- Add this import
 import './Navbar.css';
 
 const Navbar = () => {
     const { user, signOut } = useAuth();
-    const [authMode, setAuthMode] = useState('login');
 
+    // Replace internal scrolling links with route links for About
     const navItems = [
-        { href: "#", label: "Home" },
+        { href: "/", label: "Home" },
         { href: "#mentors", label: "Mentors" },
-        { href: "#about", label: "About" },
+        // For About, use the /timeline route
+        { href: "/timeline", label: "About" },
         { href: "#contact", label: "Contact" },
     ];
 
-    // Handle smooth scrolling when clicking on navigation links
+    // For scrollable links on the same page, you can still have a function, 
+    // but here we differentiate route links using Link when needed.
     const handleScrollToSection = (e, href) => {
+        // if the link begins with "/" we are doing a route, so ignore scrolling.
+        if (href.startsWith("/")) return;
         e.preventDefault();
-
-        // If it's the home link, scroll to top
         if (href === "#") {
-            window.scrollTo({
-                top: 0,
-                behavior: "smooth"
-            });
+            window.scrollTo({ top: 0, behavior: "smooth" });
             return;
         }
-
-        // For other sections, find the element and scroll to it
         const targetElement = document.querySelector(href);
         if (targetElement) {
-            targetElement.scrollIntoView({
-                behavior: "smooth",
-                block: "start"
-            });
+            targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
         }
-    };
-
-    const handleLogin = () => {
-        setAuthMode('login');
-    };
-
-    const handleSignUp = () => {
-        setAuthMode('signup');
     };
 
     const handleLogout = async () => {
@@ -76,14 +60,24 @@ const Navbar = () => {
                     <ul className="flex gap-6">
                         {navItems.map((item) => (
                             <li key={item.label}>
-                                <a
-                                    href={item.href}
-                                    className="text-sm font-medium transition-colors hover:text-primary"
-                                    aria-label={item.label}
-                                    onClick={(e) => handleScrollToSection(e, item.href)}
-                                >
-                                    {item.label}
-                                </a>
+                                {item.href.startsWith("/") ? (
+                                    <Link
+                                        to={item.href}
+                                        className="text-sm font-medium transition-colors hover:text-primary"
+                                        aria-label={item.label}
+                                    >
+                                        {item.label}
+                                    </Link>
+                                ) : (
+                                    <a
+                                        href={item.href}
+                                        className="text-sm font-medium transition-colors hover:text-primary"
+                                        aria-label={item.label}
+                                        onClick={(e) => handleScrollToSection(e, item.href)}
+                                    >
+                                        {item.label}
+                                    </a>
+                                )}
                             </li>
                         ))}
                     </ul>
@@ -101,54 +95,49 @@ const Navbar = () => {
                         <SheetContent side="right">
                             <nav className="flex flex-col gap-4">
                                 {navItems.map((item) => (
-                                    <a
-                                        key={item.label}
-                                        href={item.href}
-                                        className="text-sm font-medium transition-colors hover:text-primary"
-                                        aria-label={item.label}
-                                        onClick={(e) => {
-                                            handleScrollToSection(e, item.href);
-                                            // Close the sheet after clicking a link on mobile
-                                            document.body.click();
-                                        }}
-                                    >
-                                        {item.label}
-                                    </a>
+                                    <div key={item.label}>
+                                        {item.href.startsWith("/") ? (
+                                            <Link
+                                                to={item.href}
+                                                className="text-sm font-medium transition-colors hover:text-primary"
+                                                aria-label={item.label}
+                                            >
+                                                {item.label}
+                                            </Link>
+                                        ) : (
+                                            <a
+                                                href={item.href}
+                                                className="text-sm font-medium transition-colors hover:text-primary"
+                                                aria-label={item.label}
+                                                onClick={(e) => {
+                                                    handleScrollToSection(e, item.href);
+                                                    // Close mobile sheet after clicking
+                                                    document.body.click();
+                                                }}
+                                            >
+                                                {item.label}
+                                            </a>
+                                        )}
+                                    </div>
                                 ))}
-
-                                {/* Auth buttons in mobile menu */}
                                 {!user ? (
                                     <>
                                         <AuthDialog
                                             mode="login"
                                             trigger={
-                                                <Button
-                                                    variant="outline"
-                                                    className="w-full mt-2"
-                                                    onClick={handleLogin}
-                                                >
+                                                <Button variant="outline" className="w-full mt-2">
                                                     Login
                                                 </Button>
                                             }
                                         />
-                                        <AuthDialog
-                                            mode="signup"
-                                            trigger={
-                                                <Button
-                                                    className="w-full mt-2"
-                                                    onClick={handleSignUp}
-                                                >
-                                                    Join Now
-                                                </Button>
-                                            }
-                                        />
+                                        <Link to="/signup">
+                                            <Button className="w-full mt-2">
+                                                Join Now
+                                            </Button>
+                                        </Link>
                                     </>
                                 ) : (
-                                    <Button
-                                        variant="outline"
-                                        className="w-full mt-2"
-                                        onClick={handleLogout}
-                                    >
+                                    <Button variant="outline" className="w-full mt-2" onClick={handleLogout}>
                                         <LogOut className="h-4 w-4 mr-2" />
                                         Logout
                                     </Button>
@@ -165,24 +154,16 @@ const Navbar = () => {
                             <AuthDialog
                                 mode="login"
                                 trigger={
-                                    <Button
-                                        variant="ghost"
-                                        onClick={handleLogin}
-                                    >
+                                    <Button variant="ghost">
                                         Login
                                     </Button>
                                 }
                             />
-                            <AuthDialog
-                                mode="signup"
-                                trigger={
-                                    <Button className="cta-button animate-Glow"
-                                        onClick={handleSignUp}
-                                    >
-                                        Join Now
-                                    </Button>
-                                }
-                            />
+                            <Link to="/signup">
+                                <Button className="cta-button animate-Glow">
+                                    Join Now
+                                </Button>
+                            </Link>
                         </>
                     ) : (
                         <DropdownMenu>
@@ -205,10 +186,7 @@ const Navbar = () => {
                                     <a href="/dashboard">Dashboard</a>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    className="cursor-pointer"
-                                    onClick={handleLogout}
-                                >
+                                <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
                                     <LogOut className="h-4 w-4 mr-2" />
                                     <span>Logout</span>
                                 </DropdownMenuItem>
@@ -221,4 +199,4 @@ const Navbar = () => {
     );
 };
 
-export default Navbar; 
+export default Navbar;
