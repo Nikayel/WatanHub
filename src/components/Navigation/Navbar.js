@@ -1,4 +1,3 @@
-// src/components/Navigation/Navbar.js
 import React, { useState } from 'react';
 import { Menu, User, LogOut } from 'lucide-react';
 import { Button } from "../ui/button";
@@ -13,29 +12,40 @@ import {
 import { cn } from "../../lib/utils";
 import AuthDialog from '../Auth/AuthDialog';
 import { useAuth } from '../../lib/AuthContext';
-import { Link } from 'react-router-dom'; // <-- Add this import
+import { Link } from 'react-router-dom';
 import './Navbar.css';
 
-const Navbar = () => {
+const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
     const { user, signOut } = useAuth();
 
-    // Replace internal scrolling links with route links for About
+    // Define navigation items; you can use href values for display, but will use callbacks for specific ones.
     const navItems = [
-        { href: "/", label: "Home" },
+        { href: "#", label: "Home" },
         { href: "#mentors", label: "Mentors" },
-        // For About, use the /timeline route
-        { href: "/timeline", label: "About" },
+        { href: "#about", label: "About" },
         { href: "#contact", label: "Contact" },
     ];
 
-    // For scrollable links on the same page, you can still have a function, 
-    // but here we differentiate route links using Link when needed.
     const handleScrollToSection = (e, href) => {
-        // if the link begins with "/" we are doing a route, so ignore scrolling.
-        if (href.startsWith("/")) return;
         e.preventDefault();
         if (href === "#") {
-            window.scrollTo({ top: 0, behavior: "smooth" });
+            if (typeof onHomeClick === "function") {
+                onHomeClick();
+            } else {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+            return;
+        }
+        if (href === "#about") {
+            if (typeof onAboutClick === "function") {
+                onAboutClick();
+            }
+            return;
+        }
+        if (href === "#contact") {
+            if (typeof onContactClick === "function") {
+                onContactClick();
+            }
             return;
         }
         const targetElement = document.querySelector(href);
@@ -60,14 +70,14 @@ const Navbar = () => {
                     <ul className="flex gap-6">
                         {navItems.map((item) => (
                             <li key={item.label}>
-                                {item.href.startsWith("/") ? (
-                                    <Link
-                                        to={item.href}
+                                {item.label === "About" || item.label === "Contact" ? (
+                                    <button
                                         className="text-sm font-medium transition-colors hover:text-primary"
                                         aria-label={item.label}
+                                        onClick={(e) => handleScrollToSection(e, item.href)}
                                     >
                                         {item.label}
-                                    </Link>
+                                    </button>
                                 ) : (
                                     <a
                                         href={item.href}
@@ -96,14 +106,17 @@ const Navbar = () => {
                             <nav className="flex flex-col gap-4">
                                 {navItems.map((item) => (
                                     <div key={item.label}>
-                                        {item.href.startsWith("/") ? (
-                                            <Link
-                                                to={item.href}
+                                        {item.label === "About" || item.label === "Contact" ? (
+                                            <button
                                                 className="text-sm font-medium transition-colors hover:text-primary"
                                                 aria-label={item.label}
+                                                onClick={(e) => {
+                                                    handleScrollToSection(e, item.href);
+                                                    document.body.click();
+                                                }}
                                             >
                                                 {item.label}
-                                            </Link>
+                                            </button>
                                         ) : (
                                             <a
                                                 href={item.href}
@@ -111,7 +124,6 @@ const Navbar = () => {
                                                 aria-label={item.label}
                                                 onClick={(e) => {
                                                     handleScrollToSection(e, item.href);
-                                                    // Close mobile sheet after clicking
                                                     document.body.click();
                                                 }}
                                             >
