@@ -10,6 +10,7 @@ import {
   DialogDescription,
   DialogClose,
 } from '../ui/dialog';
+//April14 - disabled RLS 
 import { BookOpen, Bookmark, Globe, Home, Mail, Lock, User, Award, Calendar, FileText, Coffee } from 'lucide-react';
 
 const SignUp = ({ isOpen, onClose }) => {
@@ -124,6 +125,7 @@ const SignUp = ({ isOpen, onClose }) => {
       basicData.firstName, 
       basicData.lastName  
       );
+      //
 
       if (authError || !authData?.user) {
         throw authError || new Error("User creation failed");
