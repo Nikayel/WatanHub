@@ -32,17 +32,35 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     // Sign up with email and password
-    const signUp = async (email, password) => {
+    // Sign up with email and password
+    const signUp = async (email, password, firstName, lastName) => {
         try {
-            setLoading(true);
-            const { error } = await supabase.auth.signUp({ email, password });
-            if (error) throw error;
+          setLoading(true);
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {  // Add metadata
+                first_name: firstName,
+                last_name: lastName
+              }
+            }
+          });
+      
+          if (error) throw error;
+          return { data, error };
         } catch (error) {
-            setError(error.message);
+          console.error("Signup error:", {
+            message: error.message,
+            code: error.code,
+            details: error.details
+          });
+          return { data: null, error };
         } finally {
-            setLoading(false);
+          setLoading(false);
         }
-    };
+      };
+  
 
     // Sign in with email and password
     const signIn = async (email, password) => {

@@ -9,6 +9,7 @@ import FAQ from "./Sections/FAQ";
 import About from "./Sections/About"; // Timeline-based About section
 import Contact from "./Sections/Contact"; // Contact component (modal)
 import Footer from "./Footer";
+import SignUpSteps from "./Sections/SingUpSteps";
 
 const HomePage = () => {
   // activeTab controls the regular content; contactOpen controls the modal overlay
@@ -29,7 +30,7 @@ const HomePage = () => {
             <UpcomingEvents />
             <Mentors />
             <MentorSignup />
-            {/* Pass the onContactClick callback to FAQ */}
+            <SignUpSteps />
             <FAQ onContactClick={() => setContactOpen(true)} />
           </>
         )}
