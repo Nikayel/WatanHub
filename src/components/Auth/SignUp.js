@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/button';
+import { useNavigate} from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -39,7 +40,7 @@ const SignUp = ({ isOpen, onClose }) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const { signUp, signInWithGoogle } = useAuth();
-
+  const navigate = useNavigate();
   const handleBasicChange = (e) => {
     const { name, value } = e.target;
     setBasicData(prev => ({ ...prev, [name]: value }));
@@ -136,6 +137,7 @@ const SignUp = ({ isOpen, onClose }) => {
 
       // Close dialog
       onClose?.();
+      navigate('/welcome'); // Redirecting to welcome page
       
     } catch (err) {
       setError(err.message || 'Signup failed. Please try again.');
