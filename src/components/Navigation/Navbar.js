@@ -11,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { cn } from "../../lib/utils";
-import AuthDialog from "../Auth/AuthDialog";
 import { useAuth } from "../../lib/AuthContext";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -93,13 +92,15 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
           animate={{ opacity: 1 }}
           className="flex items-center"
         >
-          <motion.h1 
-            className="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent"
-            whileHover={{ scale: 1.05 }}
-            aria-label="Watan Logo"
-          >
-            Watan
-          </motion.h1>
+          <Link to="/">
+            <motion.h1 
+              className="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent"
+              whileHover={{ scale: 1.05 }}
+              aria-label="Watan Logo"
+            >
+              Watan
+            </motion.h1>
+          </Link>
         </motion.div>
 
         {/* Desktop Navigation */}
@@ -203,14 +204,11 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
                 <div className="p-4 border-t">
                   {!user ? (
                     <div className="space-y-3">
-                      <AuthDialog
-                        mode="login"
-                        trigger={
-                          <Button variant="outline" className="w-full" onClick={closeMobileMenu}>
-                            Login
-                          </Button>
-                        }
-                      />
+                      <Link to="/login" onClick={closeMobileMenu}>
+                        <Button variant="outline" className="w-full">
+                          Login
+                        </Button>
+                      </Link>
                       <Link to="/signup" onClick={closeMobileMenu}>
                         <Button className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600">
                           Join Now
@@ -252,14 +250,11 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                 >
-                  <AuthDialog
-                    mode="login"
-                    trigger={
-                      <Button variant="ghost" className="rounded-full px-5 font-medium">
-                        Login
-                      </Button>
-                    }
-                  />
+                  <Link to="/login">
+                    <Button variant="ghost" className="rounded-full px-5 font-medium">
+                      Login
+                    </Button>
+                  </Link>
                 </motion.div>
                 <motion.div
                   initial={{ opacity: 0, y: -20 }}
@@ -306,16 +301,16 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
                     </div>
                     <div className="p-1">
                       <DropdownMenuItem asChild className="p-2 cursor-pointer">
-                        <a href="/profile" className="flex items-center">
+                        <Link to="/profile" className="flex items-center">
                           <User className="h-4 w-4 mr-2" />
                           <span>Profile</span>
-                        </a>
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild className="p-2 cursor-pointer">
-                        <a href="/dashboard" className="flex items-center">
+                        <Link to="/dashboard" className="flex items-center">
                           <Users className="h-4 w-4 mr-2" />
                           <span>Dashboard</span>
-                        </a>
+                        </Link>
                       </DropdownMenuItem>
                     </div>
                     <DropdownMenuSeparator />
