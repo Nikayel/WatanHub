@@ -1,6 +1,6 @@
 // src/components/Navigation/Navbar.js
 import React, { useState, useEffect } from "react";
-import { Menu, User, LogOut, Home, Users, Info, Mail, ChevronRight } from "lucide-react";
+import { Menu, User, LogOut, Home, Users, Info, Mail, ChevronRight, Bell } from "lucide-react";
 import { Button } from "../ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import {
@@ -20,11 +20,28 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
   const { user, signOut } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("home");
 
-  // Track scroll position for navbar appearance
+  // Track scroll position for navbar appearance and active section
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
+
+      // Determine active section based on scroll position
+      const sections = ["home", "mentors", "about", "contact"];
+      const sectionElements = sections.map(id => 
+        id === "home" ? document.body : document.querySelector(`#${id}`)
+      );
+      
+      const scrollPosition = window.scrollY + 100;
+      
+      for (let i = sectionElements.length - 1; i >= 0; i--) {
+        const section = sectionElements[i];
+        if (section && section.offsetTop <= scrollPosition) {
+          setActiveSection(sections[i]);
+          break;
+        }
+      }
     };
     
     window.addEventListener("scroll", handleScroll);
@@ -32,13 +49,13 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
   }, []);
 
   const navItems = [
-    { href: "#", label: "Home", icon: <Home className="h-4 w-4 mr-2" /> },
-    { href: "#mentors", label: "Mentors", icon: <Users className="h-4 w-4 mr-2" /> },
-    { href: "#about", label: "About", icon: <Info className="h-4 w-4 mr-2" /> },
-    { href: "#contact", label: "Contact", icon: <Mail className="h-4 w-4 mr-2" /> },
+    { href: "#", id: "home", label: "Home", icon: <Home className="h-4 w-4 mr-2" /> },
+    { href: "#mentors", id: "mentors", label: "Mentors", icon: <Users className="h-4 w-4 mr-2" /> },
+    { href: "#about", id: "about", label: "About", icon: <Info className="h-4 w-4 mr-2" /> },
+    { href: "#contact", id: "contact", label: "Contact", icon: <Mail className="h-4 w-4 mr-2" /> },
   ];
 
-  const handleScrollToSection = (e, href) => {
+  const handleScrollToSection = (e, href, id) => {
     e.preventDefault();
     if (href === "#") {
       if (typeof onHomeClick === "function") {
@@ -46,23 +63,27 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
       } else {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
+      setActiveSection("home");
       return;
     }
     if (href === "#about") {
       if (typeof onAboutClick === "function") {
         onAboutClick();
       }
+      setActiveSection("about");
       return;
     }
     if (href === "#contact") {
       if (typeof onContactClick === "function") {
         onContactClick();
       }
+      setActiveSection("contact");
       return;
     }
     const targetElement = document.querySelector(href);
     if (targetElement) {
       targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
+      setActiveSection(id);
     }
   };
 
@@ -86,250 +107,183 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
           : "bg-transparent"
       )}
     >
-      <nav className="container flex h-16 items-center justify-between">
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex items-center"
-        >
-          <Link to="/">
+      <div className="container mx-auto">
+        <nav className="flex h-16 items-center justify-between">
+          {/* Logo */}
+          <Link to="/" className="flex-shrink-0">
             <motion.h1 
-              className="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent"
+              className="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent logo-hover"
               whileHover={{ scale: 1.05 }}
-              aria-label="Watan Logo"
             >
               Watan
             </motion.h1>
           </Link>
-        </motion.div>
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex md:flex-1 justify-center">
-          <ul className="flex gap-6 items-center">
-            {navItems.map((item) => (
-              <motion.li 
-                key={item.label}
-                whileHover={{ y: -2 }}
-                transition={{ type: "spring", stiffness: 400, damping: 10 }}
-              >
-                {item.label === "About" || item.label === "Contact" ? (
-                  <button
-                    className="text-sm font-medium flex items-center relative group"
-                    aria-label={item.label}
-                    onClick={(e) => handleScrollToSection(e, item.href)}
-                  >
-                    <span className="transition-colors group-hover:text-primary">{item.label}</span>
-                    <motion.span 
-                      className="absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r from-indigo-500 to-purple-500"
-                      whileHover={{ width: "100%" }}
-                      transition={{ duration: 0.2 }}
-                    />
-                  </button>
-                ) : (
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center justify-center">
+            <ul className="flex space-x-8">
+              {navItems.map((item) => (
+                <li key={item.label}>
                   <a
                     href={item.href}
-                    className="text-sm font-medium flex items-center relative group"
-                    aria-label={item.label}
-                    onClick={(e) => handleScrollToSection(e, item.href)}
+                    className={`text-sm font-medium relative nav-link ${
+                      activeSection === item.id ? "text-indigo-600 dark:text-indigo-400" : ""
+                    }`}
+                    onClick={(e) => handleScrollToSection(e, item.href, item.id)}
                   >
-                    <span className="transition-colors group-hover:text-primary">{item.label}</span>
-                    <motion.span 
-                      className="absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r from-indigo-500 to-purple-500"
-                      initial={{ width: "0%" }}
-                      whileHover={{ width: "100%" }}
-                      transition={{ duration: 0.2 }}
-                    />
+                    {item.label}
+                    {activeSection === item.id && (
+                      <motion.span 
+                        layoutId="activeNavIndicator"
+                        className="absolute bottom-0 left-0 h-0.5 w-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                      />
+                    )}
                   </a>
-                )}
-              </motion.li>
-            ))}
-          </ul>
-        </div>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-        {/* Mobile Navigation */}
-        <div className="flex md:hidden">
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-4/5 sm:w-80 p-0">
-              <div className="h-full flex flex-col">
-                <div className="p-6 bg-gradient-to-r from-indigo-500 to-purple-500">
-                  <h2 className="text-2xl font-bold text-white">Watan</h2>
-                  <p className="text-white/80 text-sm mt-1">Connecting through mentorship</p>
-                </div>
-                
-                <nav className="flex flex-col p-4 gap-1 flex-1">
-                  {navItems.map((item) => (
-                    <motion.div 
-                      key={item.label}
-                      whileHover={{ x: 5 }}
-                      className="w-full"
-                    >
-                      {item.label === "About" || item.label === "Contact" ? (
-                        <button
-                          className="flex items-center w-full p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                          aria-label={item.label}
-                          onClick={(e) => {
-                            handleScrollToSection(e, item.href);
-                            closeMobileMenu();
-                          }}
-                        >
-                          {item.icon}
-                          <span className="flex-1">{item.label}</span>
-                          <ChevronRight className="h-4 w-4 opacity-50" />
-                        </button>
-                      ) : (
-                        <a
-                          href={item.href}
-                          className="flex items-center w-full p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                          aria-label={item.label}
-                          onClick={(e) => {
-                            handleScrollToSection(e, item.href);
-                            closeMobileMenu();
-                          }}
-                        >
-                          {item.icon}
-                          <span className="flex-1">{item.label}</span>
-                          <ChevronRight className="h-4 w-4 opacity-50" />
-                        </a>
-                      )}
-                    </motion.div>
-                  ))}
-                </nav>
-                
-                <div className="p-4 border-t">
-                  {!user ? (
-                    <div className="space-y-3">
-                      <Link to="/login" onClick={closeMobileMenu}>
-                        <Button variant="outline" className="w-full">
-                          Login
-                        </Button>
-                      </Link>
-                      <Link to="/signup" onClick={closeMobileMenu}>
-                        <Button className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600">
-                          Join Now
-                        </Button>
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex items-center p-2 border rounded-lg">
-                        <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full h-10 w-10 flex items-center justify-center text-white">
-                          {user.email.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="ml-3 flex-1 truncate">
-                          <p className="font-medium">{user.email}</p>
-                        </div>
+          {/* Mobile Menu Button */}
+          <div className="md:hidden">
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-4/5 sm:w-80 p-0">
+                <div className="h-full flex flex-col">
+                  <div className="p-6 bg-gradient-to-r from-indigo-500 to-purple-500">
+                    <h2 className="text-2xl font-bold text-white">Watan</h2>
+                    <p className="text-white/80 text-sm mt-1">Connecting through mentorship</p>
+                  </div>
+                  
+                  <nav className="flex flex-col p-4 gap-1 flex-1">
+                    {navItems.map((item) => (
+                      <a
+                        key={item.label}
+                        href={item.href}
+                        className={`flex items-center w-full p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                          activeSection === item.id ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400" : ""
+                        }`}
+                        onClick={(e) => {
+                          handleScrollToSection(e, item.href, item.id);
+                          closeMobileMenu();
+                        }}
+                      >
+                        {item.icon}
+                        <span className="flex-1">{item.label}</span>
+                        <ChevronRight className="h-4 w-4 opacity-50" />
+                      </a>
+                    ))}
+                  </nav>
+                  
+                  <div className="p-4 border-t dark:border-gray-700">
+                    {!user ? (
+                      <div className="space-y-3">
+                        <Link to="/login" onClick={closeMobileMenu}>
+                          <Button variant="outline" className="w-full">Login</Button>
+                        </Link>
+                        <Link to="/signup" onClick={closeMobileMenu}>
+                          <Button className="w-full bg-gradient-to-r from-indigo-500 to-purple-500">Join Now</Button>
+                        </Link>
                       </div>
-                      <Link to="/profile" className="block w-full" onClick={closeMobileMenu}>
-                        <Button variant="outline" className="w-full">Profile</Button>
-                      </Link>
-                      <Button variant="outline" className="w-full" onClick={handleLogout}>
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Logout
-                      </Button>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center p-2 border rounded-lg dark:border-gray-700">
+                          <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full h-8 w-8 flex items-center justify-center text-white">
+                            {user.email.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="ml-3 flex-1 truncate">
+                            <p className="font-medium text-sm">{user.email}</p>
+                          </div>
+                        </div>
+                        <Link to="/profile" className="block w-full" onClick={closeMobileMenu}>
+                          <Button variant="outline" className="w-full">Profile</Button>
+                        </Link>
+                        <Button variant="outline" className="w-full" onClick={handleLogout}>
+                          <LogOut className="h-4 w-4 mr-2" />
+                          Logout
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
+              </SheetContent>
+            </Sheet>
+          </div>
 
-        {/* Auth Buttons (Desktop) */}
-        <AnimatePresence mode="wait">
-          <div className="hidden md:flex items-center gap-3">
+          {/* Auth Buttons (Desktop) */}
+          <div className="hidden md:flex items-center space-x-4">
             {!user ? (
               <>
-                <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <Link to="/login">
-                    <Button variant="ghost" className="rounded-full px-5 font-medium">
-                      Login
-                    </Button>
-                  </Link>
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <Link to="/signup">
-                    <Button 
-                      className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 rounded-full px-6 font-medium shadow-lg shadow-indigo-500/20"
-                      whileHover={{ scale: 1.05 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                    >
-                      Join Now
-                    </Button>
-                  </Link>
-                </motion.div>
+                <Link to="/login">
+                  <Button variant="ghost" className="px-4">Login</Button>
+                </Link>
+                <Link to="/signup">
+                  <Button className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600">
+                    Join Now
+                  </Button>
+                </Link>
               </>
             ) : (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="relative"
-              >
+              <div className="flex items-center space-x-3">
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  <span className="absolute top-0 right-0 h-2 w-2 bg-indigo-500 rounded-full"></span>
+                </Button>
+                
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
                       variant="ghost" 
-                      className="rounded-full pl-3 pr-4 py-2 flex items-center gap-2 border border-gray-200 hover:border-gray-300 bg-white/50 hover:bg-white/80"
+                      className="flex items-center space-x-2 border border-gray-200 dark:border-gray-700 rounded-full pl-2 pr-3"
                     >
-                      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full h-8 w-8 flex items-center justify-center text-white">
+                      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full h-7 w-7 flex items-center justify-center text-white">
                         {user.email.charAt(0).toUpperCase()}
                       </div>
-                      <span className="font-medium truncate max-w-[120px]">
+                      <span className="font-medium text-sm truncate max-w-[100px]">
                         {user.email.split('@')[0]}
                       </span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 mt-1">
-                    <div className="flex items-center justify-start gap-2 p-3 border-b">
-                      <div className="flex flex-col space-y-1 leading-none">
-                        <p className="font-medium">{user.email}</p>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="flex items-center p-2 border-b dark:border-gray-700">
+                      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full h-8 w-8 flex items-center justify-center text-white">
+                        {user.email.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="ml-2">
+                        <p className="font-medium text-sm truncate max-w-[180px]">{user.email}</p>
                         <p className="text-xs text-gray-500">Member</p>
                       </div>
                     </div>
                     <div className="p-1">
-                      <DropdownMenuItem asChild className="p-2 cursor-pointer">
-                        <Link to="/profile" className="flex items-center">
+                      <DropdownMenuItem asChild>
+                        <Link to="/profile" className="flex items-center p-2">
                           <User className="h-4 w-4 mr-2" />
                           <span>Profile</span>
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild className="p-2 cursor-pointer">
-                        <Link to="/dashboard" className="flex items-center">
+                      <DropdownMenuItem asChild>
+                        <Link to="/dashboard" className="flex items-center p-2">
                           <Users className="h-4 w-4 mr-2" />
                           <span>Dashboard</span>
                         </Link>
                       </DropdownMenuItem>
                     </div>
                     <DropdownMenuSeparator />
-                    <div className="p-1">
-                      <DropdownMenuItem
-                        className="p-2 cursor-pointer text-red-500 hover:text-red-600 focus:text-red-600 hover:bg-red-50 focus:bg-red-50"
-                        onClick={handleLogout}
-                      >
-                        <LogOut className="h-4 w-4 mr-2" />
-                        <span>Logout</span>
-                      </DropdownMenuItem>
-                    </div>
+                    <DropdownMenuItem onClick={handleLogout} className="p-2 text-red-500">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      <span>Logout</span>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </motion.div>
+              </div>
             )}
           </div>
-        </AnimatePresence>
-      </nav>
+        </nav>
+      </div>
     </motion.header>
   );
 };
