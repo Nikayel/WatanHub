@@ -7,7 +7,25 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
+    const [isAdmin, setIsAdmin] = useState(false);
+    const checkAdmin = async (email) => {
+        try {
+            const { data, error } = await supabase
+                .from('admin')
+                .select('email')
+                .eq('email', email)
+                .single();
+    
+            if (error && error.code !== 'PGRST116') { // Ignore "no rows" error
+                console.error("Admin check error:", error.message);
+            }
+    
+            setIsAdmin(!!data); // true if found, false if not
+        } catch (error) {
+            console.error('Error checking admin:', error.message);
+        }
+    };
+    
     useEffect(() => {
         // Get the session from local storage
         const fetchSession = async () => {
@@ -21,9 +39,15 @@ export const AuthProvider = ({ children }) => {
         // Listen for changes to auth state
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (_event, session) => {
-                setUser(session?.user ?? null);
-                setLoading(false);
-            }
+                const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        if (currentUser) {
+            checkAdmin(currentUser.email); 
+        } else {
+            setIsAdmin(false); 
+        }
+        setLoading(false);
+    }
         );
 
         return () => {
@@ -109,6 +133,7 @@ export const AuthProvider = ({ children }) => {
                 user,
                 loading,
                 error,
+                isAdmin,
                 signUp,
                 signIn,
                 signInWithGoogle,
