@@ -17,7 +17,7 @@ const Login = () => {
         e.preventDefault();
         const success = await signIn(email, password);
         if (success) {
-            navigate('/');
+            navigate('/dashboard');
         }
     };
 
