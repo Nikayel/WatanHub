@@ -7,8 +7,10 @@ import SignUp from './components/Auth/SignUp';
 import HomePage from './components/HomePage';
 import TimelineDemo from './components/ui/timeline-demo';
 import { Route } from 'react-router-dom';
-import ProtectedRoute from './components/ProtectedRoute';
-
+import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
+import ProtectedRoute from './components/Routes/ProtectedRoute';
+import AdminRoute from './components/adminRoute';
 function App() {
   return(
     <Router>
@@ -17,6 +19,7 @@ function App() {
         <Route path='/login' element={<Login />} />
         <Route path="/signup" element={<SignUp isOpen={true} onClose={() => {}} />} />
         <Route path="/timeline" element={<TimelineDemo />} />
+        <Route path="/blogs" element={<BlogList />} />
         <Route
           path="/admin-create-blog"
           element={
