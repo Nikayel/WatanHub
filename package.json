@@ -4,7 +4,8 @@
   "private": true,
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.4",
-    "@radix-ui/react-dialog": "^1.1.7",
+    "@radix-ui/react-dialog": "^1.1.10",
+    "@radix-ui/react-dropdown-menu": "^2.1.11",
     "@supabase/supabase-js": "^2.49.4",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -14,7 +15,7 @@
     "clsx": "^2.1.1",
     "crypto-browserify": "^3.12.1",
     "dotenv": "^16.5.0",
-    "framer-motion": "^12.6.5",
+    "framer-motion": "^12.7.4",
     "googleapis": "^148.0.0",
     "lucide-react": "^0.487.0",
     "os-browserify": "^0.3.0",
