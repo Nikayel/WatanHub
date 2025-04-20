@@ -10,6 +10,7 @@ import About from "./Sections/About"; // Timeline-based About section
 import Contact from "./Sections/Contact"; // Contact component (modal)
 import Footer from "./Footer";
 import SignUpSteps from "./Sections/SingUpSteps";
+import BlogList from "../pages/BlogList"; // Blog list component
 
 const HomePage = () => {
   // activeTab controls the regular content; contactOpen controls the modal overlay
@@ -27,7 +28,10 @@ const HomePage = () => {
         {activeTab === "home" && (
           <>
             <Welcome />
-            <UpcomingEvents />
+            <section id="blog-list">
+              <h2 className="text-2xl font-bold my-6 text-center">Latest Posts</h2>
+              <BlogList />
+            </section>
             <Mentors />
             <MentorSignup />
             <SignUpSteps />

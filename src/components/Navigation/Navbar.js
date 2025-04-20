@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Menu, User, LogOut, Home, Users, Info, Mail } from "lucide-react";
 import { Button } from "../ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
-
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../lib/AuthContext";
+import { supabase } from "../../lib/supabase";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -13,15 +13,32 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
-      // no need to recompute activeSection here if using tabs
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('admin')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (data) {
+        setIsAdmin(true);
+      }
+    };
+
+    checkAdmin();
+  }, [user]);
 
   const navItems = [
     { href: "#", id: "home", label: "Home", icon: <Home size={24} /> },
@@ -32,7 +49,6 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
 
   const handleScrollToSection = (e, href, id) => {
     e.preventDefault();
-    // call parent handlers for tabs
     if (id === "home") {
       onHomeClick();
     } else if (id === "about") {
@@ -40,7 +56,6 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
     } else if (id === "contact") {
       onContactClick();
     } else {
-      // optional scroll for mentors
       const target = document.getElementById("mentors");
       if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -126,11 +141,21 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
                           <User size={16} /> Profile
                         </Button>
                       </Link>
-                      <Link to="/dashboard" onClick={closeMobileMenu}>
-                        <Button variant="outline" className="w-full flex items-center gap-2">
-                          <Users size={16} /> Dashboard
-                        </Button>
-                      </Link>
+
+                      {isAdmin ? (
+                        <Link to="/admin/dashboard" onClick={closeMobileMenu}>
+                          <Button variant="outline" className="w-full flex items-center gap-2">
+                            <Users size={16} /> Admin Dashboard
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Link to="/dashboard" onClick={closeMobileMenu}>
+                          <Button variant="outline" className="w-full flex items-center gap-2">
+                            <Users size={16} /> Dashboard
+                          </Button>
+                        </Link>
+                      )}
+
                       <Button variant="destructive" onClick={handleLogout} className="w-full flex items-center gap-2">
                         <LogOut size={16} /> Logout
                       </Button>
@@ -165,11 +190,20 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
               </>
             ) : (
               <div className="flex items-center gap-4">
-                <Link to="/dashboard">
-                  <Button variant="ghost" className="flex items-center gap-2">
-                    <Users size={16} /> Dashboard
-                  </Button>
-                </Link>
+                {isAdmin ? (
+                  <Link to="/admin/dashboard">
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <Users size={16} /> Admin Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link to="/dashboard">
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <Users size={16} /> Dashboard
+                    </Button>
+                  </Link>
+                )}
+                
                 <Link to="/profile">
                   <Button variant="ghost" className="flex items-center gap-2">
                     <User size={16} /> Profile
@@ -181,9 +215,11 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
               </div>
             )}
           </div>
+
         </nav>
       </div>
     </motion.header>
-);
-}
+  );
+};
+
 export default Navbar;
