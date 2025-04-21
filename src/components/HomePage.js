@@ -32,9 +32,10 @@ const HomePage = () => {
               <h2 className="text-2xl font-bold my-6 text-center">Latest Posts</h2>
               <BlogList />
             </section>
+            <SignUpSteps />
             <Mentors />
             <MentorSignup />
-            <SignUpSteps />
+            
             <FAQ onContactClick={() => setContactOpen(true)} />
           </>
         )}

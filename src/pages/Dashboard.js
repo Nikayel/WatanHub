@@ -80,6 +80,14 @@ export default function Dashboard() {
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-md p-6 sm:p-8 mb-8 text-white">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
           <div>
+          <div className="mb-8">
+  <Link
+    to="/"
+    className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-lg transition duration-300"
+  >
+    ← Back to Home
+  </Link>
+</div>
             <h1 className="text-3xl sm:text-4xl font-bold">Welcome{profileData ? `, ${profileData.first_name}` : ''}!</h1>
             <p className="mt-2 text-indigo-100">Here's what's happening today</p>
           </div>
@@ -166,7 +174,7 @@ export default function Dashboard() {
                       <p className="text-gray-700">{announcement.message}</p>
                     </div>
                     
-                    {/* We could add a CTA here if needed */}
+                    {/* CTA - for FUTURE scaleing */}
                     {announcement.cta_link && (
                       <div className="mt-3 text-right">
                         <Link 
