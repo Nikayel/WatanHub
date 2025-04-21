@@ -3,6 +3,7 @@ import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { User, ChevronLeft, Save, X, Edit2 } from 'lucide-react';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -11,125 +12,203 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const [savingChanges, setSavingChanges] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-      } else {
-        setProfile(data);
-        setEditForm(data);
+        if (error) {
+          console.error('Error fetching profile:', error);
+        } else {
+          setProfile(data);
+          setEditForm(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchProfile();
   }, [user]);
 
-  const handleSave = async () => {
-    const { error } = await supabase
-      .from('profiles')
-      .update(editForm)
-      .eq('id', user.id);
+  const handleInputChange = (key, value) => {
+    setEditForm(prev => ({ ...prev, [key]: value }));
+  };
 
-    if (error) {
-      toast.error('Failed to update profile');
-    } else {
-      toast.success('Profile updated successfully!');
-      setProfile(editForm);
-      setEditing(false);
+  const handleSave = async () => {
+    setSavingChanges(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(editForm)
+        .eq('id', user.id);
+
+      if (error) {
+        toast.error('Failed to update profile');
+      } else {
+        toast.success('Profile updated successfully!');
+        setProfile(editForm);
+        setEditing(false);
+      }
+    } catch (err) {
+      toast.error('An unexpected error occurred');
+    } finally {
+      setSavingChanges(false);
     }
+  };
+
+  const handleCancel = () => {
+    setEditForm(profile);
+    setEditing(false);
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-600"></div>
       </div>
     );
   }
 
   if (!profile) {
-    return <div className="text-center text-gray-500 py-12">No profile found.</div>;
-  }
-
-  return (
-    <div className="max-w-4xl mx-auto px-6 py-10">
-      
-      {/* Back Button */}
-      <div className="mb-6">
-        <button
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen px-4">
+        <User size={64} className="text-gray-400 mb-4" />
+        <h2 className="text-xl font-semibold text-gray-700">No Profile Found</h2>
+        <p className="text-gray-500 mt-2 text-center">We couldn't find your profile information.</p>
+        <button 
           onClick={() => navigate(-1)}
-          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm transition"
+          className="mt-6 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
         >
-          ← Back to Dashboard
+          Return to Dashboard
         </button>
       </div>
+    );
+  }
 
-      {/* Page Title */}
-      <h1 className="text-4xl font-bold text-center mb-8">My Profile</h1>
+  const profileFields = [
+    { label: 'First Name', key: 'first_name', type: 'text' },
+    { label: 'Last Name', key: 'last_name', type: 'text' },
+    { label: 'Email', key: 'email', type: 'email' },
+    { label: 'Education Level', key: 'education_level', type: 'text' },
+    { label: 'English Level', key: 'english_level', type: 'text' },
+    { label: 'TOEFL Score', key: 'toefl_score', type: 'text' },
+    { label: 'Date of Birth', key: 'date_of_birth', type: 'date' },
+    { label: 'Interests', key: 'interests', type: 'textarea' },
+    { label: 'Bio', key: 'bio', type: 'textarea' },
+  ];
 
-      <div className="bg-white p-8 rounded-xl shadow space-y-6">
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm transition self-start"
+        >
+          <ChevronLeft size={16} className="mr-1" />
+          Back
+        </button>
+        
+        <h1 className="text-3xl sm:text-4xl font-bold text-center sm:text-left flex-grow">My Profile</h1>
+        
+        {!editing && (
+          <button
+            onClick={() => setEditing(true)}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center transition-colors"
+          >
+            <Edit2 size={16} className="mr-2" />
+            Edit Profile
+          </button>
+        )}
+      </div>
 
-        {/* Info Fields */}
-        {[
-          { label: 'First Name', key: 'first_name' },
-          { label: 'Last Name', key: 'last_name' },
-          { label: 'Email', key: 'email' },
-          { label: 'Education Level', key: 'education_level' },
-          { label: 'English Level', key: 'english_level' },
-          { label: 'TOEFL Score', key: 'toefl_score' },
-          { label: 'Interests', key: 'interests' },
-          { label: 'Bio', key: 'bio' },
-          { label: 'Date of Birth', key: 'date_of_birth' },
-        ].map((field) => (
-          <div key={field.key}>
-            <label className="text-gray-600 font-medium">{field.label}</label>
-            {editing ? (
-              <input
-                type="text"
-                className="w-full mt-1 border rounded px-3 py-2"
-                value={editForm[field.key] || ''}
-                onChange={(e) => setEditForm({ ...editForm, [field.key]: e.target.value })}
-              />
-            ) : (
-              <p className="mt-1 text-gray-800">{profile[field.key] || 'N/A'}</p>
-            )}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Profile Header */}
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 h-24 sm:h-32 w-full relative">
+          <div className="absolute -bottom-12 sm:-bottom-14 left-6 sm:left-8 bg-white rounded-full p-1 border-4 border-white shadow-md">
+            <div className="bg-indigo-100 rounded-full w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center text-indigo-600">
+              <User size={40} />
+            </div>
           </div>
-        ))}
+        </div>
+        
+        {/* Profile Content */}
+        <div className="pt-14 sm:pt-16 p-6 sm:p-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 sm:gap-y-6 mt-4">
+            {profileFields.map((field) => {
+              const isTextarea = field.type === 'textarea';
+              const colSpan = isTextarea ? "md:col-span-2" : "";
+              
+              return (
+                <div key={field.key} className={`${colSpan}`}>
+                  <label className="text-gray-600 font-medium text-sm block mb-1">
+                    {field.label}
+                  </label>
+                  
+                  {editing ? (
+                    isTextarea ? (
+                      <textarea
+                        className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all min-h-24"
+                        value={editForm[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value)}
+                      />
+                    ) : (
+                      <input
+                        type={field.type}
+                        className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                        value={editForm[field.key] || ''}
+                        onChange={(e) => handleInputChange(field.key, e.target.value)}
+                      />
+                    )
+                  ) : (
+                    <p className="mt-1 px-3 py-2 bg-gray-50 rounded-lg text-gray-800 break-words">
+                      {profile[field.key] || 'Not provided'}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-4 mt-8">
-          {editing ? (
-            <>
+          {/* Action Buttons */}
+          {editing && (
+            <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8">
               <button
-                onClick={() => setEditing(false)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded"
+                onClick={handleCancel}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg flex items-center justify-center transition-colors"
               >
+                <X size={16} className="mr-2" />
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded"
+                disabled={savingChanges}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center justify-center transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Save Changes
+                {savingChanges ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} className="mr-2" />
+                    Save Changes
+                  </>
+                )}
               </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setEditing(true)}
-              className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
-            >
-              Edit Profile
-            </button>
+            </div>
           )}
         </div>
       </div>

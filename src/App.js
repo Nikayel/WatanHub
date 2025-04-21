@@ -24,6 +24,8 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminBlogManage from './pages/admin/AdminBlogManage';
 import AdminBlogCreate from './pages/admin/AdminBlogCreate';
 import AdminBlogEdit from './pages/admin/AdminBlogEdit';
+import AdminSendAnnouncement from './pages/admin/sendAnnouncement'; // 👈 import it
+
 
 // User Pages
 import Dashboard from './pages/Dashboard';
@@ -41,6 +43,11 @@ function App() {
         <Route path="/blogs" element={<BlogList />} />
         <Route path="/blog/:id" element={<BlogDetail />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/admin/announcements/send" element={
+  <AdminRoute>
+    <AdminSendAnnouncement />
+  </AdminRoute>
+} />
         <Route path="/signup" element={<SignUp isOpen={true} onClose={() => {}} />} />
 
         {/* Protected Routes (Logged-in Users Only) */}

@@ -131,6 +131,13 @@ export default function AdminDashboard() {
       </div>
 
       {/* Students Table */}
+        <Link
+      to="/admin/announcements/send"
+  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow transition"
+    >
+    Send Announcement
+    </Link>
+
       <div className="overflow-x-auto bg-white rounded-xl shadow p-6">
       <div className="mb-6 flex justify-center">
   <input
