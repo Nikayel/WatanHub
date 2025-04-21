@@ -75,7 +75,7 @@ function App() {
           </AdminRoute>
         } />
 
-        <Route path="/admin/blogs/edit/:id" element={
+        <Route path="/admin/blog/edit/:id" element={
           <AdminRoute>
             <AdminBlogEdit />
           </AdminRoute>

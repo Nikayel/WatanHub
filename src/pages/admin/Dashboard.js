@@ -12,6 +12,18 @@ export default function AdminDashboard() {
   const [expanded, setExpanded] = useState(null);
   const [editingStudent, setEditingStudent] = useState(null);
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const filteredStudents = students.filter((student) => {
+    const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
+    const email = student.email.toLowerCase();
+    const query = searchQuery.toLowerCase();
+  
+    return (
+      fullName.includes(query) ||
+      email.includes(query)
+    );
+  });
+ 
 
   useEffect(() => {
     const checkAdminAndFetch = async () => {
@@ -120,6 +132,16 @@ export default function AdminDashboard() {
 
       {/* Students Table */}
       <div className="overflow-x-auto bg-white rounded-xl shadow p-6">
+      <div className="mb-6 flex justify-center">
+  <input
+    type="text"
+    placeholder="Search students by name or email..."
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    className="border px-4 py-2 rounded w-full max-w-md focus:outline-none focus:ring focus:border-blue-300"
+  />
+</div>
+
         <table className="min-w-full text-sm text-left">
           <thead className="border-b">
             <tr>
@@ -131,7 +153,7 @@ export default function AdminDashboard() {
             </tr>
           </thead>
           <tbody>
-            {students.map((student) => (
+            {filteredStudents.map((student) => (
               <>
               <tr key={student.id} className="border-b hover:bg-gray-50">
                 <td className="py-3 px-4">{student.first_name} {student.last_name}</td>
