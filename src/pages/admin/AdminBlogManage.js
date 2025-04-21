@@ -97,7 +97,6 @@ Description: ${blog.description || 'No description available'}
         </button>
       </div>
 
-      {/* Page Title and Create New */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">Manage Blogs</h1>
         <Link

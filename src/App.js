@@ -24,7 +24,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminBlogManage from './pages/admin/AdminBlogManage';
 import AdminBlogCreate from './pages/admin/AdminBlogCreate';
 import AdminBlogEdit from './pages/admin/AdminBlogEdit';
-import AdminSendAnnouncement from './pages/admin/sendAnnouncement'; // 👈 import it
+import AdminAnnouncementSend from './pages/admin/AdminAnnouncementSend'; // 👈 import it
 
 
 // User Pages
@@ -45,7 +45,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/admin/announcements/send" element={
   <AdminRoute>
-    <AdminSendAnnouncement />
+    <AdminAnnouncementSend />
   </AdminRoute>
 } />
         <Route path="/signup" element={<SignUp isOpen={true} onClose={() => {}} />} />
