@@ -137,7 +137,7 @@ const SignUp = ({ isOpen, onClose }) => {
 
       // Close dialog
       onClose?.();
-      navigate('/welcome'); // Redirecting to welcome page
+      navigate('/'); // Redirecting to welcome page
       
     } catch (err) {
       setError(err.message || 'Signup failed. Please try again.');

@@ -31,6 +31,37 @@ const BlogDetail = () => {
 
     fetchBlog();
   }, [id]);
+  useEffect(() => {
+    const incrementViews = async () => {
+      if (!id) return;
+
+      // Fetch current views
+      const { data: blogData, error: fetchError } = await supabase
+        .from('blogs')
+        .select('views')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching current views:', fetchError);
+        return;
+      }
+
+      const currentViews = blogData?.views || 0;
+
+      // Update views
+      const { error: updateError } = await supabase
+        .from('blogs')
+        .update({ views: currentViews + 1 })
+        .eq('id', id);
+
+      if (updateError) {
+        console.error('Error updating views:', updateError);
+      }
+    };
+
+    incrementViews();
+  }, [id]); // 👈 only run when "id" changes
 
   useEffect(() => {
     const checkAdmin = async () => {

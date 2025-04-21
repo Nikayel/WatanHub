@@ -1,19 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../lib/AuthContext';
-import ReactMarkdown from 'react-markdown';
+import { Button } from '../../components/ui/button';
 
-const AdminBlogEdit = () => {
+export default function AdminBlogEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-
-  const [title, setTitle] = useState('');
-  const [coverImageUrl, setCoverImageUrl] = useState('');
-  const [description, setDescription] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [blog, setBlog] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     const fetchBlog = async () => {
@@ -26,9 +21,7 @@ const AdminBlogEdit = () => {
       if (error) {
         console.error('Error fetching blog:', error);
       } else {
-        setTitle(data.title);
-        setCoverImageUrl(data.cover_image_url || '');
-        setDescription(data.description);
+        setBlog(data);
       }
       setLoading(false);
     };
@@ -36,100 +29,106 @@ const AdminBlogEdit = () => {
     fetchBlog();
   }, [id]);
 
-  useEffect(() => {
-    const checkAdmin = async () => {
-      if (!user) return;
-      const { data, error } = await supabase
-        .from('admin')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (data) {
-        setIsAdmin(true);
-      }
-    };
-
-    checkAdmin();
-  }, [user]);
+  const handleChange = (e) => {
+    setBlog({
+      ...blog,
+      [e.target.name]: e.target.value,
+    });
+  };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    setUpdating(true);
 
     const { error } = await supabase
       .from('blogs')
       .update({
-        title,
-        cover_image_url: coverImageUrl,
-        description,
+        title: blog.title,
+        cover_image_url: blog.cover_image_url,
+        description: blog.description,
       })
       .eq('id', id);
 
+    setUpdating(false);
+
     if (error) {
       console.error('Error updating blog:', error);
+      alert('Failed to update blog. Please try again.');
     } else {
       alert('Blog updated successfully!');
-      navigate(`/blogs/${id}`);
+      navigate('/admin/blogs/manage'); // or wherever you list/manage blogs
     }
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
-  if (!isAdmin) {
-    return <div className="p-4 text-center text-red-500">Access Denied. Admins only.</div>;
+  if (!blog) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Blog not found.</p>
+      </div>
+    );
   }
+  console.log('Blog:', blog);
+console.log('Loading:', loading);
+console.log('ID from URL:', id);
+
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 md:p-8">
-      <h1 className="text-3xl font-bold mb-6">Edit Blog</h1>
+    <div className="max-w-3xl mx-auto p-8">
+      <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">Edit Blog</h1>
 
       <form onSubmit={handleUpdate} className="space-y-6">
         <div>
-          <label className="block font-medium mb-1">Title</label>
+          <label className="block text-gray-700 font-medium mb-2">Title</label>
           <input
             type="text"
-            className="w-full p-2 border rounded"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            name="title"
+            value={blog.title || ''}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
             required
           />
         </div>
 
         <div>
-          <label className="block font-medium mb-1">Cover Image URL</label>
+          <label className="block text-gray-700 font-medium mb-2">Cover Image URL</label>
           <input
             type="text"
-            className="w-full p-2 border rounded"
-            value={coverImageUrl}
-            onChange={(e) => setCoverImageUrl(e.target.value)}
+            name="cover_image_url"
+            value={blog.cover_image_url || ''}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
           />
         </div>
 
         <div>
-          <label className="block font-medium mb-1">Description (Markdown Supported)</label>
+          <label className="block text-gray-700 font-medium mb-2">Description</label>
           <textarea
-            className="w-full p-2 border rounded h-48"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
+            name="description"
+            value={blog.description || ''}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
+            rows="4"
           />
         </div>
 
-        <div>
-          <label className="block font-medium mb-1">Live Preview</label>
-          <div className="prose border p-4 rounded max-w-none bg-white">
-            <ReactMarkdown>{description}</ReactMarkdown>
-          </div>
+        <div className="text-center">
+          <Button
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300"
+            disabled={updating}
+          >
+            {updating ? 'Updating...' : 'Update Blog'}
+          </Button>
         </div>
-
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          Update Blog
-        </button>
       </form>
     </div>
   );
-};
-
-export default AdminBlogEdit;
+}
