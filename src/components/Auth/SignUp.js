@@ -79,7 +79,7 @@ const SignUp = ({ isOpen, onClose }) => {
     let profileData;
     try {
         profileData = {
-        user_id: userId,
+        id: userId,
         first_name: basicData.firstName.trim(),
         last_name: basicData.lastName.trim(),
         email: basicData.email.toLowerCase().trim(),
