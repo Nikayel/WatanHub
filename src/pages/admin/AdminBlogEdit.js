@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/button';
+import { toast } from 'sonner';
 
 export default function AdminBlogEdit() {
   const { id } = useParams();
@@ -55,7 +56,7 @@ export default function AdminBlogEdit() {
       console.error('Error updating blog:', error);
       alert('Failed to update blog. Please try again.');
     } else {
-      alert('Blog updated successfully!');
+      toast.success('Blog updated successfully!');
       navigate('/admin/blogs/manage'); // or wherever you list/manage blogs
     }
   };

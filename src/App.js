@@ -1,3 +1,6 @@
+//UI
+import { Toaster } from 'sonner';
+
 // React and Routing
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
@@ -29,6 +32,7 @@ import Profile from './pages/Profile';
 function App() {
   return (
     <Router>
+          <Toaster position="top-center" richColors /> {/* <- here */}
       <Routes>
 
         {/* Public Routes */}

@@ -17,7 +17,7 @@ export default function EnhancedBlogList() {
         const { data, error } = await supabase
           .from('blogs')
           .select('*')
-          .order('created_at', { ascending: false });
+          .order('views', { ascending: false });
 
         if (error) throw error;
 
