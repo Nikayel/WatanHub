@@ -1,7 +1,8 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-
+import { useAuth } from "../../lib/AuthContext";
+import {Link} from "react-router-dom";
 const stepsData = [
   {
     title: "Step 1: Sign up & Get Started",
@@ -44,6 +45,7 @@ const itemVariants = {
 };
 
 const SignUpSteps = () => {
+  const {user} = useAuth();
   return (
     <section id="signup-steps" className="py-20 bg-gradient-to-b from-gray-50 to-white">
       <div className="container mx-auto px-4">
@@ -96,15 +98,15 @@ const SignUpSteps = () => {
               </div>
             </motion.div>
           ))}
-          
+          {!user && (
           <motion.div 
             className="text-center mt-10"
             variants={itemVariants}
           >
-            <button className="px-6 py-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors shadow-md hover:shadow-lg">
+            <Link to="/signup" className="px-6 py-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors shadow-md hover:shadow-lg">
               Begin Your Journey
-            </button>
-          </motion.div>
+            </Link>
+          </motion.div>)}
         </motion.div>
       </div>
     </section>
