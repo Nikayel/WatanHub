@@ -1,70 +1,70 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { safeSelect, safeUpdate } from '../../lib/supabase';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 
 export default function AdminBlogEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [blog, setBlog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    const fetchBlog = async () => {
-      const { data, error } = await supabase
-        .from('blogs')
-        .select('*')
-        .eq('id', id)
-        .single();
+    if (!id) {
+      toast.error('Invalid blog ID.');
+      navigate('/admin/blogs/manage');
+      return;
+    }
 
-      if (error) {
-        console.error('Error fetching blog:', error);
+    const fetchBlog = async () => {
+      const blogData = await safeSelect('blogs', '*', { id });
+      if (blogData && blogData.length > 0) {
+        setBlog(blogData[0]);
       } else {
-        setBlog(data);
+        toast.error('Blog not found.');
+        navigate('/admin/blogs/manage');
       }
       setLoading(false);
     };
 
     fetchBlog();
-  }, [id]);
+  }, [id, navigate]);
 
   const handleChange = (e) => {
-    setBlog({
-      ...blog,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setBlog((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    if (!blog.title.trim() || !blog.description.trim()) {
+      toast.error('Title and Description are required.');
+      return;
+    }
+
     setUpdating(true);
 
-    const { error } = await supabase
-      .from('blogs')
-      .update({
-        title: blog.title,
-        cover_image_url: blog.cover_image_url,
-        description: blog.description,
-      })
-      .eq('id', id);
+    const result = await safeUpdate('blogs', {
+      title: blog.title.trim(),
+      cover_image_url: blog.cover_image_url.trim(),
+      description: blog.description.trim(),
+    }, 'id', id);
+
+    if (result) {
+      toast.success('Blog updated successfully!');
+      navigate('/admin/blogs/manage');
+    }
 
     setUpdating(false);
-
-    if (error) {
-      console.error('Error updating blog:', error);
-      alert('Failed to update blog. Please try again.');
-    } else {
-      toast.success('Blog updated successfully!');
-      navigate('/admin/blogs/manage'); // or wherever you list/manage blogs
-    }
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
@@ -76,55 +76,52 @@ export default function AdminBlogEdit() {
       </div>
     );
   }
-  console.log('Blog:', blog);
-console.log('Loading:', loading);
-console.log('ID from URL:', id);
-
 
   return (
     <div className="max-w-3xl mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">Edit Blog</h1>
+      <h1 className="text-3xl font-bold mb-8 text-center">Edit Blog Post</h1>
 
       <form onSubmit={handleUpdate} className="space-y-6">
         <div>
-          <label className="block text-gray-700 font-medium mb-2">Title</label>
+          <label className="block mb-2">Title</label>
           <input
             type="text"
             name="title"
             value={blog.title || ''}
             onChange={handleChange}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
+            className="w-full border rounded px-4 py-2"
             required
           />
         </div>
 
         <div>
-          <label className="block text-gray-700 font-medium mb-2">Cover Image URL</label>
+          <label className="block mb-2">Cover Image URL</label>
           <input
             type="text"
             name="cover_image_url"
             value={blog.cover_image_url || ''}
             onChange={handleChange}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
+            className="w-full border rounded px-4 py-2"
           />
         </div>
 
         <div>
-          <label className="block text-gray-700 font-medium mb-2">Description</label>
+          <label className="block mb-2">Description</label>
           <textarea
             name="description"
             value={blog.description || ''}
             onChange={handleChange}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
-            rows="4"
+            className="w-full border rounded px-4 py-2"
+            rows="6"
+            required
           />
         </div>
 
         <div className="text-center">
           <Button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300"
             disabled={updating}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition"
           >
             {updating ? 'Updating...' : 'Update Blog'}
           </Button>

@@ -1,49 +1,51 @@
-// server/server.js
-const express = require("express");
-const nodemailer = require("nodemailer");
-const bodyParser = require("body-parser");
-const cors = require("cors");
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { Resend } from 'resend'; // Add this
 
+dotenv.config();
 const app = express();
+const PORT = process.env.PORT || 5000;
+const resend = new Resend(process.env.RESEND_API_KEY); // Initialize Resend
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
+app.use(cors({
+  origin: 'http://localhost:3001',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+}));
 
-// Configure your Nodemailer transporter
-// For Gmail, ensure you use an app-specific password if 2FA is enabled.
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
-  },
-});
+app.use(express.json());
 
-// API endpoint to handle contact form submission
-app.post("/send-email", async (req, res) => {
+// Updated contact endpoint
+app.post('/api/contact', async (req, res) => {
   const { name, email, message } = req.body;
 
-  // Configure your email details
-  const mailOptions = {
-    from: email, // you can also use your email here
-    to: "watanGroup@gmail.com", // destination email
-    subject: `Contact Form Submission from ${name}`,
-    text: message,
-  };
-
   try {
-    // Send email via Nodemailer
-    let info = await transporter.sendMail(mailOptions);
-    console.log("Email sent: " + info.response);
-    res.status(200).json({ success: true, info: info.response });
-  } catch (error) {
-    console.error("Error sending email:", error);
-    res.status(500).json({ success: false, error: error.message });
+    // Send email via Resend
+    const { data, error } = await resend.emails.send({
+      from: 'Acme <onboarding@resend.dev>', // Replace with your domain
+      to: ['your-email@example.com'], // Your receiving email
+      subject: 'New Contact Form Submission',
+      html: `
+        <h3>New Message from ${name}</h3>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Message:</strong> ${message}</p>
+      `,
+    });
+
+    if (error) {
+      console.error('Resend error:', error);
+      return res.status(500).json({ error: 'Failed to send email' });
+    }
+
+    console.log('✅ Email sent:', data);
+    res.status(200).json({ message: 'Email sent successfully!' });
+  } catch (err) {
+    console.error('Server error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Start the server
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { safeInsert } from '../../lib/supabase'; // using our safe util
 
 export default function AdminAnnouncementSend() {
   const [title, setTitle] = useState('');
@@ -11,75 +11,67 @@ export default function AdminAnnouncementSend() {
 
   const handleSendAnnouncement = async (e) => {
     e.preventDefault();
-    setLoading(true);
 
     if (!title.trim() || !message.trim()) {
-      toast.error('Title and message are required.');
-      setLoading(false);
+      toast.error('Title and Message are required.');
       return;
     }
 
-    try {
-      const { data, error } = await supabase
-        .from('announcements')
-        .insert([{ title: title.trim(), message: message.trim() }]);
+    setLoading(true);
 
-      if (error) {
-        console.error('Error sending announcement:', error);
-        toast.error('Failed to send announcement.');
-      } else {
-        toast.success('Announcement sent successfully!');
-        navigate('/admin/dashboard'); // Redirect to Admin Dashboard after sending
-      }
-    } catch (err) {
-      console.error('Unexpected error:', err);
-      toast.error('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
+    const result = await safeInsert('announcements', [{ title: title.trim(), message: message.trim() }]);
+    
+    if (result) {
+      toast.success('Announcement sent successfully!');
+      navigate('/admin/dashboard');
     }
+
+    setLoading(false);
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="max-w-2xl mx-auto p-6">
       <button
         onClick={() => navigate(-1)}
-        className="mb-6 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm transition"
+        className="mb-6 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm"
       >
         ← Back
       </button>
 
-      <h1 className="text-3xl font-bold mb-8 text-center">Send New Announcement</h1>
+      <h1 className="text-3xl font-bold text-center mb-8">Send New Announcement</h1>
 
-      <form onSubmit={handleSendAnnouncement} className="space-y-6 bg-white p-6 rounded-xl shadow-lg">
+      <form onSubmit={handleSendAnnouncement} className="bg-white p-6 rounded-xl shadow space-y-6">
         <div>
-          <label className="block text-gray-700 font-medium mb-2">Title</label>
+          <label className="block mb-2 text-sm font-medium text-gray-700">Title</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full border rounded-md px-4 py-2 focus:outline-none focus:ring focus:border-blue-300"
-            placeholder="Enter announcement title"
+            className="w-full border px-4 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
+            placeholder="Enter title"
+            required
           />
         </div>
 
         <div>
-          <label className="block text-gray-700 font-medium mb-2">Message</label>
+          <label className="block mb-2 text-sm font-medium text-gray-700">Message</label>
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={5}
-            className="w-full border rounded-md px-4 py-2 focus:outline-none focus:ring focus:border-blue-300"
-            placeholder="Write your announcement here..."
+            className="w-full border px-4 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
+            placeholder="Enter announcement message"
+            required
           ></textarea>
         </div>
 
-        <div className="flex justify-end">
+        <div className="text-right">
           <button
             type="submit"
             disabled={loading}
             className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition"
           >
-            {loading ? 'Sending...' : 'Send Announcement'}
+            {loading ? 'Sending...' : 'Send'}
           </button>
         </div>
       </form>

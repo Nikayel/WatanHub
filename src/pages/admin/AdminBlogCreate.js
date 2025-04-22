@@ -1,13 +1,14 @@
-import { useContext, useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../lib/AuthContext';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { safeInsert, safeSelect } from '../../lib/supabase';
+import { useAuth } from '../../lib/AuthContext';
+import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 
-const AdminBlogCreate = () => {
+export default function AdminBlogCreate() {
   const { user } = useAuth();
   const navigate = useNavigate();
-
+  
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -16,16 +17,14 @@ const AdminBlogCreate = () => {
   const [description, setDescription] = useState('');
 
   useEffect(() => {
-    const checkAdmin = async () => {
-      if (!user) return;
-      const { data, error } = await supabase
-        .from('admin')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+    if (!user) return;
 
-      if (data) {
+    const checkAdmin = async () => {
+      const adminData = await safeSelect('admin', '*', { id: user.id });
+      if (adminData && adminData.length > 0) {
         setIsAdmin(true);
+      } else {
+        toast.error('Access denied. Admins only.');
       }
       setLoading(false);
     };
@@ -36,78 +35,89 @@ const AdminBlogCreate = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const { error } = await supabase.from('blogs').insert([
-      {
-        title: title,
-        cover_image_url: coverImageUrl,
-        description: description,
-        created_by: user.id,
-      },
-    ]);
+    if (!title.trim() || !description.trim()) {
+      toast.error('Title and Description are required.');
+      return;
+    }
 
-    if (error) {
-      alert('Error submitting blog');
-      console.error(error);
-    } else {
-      alert('Blog posted successfully!');
-      navigate('/blogs');
+    const payload = [{
+      title: title.trim(),
+      cover_image_url: coverImageUrl.trim(),
+      description: description.trim(),
+      created_by: user.id,
+    }];
+
+    const result = await safeInsert('blogs', payload);
+
+    if (result) {
+      toast.success('Blog posted successfully!');
+      navigate('/admin/blogs/manage');
     }
   };
 
-  if (loading) return <div className="p-4">Checking admin permissions...</div>;
-  if (!isAdmin) return <div className="p-4 text-red-600">Access denied. Admins only.</div>;
+  if (loading) {
+    return <div className="p-4 text-center">Checking permissions...</div>;
+  }
+
+  if (!isAdmin) {
+    return <div className="p-4 text-center text-red-600">Access denied. Admins only.</div>;
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Create a New Blog Post</h1>
+      <h1 className="text-3xl font-bold mb-6">Create New Blog Post</h1>
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block font-medium mb-1">Title</label>
+          <label className="block mb-1">Title</label>
           <input
             type="text"
-            className="w-full p-2 border rounded"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            className="w-full p-2 border rounded"
+            placeholder="Enter blog title"
             required
           />
         </div>
 
         <div>
-          <label className="block font-medium mb-1">Cover Image URL</label>
+          <label className="block mb-1">Cover Image URL</label>
           <input
             type="text"
-            className="w-full p-2 border rounded"
             value={coverImageUrl}
             onChange={(e) => setCoverImageUrl(e.target.value)}
+            className="w-full p-2 border rounded"
+            placeholder="Enter image URL (optional)"
           />
         </div>
 
         <div>
-          <label className="block font-medium mb-1">Description (Markdown Supported)</label>
+          <label className="block mb-1">Description (Markdown Supported)</label>
           <textarea
-            className="w-full p-2 border rounded h-48"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            className="w-full p-2 border rounded h-48"
+            placeholder="Enter blog description"
             required
           />
         </div>
 
         <div>
-          <label className="block font-medium mb-1">Live Preview</label>
-          <div className="prose border p-4 rounded max-w-none bg-white">
-            <ReactMarkdown>{description}</ReactMarkdown>
+          <label className="block mb-1">Live Preview</label>
+          <div className="prose border p-4 rounded bg-white">
+            <ReactMarkdown>{description || '*Start typing to preview*'}</ReactMarkdown>
           </div>
         </div>
 
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Publish Blog
-        </button>
+        <div className="text-right">
+          <button
+            type="submit"
+            className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+          >
+            Publish
+          </button>
+        </div>
       </form>
     </div>
   );
-};
-
-export default AdminBlogCreate;
+}
