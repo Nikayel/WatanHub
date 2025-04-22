@@ -120,7 +120,7 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
               <SheetContent side="right" className="w-4/5 sm:w-80">
                 <div className="flex flex-col gap-4 p-6">
                   {navItems.map(item => (
-                    <button
+                    <Button
                       key={item.id}
                       onClick={e => {
                         handleScrollToSection(e, item.href, item.id);
@@ -130,7 +130,7 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
                     >
                       {item.icon}
                       {item.label}
-                    </button>
+                    </Button>
                   ))}
 
                   {/* Auth Actions */}
