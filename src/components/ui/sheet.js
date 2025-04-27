@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { createPortal } from "react-dom"; // ✅ Needed for portal
+import { createPortal } from "react-dom";
 
 export const Sheet = ({ open, onOpenChange, children }) => {
   return (
@@ -49,18 +49,19 @@ export const SheetContent = ({ children, open, onOpenChange }) => {
       <div className="fixed inset-0 z-[9999]">
         {/* Backdrop */}
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 bg-black/40 backdrop-blur-md transition-opacity duration-300"
           onClick={() => onOpenChange(false)}
         />
         
         {/* Slide-in Drawer */}
         <div 
-          className="fixed inset-y-0 right-0 w-4/5 sm:w-80 bg-white dark:bg-gray-900 shadow-xl overflow-auto"
+          className="fixed inset-y-0 right-0 w-4/5 max-w-[320px] bg-gradient-to-b from-white to-gray-100 dark:from-gray-900 dark:to-gray-800 shadow-2xl rounded-l-2xl overflow-y-auto p-6"
           style={{
             animation: "slideIn 0.3s ease-out forwards",
             zIndex: 10000
           }}
         >
+          {/* YOUR mobile content injected here */}
           {children}
         </div>
       </div>
@@ -72,7 +73,7 @@ export const SheetContent = ({ children, open, onOpenChange }) => {
         }
       `}</style>
     </>,
-    document.body // ✅ Mount under <body> directly
+    document.body
   );
 };
 

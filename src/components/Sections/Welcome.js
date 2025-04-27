@@ -17,8 +17,9 @@ const Welcome = () => {
     
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight * 0.7; // 70% of viewport height
+      canvas.height = window.innerHeight * (window.innerWidth < 640 ? 0.5 : 0.7);
     };
+    
     
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -119,8 +120,8 @@ const Welcome = () => {
       </div>
       
       {/* Content container */}
-      <div className="container mx-auto px-4 py-16 md:py-24 lg:py-32 relative z-10">
-        <motion.div 
+      <div className="container mx-auto px-4 py-12 sm:py-16 md:py-24 lg:py-32 relative z-10">
+      <motion.div 
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
@@ -160,22 +161,15 @@ const Welcome = () => {
           
           {/* CTA Buttons */}
           {!user && (
-          <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8 md:mt-12">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-8 py-3 md:px-10 md:py-4 bg-white text-indigo-700 font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              Get Started
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-8 py-3 md:px-10 md:py-4 border-2 border-white border-opacity-60 hover:border-opacity-100 font-semibold rounded-full backdrop-blur-sm transition-all duration-300"
-            >
-              Learn More
-            </motion.button>
-          </div>)}
+            <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8 md:mt-12">
+  <motion.button
+    whileHover={{ scale: 1.05 }}
+    whileTap={{ scale: 0.95 }}
+    className="px-6 py-3 sm:px-8 sm:py-3 md:px-10 md:py-4 bg-white text-indigo-700 font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+  >
+    Get Started
+  </motion.button>
+</div>)}
           
           {/* Decorative badge */}
           <div className="hidden md:block absolute -right-12 top-8 rotate-12">
@@ -194,7 +188,7 @@ const Welcome = () => {
         </motion.div>
       </div>
       {/* Scroll Down Arrow */}
-<div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20">
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
   <button
     onClick={() => {
       const nextSection = document.getElementById('next-section');
@@ -204,9 +198,10 @@ const Welcome = () => {
     }}
     className="text-white opacity-70 hover:opacity-100 animate-bounce"
   >
-    <ChevronDown size={40} />
+    <ChevronDown className="h-8 w-8 sm:h-10 sm:w-10" /> {/* 🔥 Responsive sizing */}
   </button>
 </div>
+
 
       
       {/* Stats section to be added in the future */}
