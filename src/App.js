@@ -26,7 +26,8 @@ import AdminBlogCreate from './pages/admin/AdminBlogCreate';
 import AdminBlogEdit from './pages/admin/AdminBlogEdit';
 import AdminAnnouncementSend from './pages/admin/AdminAnnouncementSend'; // 👈 import it
 
-
+//mentor section
+import MentorApplicationPage from './pages/MentorApplicationPage';
 // User Pages
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
@@ -43,6 +44,7 @@ function App() {
         <Route path="/blogs" element={<BlogList />} />
         <Route path="/blog/:id" element={<BlogDetail />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/mentor-application" element={<MentorApplicationPage />} />
         <Route path="/admin/announcements/send" element={
   <AdminRoute>
     <AdminAnnouncementSend />
