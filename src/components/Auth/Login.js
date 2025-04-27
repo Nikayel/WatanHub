@@ -1,5 +1,5 @@
 // src/components/Auth/Login.js
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import { Button } from '../ui/button';
 import { useNavigate, Link } from 'react-router-dom';
@@ -10,7 +10,7 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const { signIn, signInWithGoogle, error, loading } = useAuth();
+    const { user,signIn, signInWithGoogle, error, loading } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -20,6 +20,11 @@ const Login = () => {
             navigate('/dashboard');
         }
     };
+    useEffect(() => {
+        if (user) {
+            navigate('/dashboard');
+        }
+        },[user, navigate]);
 
     const handleGoogleSignIn = async () => {
         const success = await signInWithGoogle();

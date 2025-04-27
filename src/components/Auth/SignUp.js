@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/button';
@@ -11,8 +11,10 @@ import {
   DialogDescription,
   DialogClose,
 } from '../ui/dialog';
-//April14 - disabled RLS 
-import { BookOpen, Bookmark, Globe, Home, Mail, Lock, User, Award, Calendar, FileText, Coffee } from 'lucide-react';
+import { 
+  BookOpen, Bookmark, Globe, Home, Mail, Lock, User, Award, 
+  Calendar, FileText, Coffee, ArrowLeft, ArrowRight, CheckCircle
+} from 'lucide-react';
 
 const SignUp = ({ isOpen, onClose }) => {
   const initialBasicData = {
@@ -39,12 +41,19 @@ const SignUp = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const { signUp, signInWithGoogle } = useAuth();
+  const { user, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  
   const handleBasicChange = (e) => {
     const { name, value } = e.target;
     setBasicData(prev => ({ ...prev, [name]: value }));
   };
+  
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleAdditionalChange = (e) => {
     const { name, value } = e.target;
@@ -68,11 +77,15 @@ const SignUp = ({ isOpen, onClose }) => {
     }
     setError(null);
     setStep(2);
+    // Scroll to top on mobile
+    window.scrollTo(0, 0);
   };
 
   const goToPrevStep = () => {
     setStep(1);
     setError(null);
+    // Scroll to top on mobile
+    window.scrollTo(0, 0);
   };
 
   const saveUserProfile = async (userId) => {
@@ -110,7 +123,6 @@ const SignUp = ({ isOpen, onClose }) => {
       });
       throw new Error("Failed to save profile: " + error.message);
     }
-    
   };
 
   const handleSubmit = async (e) => {
@@ -122,11 +134,10 @@ const SignUp = ({ isOpen, onClose }) => {
       // Create auth user
       const { data: authData, error: authError } = await signUp(
         basicData.email, 
-      basicData.password,
-      basicData.firstName, 
-      basicData.lastName  
+        basicData.password,
+        basicData.firstName, 
+        basicData.lastName  
       );
-      //
 
       if (authError || !authData?.user) {
         throw authError || new Error("User creation failed");
@@ -159,18 +170,28 @@ const SignUp = ({ isOpen, onClose }) => {
   };
 
   const ProgressIndicator = () => (
-    <div className="flex items-center justify-center mb-4">
-      <div className={`w-3 h-3 rounded-full ${step === 1 ? 'bg-primary' : 'bg-gray-300'}`}></div>
-      <div className={`h-0.5 w-8 ${step === 1 ? 'bg-gray-300' : 'bg-primary'}`}></div>
-      <div className={`w-3 h-3 rounded-full ${step === 2 ? 'bg-primary' : 'bg-gray-300'}`}></div>
+    <div className="flex flex-col items-center justify-center mb-6">
+      <div className="flex items-center justify-center w-full mb-2">
+        <div className={`w-4 h-4 rounded-full ${step === 1 ? 'bg-primary' : 'bg-gray-300'} flex items-center justify-center`}>
+          {step > 1 ? <CheckCircle size={16} className="text-white" /> : "1"}
+        </div>
+        <div className={`h-1 w-16 ${step === 1 ? 'bg-gray-300' : 'bg-primary'}`}></div>
+        <div className={`w-4 h-4 rounded-full ${step === 2 ? 'bg-primary' : 'bg-gray-300'} flex items-center justify-center`}>
+          2
+        </div>
+      </div>
+      <div className="flex justify-between w-36 text-xs text-gray-500">
+        <span>Basic Info</span>
+        <span>Profile Details</span>
+      </div>
     </div>
   );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md md:max-w-2xl lg:max-w-4xl p-0 bg-white rounded-lg shadow-xl overflow-hidden outline-none mx-auto my-auto w-[95%]">
-        <div className="flex flex-col md:flex-row h-auto max-h-[90vh] overflow-hidden">
-          {/* Left Side - Illustration / Info */}
+      <DialogContent className="sm:max-w-md md:max-w-2xl lg:max-w-4xl p-0 bg-white rounded-lg shadow-xl overflow-hidden outline-none mx-auto my-auto w-[95%] max-h-[90vh]">
+        <div className="flex flex-col md:flex-row h-auto overflow-hidden">
+          {/* Left Side - Illustration / Info - Hidden on Mobile */}
           <div className="hidden md:block w-full md:w-2/5 bg-gradient-to-br from-blue-50 to-blue-100 p-6">
             <div className="flex flex-col items-center justify-center h-full space-y-6 text-center">
               <div className="p-4 bg-white rounded-full shadow-md">
@@ -214,13 +235,30 @@ const SignUp = ({ isOpen, onClose }) => {
           </div>
           
           {/* Right Side - Form Content */}
-          <div className="w-full md:w-3/5 p-5 overflow-y-auto" style={{ maxHeight: '90vh' }}>
+          <div className="w-full md:w-3/5 p-3 sm:p-5 overflow-y-auto">
             <DialogClose asChild>
               <Button variant="ghost" className="absolute top-2 right-2 h-8 w-8 rounded-full p-0" aria-label="Close">
                 <span className="text-lg">&times;</span>
               </Button>
             </DialogClose>
-            <div className="px-5 py-4">
+            
+            {/* Mobile Header with Back Button */}
+            <div className="flex items-center justify-between md:hidden mb-4">
+              {step > 1 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="p-1 hover:bg-gray-100"
+                  onClick={goToPrevStep}
+                >
+                  <ArrowLeft size={16} className="mr-1" /> Back
+                </Button>
+              )}
+              {step === 1 && <div></div>}
+              <span className="text-sm font-medium">Step {step} of 2</span>
+            </div>
+
+            <div className="px-3 sm:px-5 py-4">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold text-center">
                   {step === 1 ? 'Create Account' : 'Additional Information'}
@@ -232,13 +270,29 @@ const SignUp = ({ isOpen, onClose }) => {
                 </p>
               </DialogHeader>
             </div>
-            <ProgressIndicator />
+            
+            {/* Mobile Progress Bar */}
+            <div className="md:hidden px-4 mb-4">
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-primary h-2 rounded-full" 
+                  style={{ width: step === 1 ? '50%' : '100%' }}
+                ></div>
+              </div>
+            </div>
+            
+            {/* Desktop Progress Indicator */}
+            <div className="hidden md:block">
+              <ProgressIndicator />
+            </div>
+            
             {error && (
-              <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+              <div className="mb-4 mx-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
                 {error}
               </div>
             )}
-            <form onSubmit={handleSubmit} className="space-y-4 px-5 pb-4">
+            
+            <form onSubmit={handleSubmit} className="space-y-4 px-3 sm:px-5 pb-4">
               {step === 1 ? (
                 <>
                   {/* Basic Info */}
@@ -341,8 +395,13 @@ const SignUp = ({ isOpen, onClose }) => {
                     </div>
                   </div>
 
-                  <Button type="button" className="w-full py-2 shadow-lg" onClick={goToNextStep} disabled={loading}>
-                    Next
+                  <Button 
+                    type="button" 
+                    className="w-full py-2 shadow-lg flex items-center justify-center" 
+                    onClick={goToNextStep} 
+                    disabled={loading}
+                  >
+                    Next Step <ArrowRight size={16} className="ml-2" />
                   </Button>
 
                   <div className="mt-4">
@@ -354,7 +413,13 @@ const SignUp = ({ isOpen, onClose }) => {
                         <span className="px-2 bg-white text-gray-500">Or sign up with</span>
                       </div>
                     </div>
-                    <Button type="button" variant="outline" className="w-full mt-3 shadow-sm" onClick={handleGoogleSignUp} disabled={loading}>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full mt-3 shadow-sm flex items-center justify-center" 
+                      onClick={handleGoogleSignUp} 
+                      disabled={loading}
+                    >
                       <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                         <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                         <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -476,7 +541,7 @@ const SignUp = ({ isOpen, onClose }) => {
                           value={additionalData.interests}
                           onChange={handleAdditionalChange}
                           className="pl-8 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
-                          placeholder="Your interests"
+                          placeholder="Your interests (e.g., reading, travel)"
                         />
                       </div>
                     </div>
@@ -517,14 +582,38 @@ const SignUp = ({ isOpen, onClose }) => {
                   </div>
                   
                   <div className="flex gap-3 pt-3">
-                    <Button type="button" variant="outline" className="flex-1 shadow-sm" onClick={goToPrevStep} disabled={loading}>
-                      Back
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="flex-1 shadow-sm flex items-center justify-center" 
+                      onClick={goToPrevStep} 
+                      disabled={loading}
+                    >
+                      <ArrowLeft size={16} className="mr-1" /> Back
                     </Button>
-                    <Button type="submit" className="flex-1 shadow-lg" disabled={loading}>
-                      {loading ? 'Creating...' : 'Complete Sign Up'}
+                    <Button 
+                      type="submit" 
+                      className="flex-1 shadow-lg flex items-center justify-center" 
+                      disabled={loading}
+                    >
+                      {loading ? 'Creating...' : 'Complete Sign Up'} {!loading && <CheckCircle size={16} className="ml-1" />}
                     </Button>
                   </div>
                 </>
+              )}
+              
+              {/* Mobile-only back button on step 1 */}
+              {step === 1 && (
+                <div className="block md:hidden text-center mt-4">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-gray-500 text-xs"
+                    onClick={onClose}
+                  >
+                    Cancel
+                  </Button>
+                </div>
               )}
             </form>
           </div>
