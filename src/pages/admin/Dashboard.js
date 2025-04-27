@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/AuthContext';
-import { safeSelect, safeUpdate } from '../../lib/supabase';
+import { safeSelect, safeUpdate, safeInsert } from '../../lib/supabase';
 import { toast } from 'sonner';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-
+  const [mentorApplications, setMentorApplications] = useState([]);
   const [students, setStudents] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -20,21 +20,19 @@ export default function AdminDashboard() {
 
     const checkAdminAndFetch = async () => {
       const adminData = await safeSelect('admin', '*', { id: user.id });
-
       if (adminData && adminData.length > 0) {
         setIsAdmin(true);
-        await fetchStudents(); // ✅ Now fetchStudents is properly scoped
+        await fetchStudents();
+        await fetchMentorApplications();
       } else {
         toast.error('Access denied. Admins only.');
       }
-
       setLoading(false);
     };
 
     checkAdminAndFetch();
   }, [user]);
 
-  // ✅ fetchStudents is now a separate function
   const fetchStudents = async () => {
     const studentsData = await safeSelect('profiles', '*');
     if (studentsData) {
@@ -42,9 +40,15 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchMentorApplications = async () => {
+    const applications = await safeSelect('mentorapplications', '*', { status: 'pending' });
+    if (applications) {
+      setMentorApplications(applications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+    }
+  };
+
   const handleSaveEdit = async () => {
     if (!editingStudent) return;
-
     const result = await safeUpdate('profiles', editingStudent, 'id', editingStudent.id);
     if (result) {
       toast.success('Student updated successfully!');
@@ -65,6 +69,48 @@ Bio: ${student.bio || 'N/A'}
     `;
     navigator.clipboard.writeText(info.trim());
     toast.success('Student info copied to clipboard!');
+  };
+
+  const handleApproveMentor = async (application) => {
+    setMentorApplications(prev => 
+      prev.map(app => 
+        app.id === application.id ? { ...app, status: 'approved' } : app
+      )
+    );
+  
+    try {
+      // 1. Insert into mentors table
+      const insertResult = await safeInsert('mentors', {
+        full_name: application.full_name,
+        languages: application.languages,
+        bio: application.bio,
+      });
+  
+      if (insertResult) {
+        // 2. Update status in mentorApplications table
+        await safeUpdate('mentorapplications', { status: 'approved' }, 'id', application.id);
+        toast.success(`${application.full_name} approved as mentor!`);
+        
+        // 3. Optional: Refresh data from server to ensure consistency
+        await fetchMentorApplications();
+      }
+    } catch (error) {
+      // Revert if there's an error
+      setMentorApplications(prev => 
+        prev.map(app => 
+          app.id === application.id ? { ...app, status: 'pending' } : app
+        )
+      );
+      toast.error('Failed to approve mentor');
+    }
+  };
+
+  const handleRejectMentor = async (applicationId) => {
+    const result = await safeUpdate('mentorapplications', { status: 'rejected' }, 'id', applicationId);
+    if (result) {
+      toast.success('Application rejected.');
+      await fetchMentorApplications();
+    }
   };
 
   const filteredStudents = students.filter((student) => {
@@ -88,7 +134,6 @@ Bio: ${student.bio || 'N/A'}
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10">
-      
       {/* Back Button */}
       <div className="mb-6">
         <button
@@ -104,16 +149,10 @@ Bio: ${student.bio || 'N/A'}
 
       {/* Manage Blogs and Send Announcements */}
       <div className="flex flex-wrap justify-center gap-4 mb-10">
-        <Link
-          to="/admin/blogs/manage"
-          className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow transition"
-        >
+        <Link to="/admin/blogs/manage" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow transition">
           Manage Blogs
         </Link>
-        <Link
-          to="/admin/announcements/send"
-          className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow transition"
-        >
+        <Link to="/admin/announcements/send" className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow transition">
           Send Announcement
         </Link>
       </div>
@@ -130,7 +169,7 @@ Bio: ${student.bio || 'N/A'}
       </div>
 
       {/* Students Table */}
-      <div className="overflow-x-auto bg-white rounded-xl shadow p-6">
+      <div className="overflow-x-auto bg-white rounded-xl shadow p-6 mb-16">
         <table className="min-w-full text-sm text-left">
           <thead className="border-b">
             <tr>
@@ -151,24 +190,11 @@ Bio: ${student.bio || 'N/A'}
                     <td className="py-3 px-4">{student.education_level || 'N/A'}</td>
                     <td className="py-3 px-4">{student.english_level || 'N/A'}</td>
                     <td className="py-3 px-4 flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleCopy(student)}
-                        className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                      >
-                        Copy
-                      </button>
-                      <button
-                        onClick={() => setExpanded(expanded === student.id ? null : student.id)}
-                        className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                      >
+                      <button onClick={() => handleCopy(student)} className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs">Copy</button>
+                      <button onClick={() => setExpanded(expanded === student.id ? null : student.id)} className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs">
                         {expanded === student.id ? 'Hide' : 'View More'}
                       </button>
-                      <button
-                        onClick={() => setEditingStudent(student)}
-                        className="px-3 py-1 bg-blue-200 hover:bg-blue-300 rounded text-xs"
-                      >
-                        Edit
-                      </button>
+                      <button onClick={() => setEditingStudent(student)} className="px-3 py-1 bg-blue-200 hover:bg-blue-300 rounded text-xs">Edit</button>
                     </td>
                   </tr>
 
@@ -189,13 +215,52 @@ Bio: ${student.bio || 'N/A'}
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="text-center py-10 text-gray-400">
-                  No students found.
-                </td>
+                <td colSpan="5" className="text-center py-10 text-gray-400">No students found.</td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mentor Applications Section */}
+      <div className="mt-20">
+        <h2 className="text-3xl font-bold mb-8 text-center">Mentor Applications</h2>
+
+        <div className="overflow-x-auto bg-white rounded-xl shadow p-6">
+          <table className="min-w-full text-sm text-left">
+            <thead className="border-b">
+              <tr>
+                <th className="py-3 px-4">Full Name</th>
+                <th className="py-3 px-4">email</th>
+                <th className="py-3 px-4">DOB</th>
+                <th className="py-3 px-4">Languages</th>
+                <th className="py-3 px-4">Hours/Week</th>
+                <th className="py-3 px-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mentorApplications.length > 0 ? (
+                mentorApplications.map((app) => (
+                  <tr key={app.id} className="border-b hover:bg-gray-50">
+                    <td className="py-3 px-4">{app.full_name}</td>
+                    <td className="py-3 px-4">{app.email}</td>
+                    <td className="py-3 px-4">{new Date(app.dob).toLocaleDateString()}</td>
+                    <td className="py-3 px-4">{app.languages.join(', ')}</td>
+                    <td className="py-3 px-4">{app.available_hours_per_week} hrs</td>
+                    <td className="py-3 px-4 flex flex-wrap gap-2">
+                      <button onClick={() => handleApproveMentor(app)} className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs">Approve</button>
+                      <button onClick={() => handleRejectMentor(app.id)} className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">Reject</button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="text-center py-10 text-gray-400">No pending mentor applications.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Edit Student Modal */}
@@ -217,18 +282,8 @@ Bio: ${student.bio || 'N/A'}
             </div>
 
             <div className="flex justify-end gap-4 mt-6">
-              <button
-                onClick={() => setEditingStudent(null)}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded"
-              >
-                Save
-              </button>
+              <button onClick={() => setEditingStudent(null)} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-gray-700">Cancel</button>
+              <button onClick={handleSaveEdit} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded">Save</button>
             </div>
           </div>
         </div>

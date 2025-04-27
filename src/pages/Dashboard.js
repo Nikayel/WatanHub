@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { Link } from 'react-router-dom';
-import { Loader, Bell, MessageSquare, User, Calendar, ChevronRight } from 'lucide-react';
 
+import { Loader, Bell, MessageSquare, User, Calendar, ChevronRight } from 'lucide-react';
+//For our students dashbaord
 export default function Dashboard() {
   const { user } = useAuth();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
+  
 
   useEffect(() => {
     const fetchData = async () => {

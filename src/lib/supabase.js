@@ -28,16 +28,23 @@ export async function safeSelect(table, columns = '*', filters = {}) {
 
 // Reusable safe INSERT
 export async function safeInsert(table, payload) {
-  const { data, error } = await supabase.from(table).insert(payload);
+  const { data, error } = await supabase.from(table).insert(payload).select();  // 👈 ADD `.select()`
 
   if (error) {
-    console.error(`❌ Error inserting into ${table}:`, error);
-    toast.error(`Failed to insert into ${table}.`);
+    console.error(`❌ safeInsert failed for table '${table}'`, {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      payload: payload,
+    });
+    toast.error(`Failed to insert into ${table}: ${error.message}`);
     return null;
   }
 
   return data;
 }
+
+
 
 // Reusable safe UPDATE
 export async function safeUpdate(table, updates, matchKey, matchValue) {
@@ -45,7 +52,7 @@ export async function safeUpdate(table, updates, matchKey, matchValue) {
     .from(table)
     .update(updates)
     .eq(matchKey, matchValue);
-
+  
   if (error) {
     console.error(`❌ Error updating ${table}:`, error);
     toast.error(`Failed to update ${table}.`);
