@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom"; // ✅ Needed for portal
 
 export const Sheet = ({ open, onOpenChange, children }) => {
   return (
@@ -22,7 +23,7 @@ export const Sheet = ({ open, onOpenChange, children }) => {
 
 export const SheetTrigger = ({ children, onOpenChange }) => (
   <div 
-    onClick={() => onOpenChange(true)} 
+    onClick={() => onOpenChange(true)}
     className="focus:outline-none cursor-pointer"
   >
     {children}
@@ -30,7 +31,6 @@ export const SheetTrigger = ({ children, onOpenChange }) => (
 );
 
 export const SheetContent = ({ children, open, onOpenChange }) => {
-  // Lock body scroll when sheet is open
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
@@ -43,51 +43,39 @@ export const SheetContent = ({ children, open, onOpenChange }) => {
   }, [open]);
 
   if (!open) return null;
-  
-  return (
+
+  return createPortal(
     <>
-      {/* Super high z-index to ensure it's above everything */}
       <div className="fixed inset-0 z-[9999]">
-        {/* Backdrop overlay */}
+        {/* Backdrop */}
         <div 
           className="fixed inset-0 bg-black/50 backdrop-blur-sm"
           onClick={() => onOpenChange(false)}
         />
         
-        {/* Slide-in panel */}
+        {/* Slide-in Drawer */}
         <div 
           className="fixed inset-y-0 right-0 w-4/5 sm:w-80 bg-white dark:bg-gray-900 shadow-xl overflow-auto"
-          style={{animation: "slideIn 0.3s ease-out forwards"}}
+          style={{
+            animation: "slideIn 0.3s ease-out forwards",
+            zIndex: 10000
+          }}
         >
-          <div className="flex flex-col h-full">
-            <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 flex justify-end p-4">
-              <button
-                onClick={() => onOpenChange(false)}
-                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {children}
-            </div>
-          </div>
+          {children}
         </div>
       </div>
-      
-      {/* Add the keyframe animation */}
+
       <style jsx="true">{`
         @keyframes slideIn {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
         }
       `}</style>
-    </>
+    </>,
+    document.body // ✅ Mount under <body> directly
   );
 };
 
+Sheet.displayName = "Sheet";
 SheetTrigger.displayName = "SheetTrigger";
 SheetContent.displayName = "SheetContent";

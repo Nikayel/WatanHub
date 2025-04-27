@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Menu, User, LogOut, Home, Users, Info, Mail, ChevronRight } from "lucide-react";
+import { Menu, User, LogOut, Home, Users, Info, Mail, ChevronRight, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { cn } from "../../lib/utils";
@@ -135,111 +135,124 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
                 </Button>
               </SheetTrigger>
               <SheetContent>
-                {/* Mobile Brand */}
-                <div className="py-8 flex justify-center">
-                  <div className="relative">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                      <span className="text-white text-3xl font-bold">W</span>
-                    </div>
-                    <div className="absolute -bottom-6 w-full text-center">
-                      <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">
-                        Watan
-                      </h2>
+                {/* Close button */}
+                <div className="flex justify-end p-4">
+                  <button
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+                
+                {/* Mobile menu content */}
+                <div className="flex flex-col h-full p-4">
+                  {/* Mobile Brand */}
+                  <div className="py-8 flex justify-center">
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                        <span className="text-white text-3xl font-bold">W</span>
+                      </div>
+                      <div className="absolute -bottom-6 w-full text-center">
+                        <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">
+                          Watan
+                        </h2>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Navigation Items */}
-                <div className="mt-12 px-2">
-                  <div className="space-y-1">
-                    {navItems.map((i) => (
-                      <motion.div
-                        key={i.id}
-                        whileHover={{ x: 5 }}
-                        transition={{ type: "spring", stiffness: 400 }}
-                      >
-                        <Button
-                          variant={activeSection === i.id ? "default" : "ghost"}
-                          onClick={(e) => clickItem(e, i.href, i.id)}
-                          className={cn(
-                            "w-full justify-between text-base py-6",
-                            activeSection === i.id
-                              ? "bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-indigo-600 dark:text-indigo-400"
-                              : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                          )}
+                  {/* Navigation Items */}
+                  <div className="flex-1 overflow-y-auto mt-12 px-2">
+                    <div className="space-y-1">
+                      {navItems.map((i) => (
+                        <motion.div
+                          key={i.id}
+                          whileHover={{ x: 5 }}
+                          transition={{ type: "spring", stiffness: 400 }}
                         >
-                          <span className="flex items-center gap-3">
-                            {i.icon}
-                            {i.label}
-                          </span>
-                          <ChevronRight size={16} className="opacity-50" />
-                        </Button>
-                      </motion.div>
-                    ))}
+                          <Button
+                            variant={activeSection === i.id ? "default" : "ghost"}
+                            onClick={(e) => clickItem(e, i.href, i.id)}
+                            className={cn(
+                              "w-full justify-between text-base py-6",
+                              activeSection === i.id
+                                ? "bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-indigo-600 dark:text-indigo-400"
+                                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                            )}
+                          >
+                            <span className="flex items-center gap-3">
+                              {i.icon}
+                              {i.label}
+                            </span>
+                            <ChevronRight size={16} className="opacity-50" />
+                          </Button>
+                        </motion.div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* User Controls */}
-                <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3 px-2">
-                  {user ? (
-                    <>
-                      <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
-                            <User size={20} className="text-indigo-600 dark:text-indigo-300" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{user.email || "User"}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {isAdmin ? "Administrator" : "Member"}
-                            </p>
+                  {/* User Controls */}
+                  <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3 px-2 pb-6">
+                    {user ? (
+                      <>
+                        <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
+                              <User size={20} className="text-indigo-600 dark:text-indigo-300" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{user.email || "User"}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {isAdmin ? "Administrator" : "Member"}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <Link to={isAdmin ? "/admin/dashboard" : "/dashboard"} className="block">
+                        <Link to={isAdmin ? "/admin/dashboard" : "/dashboard"} className="block">
+                          <Button
+                            variant="outline"
+                            className="w-full flex items-center gap-2 justify-start"
+                          >
+                            <Users size={16} />
+                            {isAdmin ? "Admin Dashboard" : "Dashboard"}
+                          </Button>
+                        </Link>
+                        <Link to="/profile" className="block">
+                          <Button
+                            variant="outline"
+                            className="w-full flex items-center gap-2 justify-start"
+                          >
+                            <User size={16} /> Profile
+                          </Button>
+                        </Link>
                         <Button
-                          variant="outline"
+                          variant="destructive"
+                          onClick={doLogout}
                           className="w-full flex items-center gap-2 justify-start"
                         >
-                          <Users size={16} />
-                          {isAdmin ? "Admin Dashboard" : "Dashboard"}
+                          <LogOut size={16} /> Logout
                         </Button>
-                      </Link>
-                      <Link to="/profile" className="block">
-                        <Button
-                          variant="outline"
-                          className="w-full flex items-center gap-2 justify-start"
-                        >
-                          <User size={16} /> Profile
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="destructive"
-                        onClick={doLogout}
-                        className="w-full flex items-center gap-2 justify-start"
-                      >
-                        <LogOut size={16} /> Logout
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Link to="/login" className="block">
-                        <Button
-                          variant="outline"
-                          className="w-full"
-                        >
-                          Login
-                        </Button>
-                      </Link>
-                      <Link to="/signup" className="block">
-                        <Button
-                          className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
-                        >
-                          Join Now
-                        </Button>
-                      </Link>
-                    </>
-                  )}
+                      </>
+                    ) : (
+                      <>
+                        <Link to="/login" className="block">
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                          >
+                            Login
+                          </Button>
+                        </Link>
+                        <Link to="/signup" className="block">
+                          <Button
+                            className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
+                          >
+                            Join Now
+                          </Button>
+                        </Link>
+                      </>
+                    )}
+                  </div>
                 </div>
               </SheetContent>
             </Sheet>

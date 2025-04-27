@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../lib/AuthContext';
+import { ChevronDown } from 'lucide-react';
+
 const Welcome = () => {
   const particlesRef = useRef(null);
   const { user } = useAuth();
@@ -191,6 +193,21 @@ const Welcome = () => {
           </div>
         </motion.div>
       </div>
+      {/* Scroll Down Arrow */}
+<div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20">
+  <button
+    onClick={() => {
+      const nextSection = document.getElementById('next-section');
+      if (nextSection) {
+        nextSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }}
+    className="text-white opacity-70 hover:opacity-100 animate-bounce"
+  >
+    <ChevronDown size={40} />
+  </button>
+</div>
+
       
       {/* Stats section to be added in the future */}
       {/* <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto px-4 pb-16">

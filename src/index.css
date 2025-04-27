@@ -10,6 +10,7 @@
     scroll-padding-top: 4rem;
   }
   body {
+    overflow-x: hidden;
     margin: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

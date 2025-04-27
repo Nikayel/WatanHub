@@ -33,12 +33,19 @@ export default function EnhancedBlogList() {
 
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
+    
       if (featuredRef.current) {
-        const opacity = Math.max(0, Math.min(1, 1 - (scrollPosition - 100) / 300));
-        featuredRef.current.style.transform = `translateY(${scrollPosition * 0.2}px)`;
+        const fadeStart = 100; // when fading starts
+        const fadeDistance = 1000; // fade over a longer distance
+    
+        const opacity = Math.max(0, Math.min(1, 1 - (scrollPosition - fadeStart) / fadeDistance));
         featuredRef.current.style.opacity = opacity;
+    
+        // slower translateY movement
+        featuredRef.current.style.transform = `translateY(${scrollPosition * 0.1}px)`;
       }
     };
+    
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -96,6 +103,10 @@ export default function EnhancedBlogList() {
               />
             </div>
           )}
+          <section id="next-section">
+  {/* your next content */}
+          </section>
+
           <div className="absolute inset-0 bg-black bg-opacity-30" />
           <div className="relative max-w-6xl mx-auto h-full flex items-center px-4">
             <div className="max-w-lg">
