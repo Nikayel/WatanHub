@@ -9,6 +9,8 @@ import './App.css';
 import ProtectedRoute from './components/Routes/ProtectedRoute';
 import AdminRoute from './components/adminRoute';
 
+import MentorsPage from './pages/MentorsPage';
+
 // Public Pages
 import HomePage from './components/HomePage';
 import TimelineDemo from './components/ui/timeline-demo';
@@ -39,6 +41,7 @@ function App() {
       <Routes>
 
         {/* Public Routes */}
+        <Route path="/mentors" element={<MentorsPage />} />
         <Route path="/" element={<HomePage />} />
         <Route path="/timeline" element={<TimelineDemo />} />
         <Route path="/blogs" element={<BlogList />} />

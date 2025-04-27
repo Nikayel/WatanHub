@@ -3,8 +3,8 @@ import React, { useState } from "react";
 import Navbar from "./Navigation/Navbar";
 import Welcome from "./Sections/Welcome";
 import UpcomingEvents from "./Sections/UpcomingEvents";
-import Mentors from "./Sections/Mentors";
-import MentorSignup from "./Sections/MentorSignup";
+// import Mentors from "./Sections/Mentors";
+// import MentorSignup from "./Sections/MentorSignup";
 import FAQ from "./Sections/FAQ";
 import About from "./Sections/About"; // Timeline-based About section
 import Contact from "./Sections/Contact"; // Contact component (modal)
@@ -33,8 +33,6 @@ const HomePage = () => {
               <BlogList />
             </section>
             <SignUpSteps />
-            <Mentors />
-            <MentorSignup />
             
             <FAQ onContactClick={() => setContactOpen(true)} />
           </>

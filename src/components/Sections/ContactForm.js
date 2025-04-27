@@ -11,6 +11,10 @@ function ContactForm() {
   const [charCount, setCharCount] = useState(0);
   const [focusedField, setFocusedField] = useState(null);
   const formRef = useRef(null);
+  const API_BASE_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:5001'
+  : 'https://api.watanhub.com'; // 🛠 when I buy the domain
+
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -24,21 +28,20 @@ function ContactForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus('submitting');
-
+  
     try {
       await new Promise(r => setTimeout(r, 900));
-      
-      const response = await fetch('http://localhost:5001/api/contact', {
+  
+      const response = await fetch(`${API_BASE_URL}/api/contact`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
       });
-
+  
       if (response.ok) {
         setStatus('success');
-        // Clear form after 2 seconds
         setTimeout(() => {
           setFormData({ name: '', email: '', message: '' });
           setCharCount(0);
@@ -54,6 +57,7 @@ function ContactForm() {
       setTimeout(() => setStatus('idle'), 3000);
     }
   };
+  
 
   const handleFocus = (field) => setFocusedField(field);
   const handleBlur = () => setFocusedField(null);

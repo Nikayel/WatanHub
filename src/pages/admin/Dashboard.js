@@ -14,6 +14,7 @@ export default function AdminDashboard() {
   const [editingStudent, setEditingStudent] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expanded, setExpanded] = useState(null);
+  const [loadingActionId, setLoadingActionId] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -77,6 +78,8 @@ Bio: ${student.bio || 'N/A'}
         app.id === application.id ? { ...app, status: 'approved' } : app
       )
     );
+    setLoadingActionId(application.id); // 👈 Start loading
+
   
     try {
       // 1. Insert into mentors table
@@ -106,6 +109,7 @@ Bio: ${student.bio || 'N/A'}
   };
 
   const handleRejectMentor = async (applicationId) => {
+    setLoadingActionId(applicationId); // 👈 Start loading
     try {
     const result = await safeUpdate('mentorapplications', { status: 'rejected' }, 'id', applicationId);
     if (result) {
@@ -256,8 +260,10 @@ Bio: ${student.bio || 'N/A'}
                     <td className="py-3 px-4">{app.languages.join(', ')}</td>
                     <td className="py-3 px-4">{app.available_hours_per_week} hrs</td>
                     <td className="py-3 px-4 flex flex-wrap gap-2">
-                      <button onClick={() => handleApproveMentor(app)} className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs">Approve</button>
-                      <button onClick={() => handleRejectMentor(app.id)} className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">Reject</button>
+                      <button onClick={() => handleApproveMentor(app)} disabled={loadingActionId === app.id}
+                      className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs">Approve</button>
+                      <button onClick={() => handleRejectMentor(app.id)} disabled={loadingActionId === app.id}
+                       className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">Reject</button>
                     </td>
                   </tr>
                 ))

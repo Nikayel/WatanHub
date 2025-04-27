@@ -1,7 +1,6 @@
-// src/components/Sections/Mentors.js
 import React from 'react';
+import { Link } from 'react-router-dom'; // 👈 Add Link for navigation
 
-// Sample mentor data—adjust image paths as needed
 const mentorsData = [
   {
     id: 1,
@@ -27,7 +26,6 @@ const mentorsData = [
   // Add more mentors as needed
 ];
 
-// MentorCard component styled with Tailwind CSS
 const MentorCard = ({ mentor }) => (
   <div className="relative bg-white rounded-xl shadow-lg overflow-hidden min-w-[300px] snap-center transform transition duration-300 hover:scale-105 hover:shadow-2xl">
     <img src={mentor.image} alt={mentor.name} className="w-full h-48 object-cover" />
@@ -39,16 +37,31 @@ const MentorCard = ({ mentor }) => (
   </div>
 );
 
-// Mentors section—displayed horizontally with smooth scroll snapping
 const Mentors = () => (
   <section className="py-16 bg-gradient-to-r from-gray-50 to-gray-100">
     <div className="container mx-auto px-4">
+
+      {/* Mentors list */}
       <h2 className="text-3xl font-bold text-center mb-8">Our Mentors</h2>
-      <div className="flex space-x-6 overflow-x-auto snap-x snap-mandatory scrollbar-hide">
+      <div className="flex space-x-6 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-8">
         {mentorsData.map((mentor) => (
           <MentorCard key={mentor.id} mentor={mentor} />
         ))}
       </div>
+
+      {/* Become a Mentor Section */}
+      <div className="mt-20 text-center">
+        <h2 className="text-3xl font-bold mb-4">Become a Mentor</h2>
+        <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
+          Inspire and guide the next generation. If you have valuable experience to share, join our growing community of mentors!
+        </p>
+        <Link to="/mentor-application">
+          <button className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg transition">
+            Apply to Become a Mentor
+          </button>
+        </Link>
+      </div>
+
     </div>
   </section>
 );
