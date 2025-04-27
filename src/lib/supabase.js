@@ -49,9 +49,9 @@ export async function safeInsert(table, payload) {
 // Reusable safe UPDATE
 export async function safeUpdate(table, updates, matchKey, matchValue) {
   const { data, error } = await supabase
-    .from(table)
-    .update(updates)
-    .eq(matchKey, matchValue);
+  .from(table)
+  .update(updates, { returning: "representation" })  // 👈 Proper way
+  .eq(matchKey, matchValue); // 👈 ADD `.select()`
   
   if (error) {
     console.error(`❌ Error updating ${table}:`, error);

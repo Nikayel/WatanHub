@@ -106,12 +106,20 @@ Bio: ${student.bio || 'N/A'}
   };
 
   const handleRejectMentor = async (applicationId) => {
+    try {
     const result = await safeUpdate('mentorapplications', { status: 'rejected' }, 'id', applicationId);
     if (result) {
       toast.success('Application rejected.');
+      setMentorApplications(prev => prev.filter(app => app.id !== applicationId));
       await fetchMentorApplications();
     }
+  } catch (error) {
+    toast.error('Failed to reject application.');
+    console.error('Error rejecting mentor application:', error);
+
+
   };
+}
 
   const filteredStudents = students.filter((student) => {
     const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
