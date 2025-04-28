@@ -12,7 +12,7 @@ function ContactForm() {
   const [focusedField, setFocusedField] = useState(null);
   const formRef = useRef(null);
   const API_BASE_URL = process.env.NODE_ENV == 'development'?
-  'http://localhost:5001' : (process.env.REACT_APP_API_BASE_URL || 'https://watanhub.onrender.app');
+  'http://localhost:5001' : (process.env.REACT_APP_API_BASE_URL || 'https://watanhub.onrender.com').replace(/\/$/, '');;
 
 
 
