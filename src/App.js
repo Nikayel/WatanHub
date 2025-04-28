@@ -1,6 +1,6 @@
 //UI
 import { Toaster } from 'sonner';
-
+import { Analytics } from "@vercel/analytics/react"
 // React and Routing
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
@@ -36,6 +36,7 @@ import Profile from './pages/Profile';
 
 function App() {
   return (
+    <>
     <Router>
           <Toaster position="top-center" richColors /> {/* <- here */}
       <Routes>
@@ -95,6 +96,8 @@ function App() {
 
       </Routes>
     </Router>
+    <Analytics />
+    </>
   );
 }
 
