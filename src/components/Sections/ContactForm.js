@@ -11,9 +11,11 @@ function ContactForm() {
   const [charCount, setCharCount] = useState(0);
   const [focusedField, setFocusedField] = useState(null);
   const formRef = useRef(null);
-  const API_BASE_URL = window.location.hostname === 'localhost'
-  ? 'http://localhost:5001'
-  : 'https://watanhub.onrender.com/'; // 🛠 when I buy the domain
+  const API_BASE_URL =
+  process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5001'
+    : 'https://watanhub.onrender.com'; 
+
 
   
   const handleChange = (e) => {
@@ -39,7 +41,6 @@ function ContactForm() {
         },
         body: JSON.stringify(formData)
       });
-  
       if (response.ok) {
         setStatus('success');
         setTimeout(() => {
