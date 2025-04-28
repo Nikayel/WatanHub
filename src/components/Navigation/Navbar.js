@@ -191,7 +191,7 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
       </div>
 
       {/* Mobile Nav Items */}
-      <div className="flex flex-col h-full p-4 space-y-1 mt-12">
+      <div className="flex flex-col h-full p-4 space-y-1 mt-12 text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900">
         {navItems.map((i) => (
           <div key={i.id}>
             {i.id === "mentors" ? (

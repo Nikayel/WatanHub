@@ -13,7 +13,7 @@ function ContactForm() {
   const formRef = useRef(null);
   const API_BASE_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:5001'
-  : 'https://api.watanhub.com'; // 🛠 when I buy the domain
+  : 'https://watanhub.onrender.com/'; // 🛠 when I buy the domain
 
   
   const handleChange = (e) => {
