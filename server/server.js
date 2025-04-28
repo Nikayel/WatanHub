@@ -8,17 +8,29 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// ✅ Use full CORS middleware
+// ✅ Dynamic CORS setup
+const allowedOrigins = [
+  'http://localhost:3001', 
+  'https://watanhub.vercel.app'
+];
+
 app.use(cors({
-  origin: 'http://localhost:3001',
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // allow non-browser requests (e.g., Postman)
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
+  credentials: true,
 }));
 
 // ✅ Parse JSON bodies
 app.use(express.json());
 
-// ✅ Setup resend
+// ✅ Setup Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ✅ POST /api/contact
