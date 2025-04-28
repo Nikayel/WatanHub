@@ -8,32 +8,36 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// ✅ Dynamic CORS setup
+// Dynamic CORS setup
 const allowedOrigins = [
-  'http://localhost:3001', 
-  'https://watanhub.vercel.app'
+  'http://localhost:3001',
+  'http://localhost:5001',
+  'https://watanhub.vercel.app',
+  'https://watanhub.onrender.com',
 ];
 
+// Smarter CORS
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow non-browser requests (e.g., Postman)
-    if (allowedOrigins.includes(origin)) {
+  origin: (origin, callback) => {
+    // Allow mobile apps, Postman, or undefined origins (for non-browser requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin) || origin.startsWith('https://watanhub')) {
       return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'));
     }
+    return callback(new Error(`CORS policy: ${origin} not allowed`));
   },
   methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
 }));
 
-// ✅ Parse JSON bodies
+// Body parser
 app.use(express.json());
 
-// ✅ Setup Resend
+// Setup Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ✅ POST /api/contact
+// Routes
 app.post('/api/contact', async (req, res) => {
   const { name, email, message } = req.body;
 
@@ -68,7 +72,12 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
-// ✅ Start server
+// Health Check Endpoint (optional but nice for mobile & Render monitoring)
+app.get('/', (req, res) => {
+  res.send('Server is healthy ✅');
+});
+
+// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
