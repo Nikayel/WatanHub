@@ -23,7 +23,9 @@ const HomePage = () => {
         onHomeClick={() => setActiveTab("home")}
         onAboutClick={() => setActiveTab("about")}
         onContactClick={() => setContactOpen(true)}
+        
       />
+
       <main>
         {activeTab === "home" && (
           <>
@@ -39,7 +41,8 @@ const HomePage = () => {
         )}
         {activeTab === "about" && <About />}
       </main>
-      <Footer />
+      <Footer onAboutClick={() => setActiveTab("about")} />
+
 
       {/* Render the Contact modal when contactOpen is true */}
       {contactOpen && (
