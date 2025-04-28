@@ -10,7 +10,9 @@ const PORT = process.env.PORT || 5001;
 
 const allowedOrigins = [
   'http://localhost:3001', 
-  'https://watanhub.vercel.app'
+  'https://watanhub.vercel.app',
+  'https://watanhub.onrender.com'
+
 ];
 
 app.use(cors({
@@ -18,12 +20,14 @@ app.use(cors({
     if (!origin || allowedOrigins.some(url => origin.startsWith(url))) {
       callback(null, true);
     } else {
-      callback(new Error('CORS not allowed for: ' + origin));
+      console.error(`❌ CORS error: ${origin}`);
+      callback(new Error('CORS not allowed'));
     }
   },
   methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
 }));
+
 
 app.use(express.json());
 
