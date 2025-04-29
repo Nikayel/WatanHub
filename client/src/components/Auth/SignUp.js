@@ -15,7 +15,7 @@ import {
   Calendar, FileText, Coffee, ArrowLeft, ArrowRight, CheckCircle,
   X, ChevronDown, ChevronUp, Sparkles, Key
 } from 'lucide-react';
-
+//UPDATED SCHEMA FOR GENDRE AND RELIGION
 // Enhanced FormSection component with improved styling
 const FormSection = ({ children, title, icon }) => (
   <div className="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-100 transition-all hover:shadow-md">
