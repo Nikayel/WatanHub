@@ -21,6 +21,8 @@ export default function AdminDashboard() {
   const [approvedMentors, setApprovedMentors] = useState([]);
   const [mentorStudents, setMentorStudents] = useState([]);
   const [selectedMentor, setSelectedMentor] = useState(null);
+  const [selectedMentorForAssignment, setSelectedMentorForAssignment] = useState(null);
+  const [assignmentMode, setAssignmentMode] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -48,15 +50,19 @@ export default function AdminDashboard() {
   };
   
   const handleViewAssigned = async (mentor) => {
+    setAssignmentMode(true);
+    setSelectedMentorForAssignment(mentor);
+  
     const res = await supabase
       .from('mentor_student')
       .select('profiles(*)')
-      .eq('mentor_id', mentor.user_id); // use mentor.user_id if available
+      .eq('mentor_id', mentor.user_id);
+  
     if (res.data) {
-      setSelectedMentor(mentor);
       setMentorStudents(res.data.map((r) => r.profiles));
     }
   };
+  
   
   const fetchMentorApplications = async () => {
     await fetchApprovedMentors();
@@ -132,6 +138,19 @@ Bio: ${student.bio || 'N/A'}
       setLoadingActionId(null);
     }
   };
+  const handleAssignStudent = async (mentorId, studentId) => {
+    const { data, error } = await supabase
+      .from('mentor_student')
+      .insert([{ mentor_id: mentorId, student_id: studentId }]);
+  
+    if (error) {
+      toast.error('Assignment failed: ' + error.message);
+      console.error(error);
+    } else {
+      toast.success('Student successfully assigned!');
+    }
+  };
+  
 
   const handleRejectMentor = async (applicationId) => {
     setLoadingActionId(applicationId);
@@ -176,6 +195,7 @@ Bio: ${student.bio || 'N/A'}
   }
 
   return (
+    
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-6 px-4 sm:px-6 lg:px-8 shadow-lg">
@@ -240,7 +260,9 @@ Bio: ${student.bio || 'N/A'}
             </button>
           </div>
         </div>
+        {/* Activate the assignemnts button function */}
         <button
+        
   onClick={() => setActiveTab('assignments')}
   className={`px-6 py-3 font-medium text-sm ${
     activeTab === 'assignments'
@@ -250,6 +272,100 @@ Bio: ${student.bio || 'N/A'}
 >
   Mentors & Assignments
 </button>
+{/* //Conditional after user enters the assignment button UI */}
+{activeTab === 'assignments' && (
+  <div className="bg-white rounded-xl shadow-md p-6 mt-6">
+    {!assignmentMode ? (
+      <>
+        <h2 className="text-2xl font-bold mb-4">Approved Mentors</h2>
+        {approvedMentors.length === 0 ? (
+          <p className="text-gray-500">No approved mentors yet.</p>
+        ) : (
+          <ul className="space-y-3">
+            {approvedMentors.map((mentor) => (
+              <li
+                key={mentor.id}
+                className="flex justify-between items-center border p-4 rounded"
+              >
+                <div>
+                  <p className="font-semibold">{mentor.full_name}</p>
+                  <p className="text-sm text-gray-600">{mentor.email}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedMentorForAssignment(mentor);
+                    setAssignmentMode(true);
+                    handleViewAssigned(mentor);
+                  }}
+                  className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                >
+                  Assign Students
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </>
+    ) : (
+      <>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">
+            Assign Students to {selectedMentorForAssignment.full_name}
+          </h2>
+          <button
+            onClick={() => {
+              setAssignmentMode(false);
+              setSelectedMentorForAssignment(null);
+              setMentorStudents([]);
+            }}
+            className="text-sm text-indigo-600 hover:underline"
+          >
+            ← Back to Mentors
+          </button>
+        </div>
+
+        <h3 className="text-lg font-semibold mb-2">Already Assigned Students</h3>
+        {mentorStudents.length === 0 ? (
+          <p className="text-gray-500 mb-4">No students assigned yet.</p>
+        ) : (
+          <ul className="mb-6 space-y-2">
+            {mentorStudents.map((student) => (
+              <li key={student.id} className="text-sm text-gray-800 border p-2 rounded">
+                {student.first_name} {student.last_name} – {student.email}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <h3 className="text-lg font-semibold mb-2">Assign New Students</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {students
+            .filter((s) => !mentorStudents.find((m) => m.id === s.id))
+            .map((student) => (
+              <div key={student.id} className="border p-4 rounded-lg shadow-sm">
+                <p className="font-medium mb-1">
+                  {student.first_name} {student.last_name}
+                </p>
+                <p className="text-sm text-gray-500 mb-2">{student.email}</p>
+                <button
+                  onClick={() =>
+                    handleAssignStudent(
+                      selectedMentorForAssignment.user_id,
+                      student.id
+                    )
+                  }
+                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                >
+                  Assign
+                </button>
+              </div>
+            ))}
+        </div>
+      </>
+    )}
+  </div>
+)}
+
 
 
         {/* Students Tab Content */}
