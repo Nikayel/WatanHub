@@ -23,7 +23,12 @@ export default function AdminDashboard() {
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [selectedMentorForAssignment, setSelectedMentorForAssignment] = useState(null);
   const [assignmentMode, setAssignmentMode] = useState(false);
+  const [viewingStudent, setViewingStudent] = useState(null);
+const [confirmUnassign, setConfirmUnassign] = useState(null);
+const [modalStudent, setModalStudent] = useState(null);
 
+
+  
   useEffect(() => {
     if (!user) return;
 
@@ -258,6 +263,16 @@ Bio: ${student.bio || 'N/A'}
             >
               Mentor Applications ({mentorApplications.length})
             </button>
+            <button
+  onClick={() => setActiveTab('assignments')}
+  className={`px-6 py-3 font-medium text-sm ${
+    activeTab === 'assignments'
+      ? 'border-b-2 border-indigo-600 text-indigo-600'
+      : 'text-gray-500 hover:text-gray-700'
+  }`}
+>
+  Mentors & Assignments
+</button>
           </div>
         </div>
         {/* Activate the assignemnts button function */}
@@ -282,28 +297,29 @@ Bio: ${student.bio || 'N/A'}
           <p className="text-gray-500">No approved mentors yet.</p>
         ) : (
           <ul className="space-y-3">
-            {approvedMentors.map((mentor) => (
-              <li
-                key={mentor.id}
-                className="flex justify-between items-center border p-4 rounded"
-              >
-                <div>
-                  <p className="font-semibold">{mentor.full_name}</p>
-                  <p className="text-sm text-gray-600">{mentor.email}</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setSelectedMentorForAssignment(mentor);
-                    setAssignmentMode(true);
-                    handleViewAssigned(mentor);
-                  }}
-                  className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                >
-                  Assign Students
-                </button>
-              </li>
-            ))}
-          </ul>
+  {approvedMentors.map((mentor) => (
+    <li
+      key={mentor.id}
+      onClick={() => handleViewAssigned(mentor)} // full card is clickable
+      className="flex justify-between items-center border p-4 rounded cursor-pointer hover:bg-indigo-50 transition"
+    >
+      <div>
+        <p className="font-semibold text-lg">{mentor.full_name}</p>
+        <p className="text-sm text-gray-600">{mentor.email}</p>
+        <p className="text-sm text-gray-600 mt-1">
+          <strong>Languages:</strong> {mentor.languages?.join(', ') || 'N/A'}
+        </p>
+        <p className="text-sm text-gray-600">
+          <strong>Bio:</strong> {mentor.bio || 'N/A'}
+        </p>
+      </div>
+      <div>
+        <span className="text-sm text-indigo-600 underline">View Profile →</span>
+      </div>
+    </li>
+  ))}
+</ul>
+
         )}
       </>
     ) : (
@@ -311,6 +327,21 @@ Bio: ${student.bio || 'N/A'}
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold">
             Assign Students to {selectedMentorForAssignment.full_name}
+            <div className="mb-4 p-4 border rounded bg-indigo-50">
+  <h2 className="text-2xl font-semibold mb-1">
+    Assign Students to {selectedMentorForAssignment.full_name}
+  </h2>
+  <p className="text-sm text-gray-700 mb-1">
+    <strong>Email:</strong> {selectedMentorForAssignment.email}
+  </p>
+  <p className="text-sm text-gray-700 mb-1">
+    <strong>Languages:</strong> {selectedMentorForAssignment.languages.join(', ')}
+  </p>
+  <p className="text-sm text-gray-700">
+    <strong>Bio:</strong> {selectedMentorForAssignment.bio}
+  </p>
+</div>
+
           </h2>
           <button
             onClick={() => {
@@ -324,45 +355,151 @@ Bio: ${student.bio || 'N/A'}
           </button>
         </div>
 
-        <h3 className="text-lg font-semibold mb-2">Already Assigned Students</h3>
-        {mentorStudents.length === 0 ? (
-          <p className="text-gray-500 mb-4">No students assigned yet.</p>
-        ) : (
-          <ul className="mb-6 space-y-2">
-            {mentorStudents.map((student) => (
-              <li key={student.id} className="text-sm text-gray-800 border p-2 rounded">
-                {student.first_name} {student.last_name} – {student.email}
-              </li>
-            ))}
-          </ul>
-        )}
+       {/* Student Assignment Section */}
+  <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+  <h3 className="text-lg font-semibold mb-3 text-indigo-700 flex items-center">
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+    Assigned Students
+  </h3>
+  
+  {mentorStudents.length === 0 ? (
+    <div className="flex flex-col items-center justify-center py-6 bg-gray-50 rounded-md border border-dashed border-gray-300">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+      </svg>
+      <p className="text-gray-500">No students assigned yet</p>
+      <p className="text-xs text-gray-400 mt-1">Students will appear here once assigned</p>
+    </div>
+  ) : (
+    <ul className="divide-y divide-gray-100">
+      {mentorStudents.map((student) => (
+        <li
+          key={student.id}
+          onClick={() => setViewingStudent(student)}
+          className="flex items-center py-3 px-2 hover:bg-gray-50 rounded-md transition-colors cursor-pointer"
+        >
+          <div className="flex-shrink-0 h-8 w-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mr-3">
+            {student.first_name.charAt(0)}{student.last_name.charAt(0)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-800">
+              {student.first_name} {student.last_name}
+            </p>
+            <p className="text-xs text-gray-500 truncate">{student.email}</p>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setConfirmUnassign(student);
+            }}
+            className="text-xs text-red-600 hover:underline ml-4"
+          >
+            Unassign
+          </button>
+        </li>
+      ))}
+    </ul>
+  )}
+</div>
 
-        <h3 className="text-lg font-semibold mb-2">Assign New Students</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {students
-            .filter((s) => !mentorStudents.find((m) => m.id === s.id))
-            .map((student) => (
-              <div key={student.id} className="border p-4 rounded-lg shadow-sm">
-                <p className="font-medium mb-1">
-                  {student.first_name} {student.last_name}
-                </p>
-                <p className="text-sm text-gray-500 mb-2">{student.email}</p>
-                <button
-                  onClick={() =>
-                    handleAssignStudent(
-                      selectedMentorForAssignment.user_id,
-                      student.id
-                    )
-                  }
-                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                >
-                  Assign
-                </button>
-              </div>
-            ))}
-        </div>
+<h3 className="text-lg font-semibold mb-2">Assign New Students</h3>
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {students
+    .filter((s) => !mentorStudents.find((m) => m.id === s.id))
+    .map((student) => (
+      <div
+        key={student.id}
+        className="border p-4 rounded-lg shadow-sm hover:bg-gray-50 cursor-pointer transition"
+        onClick={() => setViewingStudent(student)}
+      >
+        <p className="font-medium mb-1">
+          {student.first_name} {student.last_name}
+        </p>
+        <p className="text-sm text-gray-500 mb-2">{student.email}</p>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleAssignStudent(
+              selectedMentorForAssignment.user_id,
+              student.id
+            );
+          }}
+          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+        >
+          Assign
+        </button>
+      </div>
+    ))}
+</div>
+
       </>
     )}
+    {viewingStudent && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full relative">
+      <button
+        onClick={() => setViewingStudent(null)}
+        className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+      >
+        ✕
+      </button>
+      <h2 className="text-xl font-semibold mb-4">
+        {viewingStudent.first_name} {viewingStudent.last_name}
+      </h2>
+      <p><strong>Email:</strong> {viewingStudent.email}</p>
+      <p><strong>Education:</strong> {viewingStudent.education_level || 'N/A'}</p>
+      <p><strong>English:</strong> {viewingStudent.english_level || 'N/A'}</p>
+      <p><strong>TOEFL Score:</strong> {viewingStudent.toefl_score || 'N/A'}</p>
+      <p><strong>Interests:</strong> {viewingStudent.interests || 'N/A'}</p>
+      <p><strong>Bio:</strong> {viewingStudent.bio || 'N/A'}</p>
+      <p><strong>Date of Birth:</strong> {viewingStudent.date_of_birth || 'N/A'}</p>
+    </div>
+  </div>
+)}
+{confirmUnassign && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center p-4">
+    <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+      <h3 className="text-lg font-semibold mb-4">
+        Unassign {confirmUnassign.first_name} {confirmUnassign.last_name}?
+      </h3>
+      <p className="text-sm text-gray-600 mb-4">
+        Are you sure you want to unassign this student from the mentor?
+      </p>
+      <div className="flex justify-end space-x-3">
+        <button
+          onClick={() => setConfirmUnassign(null)}
+          className="px-4 py-2 bg-gray-200 text-gray-700 rounded"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={async () => {
+            const { error } = await supabase
+              .from('mentor_student')
+              .delete()
+              .eq('mentor_id', selectedMentorForAssignment.user_id)
+              .eq('student_id', confirmUnassign.id);
+            if (error) {
+              toast.error('Failed to unassign student');
+              console.error(error);
+            } else {
+              toast.success('Student unassigned');
+              handleViewAssigned(selectedMentorForAssignment);
+              setConfirmUnassign(null);
+            }
+          }}
+          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+        >
+          Unassign
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
   </div>
 )}
 
@@ -646,16 +783,7 @@ Bio: ${student.bio || 'N/A'}
           </div>
         )}
       </div>
-      <button
-  onClick={() => setActiveTab('assignments')}
-  className={`px-6 py-3 font-medium text-sm ${
-    activeTab === 'assignments'
-      ? 'border-b-2 border-indigo-600 text-indigo-600'
-      : 'text-gray-500 hover:text-gray-700'
-  }`}
->
-  Mentors & Assignments
-</button>
+      
 
 
       {/* Edit Student Modal */}
