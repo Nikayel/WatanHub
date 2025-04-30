@@ -13,40 +13,48 @@ export default function Dashboard() {
   
 
   useEffect(() => {
-    const fetchData = async () => {
+    // 1) initial fetch
+    async function fetchData() {
       setLoading(true);
-      try {
-        // Fetch announcements
-        const { data: announcementsData, error: announcementsError } = await supabase
-          .from('announcements')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (!announcementsError) {
-          setAnnouncements(announcementsData);
-        }
-
-        // Fetch basic profile info if user exists
-        if (user) {
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('first_name, last_name, email')
-            .eq('id', user.id)
-            .single();
-
-          if (!profileError) {
-            setProfileData(profileData);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error) setAnnouncements(data);
+      setLoading(false);
+    }
     fetchData();
+  
+    // 2) realtime subscription via channel
+    const channel = supabase
+      .channel('realtime-announcements')
+      // new announcements
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'announcements' },
+        ({ new: row }) => setAnnouncements(prev => [row, ...prev])
+      )
+      // updated announcements
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'announcements' },
+        ({ new: row }) => setAnnouncements(prev =>
+          prev.map(a => (a.id === row.id ? row : a))
+        )
+      )
+      // deleted announcements
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'announcements' },
+        ({ old }) => setAnnouncements(prev =>
+          prev.filter(a => a.id !== old.id)
+        )
+      )
+      .subscribe();
+  
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
+  
+  
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);

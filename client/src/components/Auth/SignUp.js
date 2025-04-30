@@ -37,7 +37,9 @@ const SignUp = ({ isOpen, onClose }) => {
     lastName: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    gender: '',
+    religion: ''
   };
 
   const initialAdditionalData = {
@@ -135,6 +137,8 @@ const SignUp = ({ isOpen, onClose }) => {
         interests: additionalData.interests.trim() || null,
         date_of_birth: additionalData.dateOfBirth || null,
         bio: additionalData.bio.trim() || null,
+        gender: additionalData.gender || null,            // new
+        religion: additionalData.religion.trim() || null,
       };
 
       const { data, error } = await supabase
