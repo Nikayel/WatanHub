@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/AuthContext';
 import { safeSelect, safeUpdate, safeInsert } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { supabase } from '../../lib/supabase';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -17,6 +18,9 @@ export default function AdminDashboard() {
   const [loadingActionId, setLoadingActionId] = useState(null);
   const [activeTab, setActiveTab] = useState('students');
   const [viewMode, setViewMode] = useState('table'); // table or grid
+  const [approvedMentors, setApprovedMentors] = useState([]);
+  const [mentorStudents, setMentorStudents] = useState([]);
+  const [selectedMentor, setSelectedMentor] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -42,13 +46,31 @@ export default function AdminDashboard() {
       setStudents(studentsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
     }
   };
-
+  
+  const handleViewAssigned = async (mentor) => {
+    const res = await supabase
+      .from('mentor_student')
+      .select('profiles(*)')
+      .eq('mentor_id', mentor.user_id); // use mentor.user_id if available
+    if (res.data) {
+      setSelectedMentor(mentor);
+      setMentorStudents(res.data.map((r) => r.profiles));
+    }
+  };
+  
   const fetchMentorApplications = async () => {
+    await fetchApprovedMentors();
     const applications = await safeSelect('mentorapplications', '*', { status: 'pending' });
     if (applications) {
       setMentorApplications(applications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
     }
   };
+  const fetchApprovedMentors = async () => {
+    const result = await safeSelect('mentorapplications', '*', { status: 'approved' });
+    if (result) setApprovedMentors(result);
+  };
+  
+  
 
   const handleSaveEdit = async () => {
     if (!editingStudent) return;
@@ -218,6 +240,17 @@ Bio: ${student.bio || 'N/A'}
             </button>
           </div>
         </div>
+        <button
+  onClick={() => setActiveTab('assignments')}
+  className={`px-6 py-3 font-medium text-sm ${
+    activeTab === 'assignments'
+      ? 'border-b-2 border-indigo-600 text-indigo-600'
+      : 'text-gray-500 hover:text-gray-700'
+  }`}
+>
+  Mentors & Assignments
+</button>
+
 
         {/* Students Tab Content */}
         {activeTab === 'students' && (
@@ -497,6 +530,17 @@ Bio: ${student.bio || 'N/A'}
           </div>
         )}
       </div>
+      <button
+  onClick={() => setActiveTab('assignments')}
+  className={`px-6 py-3 font-medium text-sm ${
+    activeTab === 'assignments'
+      ? 'border-b-2 border-indigo-600 text-indigo-600'
+      : 'text-gray-500 hover:text-gray-700'
+  }`}
+>
+  Mentors & Assignments
+</button>
+
 
       {/* Edit Student Modal */}
       {editingStudent && (

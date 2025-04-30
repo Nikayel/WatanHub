@@ -57,8 +57,7 @@ export default function MentorApplication() {
 
     // ✅ Check if user already applied
     const existing = await safeSelect('mentorapplications', '*', {
-      email: form.email,
-      full_name: form.full_name,
+      user_id: user.id
     });
 
     if (existing && existing.length > 0) {
@@ -80,6 +79,7 @@ export default function MentorApplication() {
     } else {
       toast.error('Failed to submit application. Please try again.');
       console.error("❌ Failed to submit application from MentorApplication.js:", {
+        error: result,
         formData: form,
         userId: user.id,
       });
