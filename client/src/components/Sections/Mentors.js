@@ -1,59 +1,40 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Star, MapPin, Briefcase, Languages } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+// Add custom animations
+const customStyles = `
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes shine {
+  0% { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(99, 102, 241, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.7); }
+}
+`;
 
 // Simulated supabase data for demonstration
-const supabaseData = [
-  {
-    id: 1,
-    full_name: "Sarah Johnson",
-    email: "sarah@example.com",
-    bio: "Frontend developer with 8 years of experience specializing in React and modern JavaScript frameworks.",
-    languages: ["JavaScript", "TypeScript", "HTML/CSS"],
-    position: "Senior Frontend Developer",
-    location: "San Francisco, CA",
-    avatar_url: "/api/placeholder/300/300"
-  },
-  {
-    id: 2,
-    full_name: "Michael Chen",
-    email: "michael@example.com",
-    bio: "Data scientist passionate about machine learning and AI applications in business.",
-    languages: ["Python", "R", "SQL"],
-    position: "Lead Data Scientist",
-    location: "New York, NY",
-    avatar_url: "/api/placeholder/300/300"
-  },
-  {
-    id: 3,
-    full_name: "Priya Patel",
-    email: "priya@example.com",
-    bio: "UX/UI designer focused on creating accessible and intuitive user experiences.",
-    languages: ["Figma", "Sketch", "Adobe XD"],
-    position: "Senior UX Designer",
-    location: "London, UK",
-    avatar_url: "/api/placeholder/300/300"
-  },
-  {
-    id: 4,
-    full_name: "Carlos Rodriguez",
-    email: "carlos@example.com",
-    bio: "Backend developer specialized in scalable cloud architecture and microservices.",
-    languages: ["Java", "Go", "Node.js"],
-    position: "Cloud Architect",
-    location: "Berlin, Germany",
-    avatar_url: "/api/placeholder/300/300"
-  },
-  {
-    id: 5,
-    full_name: "Aisha Williams",
-    email: "aisha@example.com",
-    bio: "Marketing strategist with expertise in growth hacking and digital campaigns.",
-    languages: ["English", "French", "Arabic"],
-    position: "Growth Marketing Lead",
-    location: "Toronto, Canada",
-    avatar_url: "/api/placeholder/300/300"
-  }
-];
+// const supabaseData = [
+ 
+//   {
+//     id: 1,
+//     full_name: "Hasib Banaiee",
+//     email: "...@gmail.com",
+//     bio: "This is my bio.",
+//     languages: ["English", "Farsi"],
+//     position: "Mentor lead",
+//     location: "Sacramento, CA",
+//     avatar_url: "This is my avatar",
+//   },
+
+// ];
 
 const MentorCard = ({ mentor, index }) => {
   // Generate a consistent color based on mentor id or index
@@ -66,10 +47,15 @@ const MentorCard = ({ mentor, index }) => {
   ];
   
   const colorClass = colorClasses[index % colorClasses.length];
+  const floatAnimation = `animate-[float_${6 + index % 3}s_ease-in-out_infinite]`;
   
   return (
-    <div className="relative bg-white rounded-xl shadow-lg overflow-hidden min-w-[300px] w-80 snap-center transform transition-all duration-300 hover:scale-105 hover:shadow-2xl">
-      <div className={`absolute top-0 left-0 w-full h-3 bg-gradient-to-r ${colorClass}`} />
+    <div className={`relative bg-white rounded-xl shadow-lg overflow-hidden min-w-[300px] w-80 snap-center transform transition-all duration-300 hover:scale-105 hover:shadow-2xl`}>
+      <style>{customStyles}</style>
+      <div 
+        className={`absolute top-0 left-0 w-full h-3 bg-gradient-to-r ${colorClass} bg-[length:200%_100%]`}
+        style={{animation: `shine 3s linear infinite`}}
+      />
       
       <div className="relative">
         <div className="w-full h-48 bg-gray-200 overflow-hidden">
@@ -147,10 +133,17 @@ const Mentors = () => {
     const fetchMentors = async () => {
       try {
         // Simulate API call with timeout
-        setTimeout(() => {
-          setMentors(supabaseData);
-          setLoading(false);
-        }, 1000);
+        const { data, error } = await supabase
+  .from('mentors')
+  .select('id, full_name, email, bio, languages');
+
+if (error) {
+  console.error('Error fetching mentors:', error.message);
+} else {
+  setMentors(data || []);
+}
+setLoading(false);
+
         
         /* In real implementation, use this:
         const { data, error } = await supabase
@@ -196,20 +189,50 @@ const Mentors = () => {
     return matchesCategory && matchesSearch;
   });
 
+  // Auto-scroll animation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (carouselRef.current && !carouselRef.current.matches(':hover')) {
+        carouselRef.current.scrollBy({ 
+          left: 120, 
+          behavior: 'smooth' 
+        });
+        
+        // Reset to beginning when reaching the end
+        const isAtEnd = carouselRef.current.scrollLeft + carouselRef.current.clientWidth >= 
+          carouselRef.current.scrollWidth - 200;
+          
+        if (isAtEnd) {
+          // Use setTimeout to make the reset less jarring
+          setTimeout(() => {
+            carouselRef.current.scrollTo({ left: 0, behavior: 'auto' });
+          }, 500);
+        }
+      }
+    }, 3000); // Auto-scroll every 3 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <section className="py-16 bg-gradient-to-r from-gray-50 to-gray-100 overflow-hidden">
       <div className="container mx-auto px-4">
         {/* Animation elements - background gradients */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-50">
-          <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 -right-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-24 left-1/3 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl" />
+        <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-30">
+          <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-1/2 -right-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" style={{animationDuration: '8s'}} />
+          <div className="absolute -bottom-24 left-1/3 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl animate-pulse" style={{animationDuration: '12s'}} />
         </div>
 
         {/* Title with animated underline */}
         <div className="relative text-center mb-12">
-          <h2 className="text-4xl font-bold mb-2 inline-block">Our Mentors</h2>
-          <div className="h-1 bg-indigo-600 mt-1 mx-auto w-16 md:w-24 animate-pulse" />
+          <h2 className="text-4xl font-bold mb-2 inline-block">
+            <span className="relative">
+              Our Mentors
+              <span className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 bg-[length:200%_100%]" 
+                style={{animation: 'shine 3s linear infinite'}} />
+            </span>
+          </h2>
           <p className="text-gray-600 max-w-2xl mx-auto mt-4">
             Connect with industry experts who are passionate about sharing their knowledge
             and helping you succeed in your journey.
@@ -278,11 +301,34 @@ const Mentors = () => {
                 <MentorSkeleton key={index} />
               ))
             ) : filteredMentors.length > 0 ? (
-              filteredMentors.map((mentor, index) => (
-                <div key={mentor.id} className="opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]" style={{animationDelay: `${index * 0.1}s`}}>
-                  <MentorCard mentor={mentor} index={index} />
-                </div>
-              ))
+              <>
+                {/* Duplicate first few cards at the end for infinite scrolling effect */}
+                {filteredMentors.map((mentor, index) => (
+                  <div 
+                    key={mentor.id} 
+                    className="opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]" 
+                    style={{
+                      animationDelay: `${index * 0.1}s`,
+                      transform: `translateY(${Math.sin(index) * 8}px)`
+                    }}
+                  >
+                    <MentorCard mentor={mentor} index={index} />
+                  </div>
+                ))}
+                
+                {/* {filteredMentors.slice(0, 2).map((mentor, index) => (
+                  <div 
+                    key={`duplicate-${mentor.id}`} 
+                    className="opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]" 
+                    style={{
+                      animationDelay: `${(filteredMentors.length + index) * 0.1}s`,
+                      transform: `translateY(${Math.sin(index) * 8}px)`
+                    }}
+                  >
+                    <MentorCard mentor={mentor} index={filteredMentors.length + index} />
+                  </div>
+                ))} */}
+              </>
             ) : (
               <div className="flex items-center justify-center w-full py-12">
                 <p className="text-center text-gray-500">No mentors found matching your criteria.</p>
