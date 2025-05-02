@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { safeInsert, safeSelect } from '../lib/supabase';
 import { toast } from 'sonner';
+import {supabase} from '../lib/supabase';
+import { useEffect} from 'react';
 
 export default function MentorApplication() {
   const { user } = useAuth();
@@ -23,7 +25,19 @@ export default function MentorApplication() {
   });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  useEffect(() => {
+    async function checkAuthUid() {
+      const { data, error } = await supabase.rpc('get_my_uid');
+      if (error) {
+        console.error('❌ Failed to fetch auth.uid() from Supabase:', error);
+      } else {
+        console.log('🧠 Supabase auth.uid() from server:', data);
+        console.log('🧠 Local user.id from useAuth():', user?.id);
+      }
+    }
 
+    if (user) checkAuthUid();
+  }, [user]);
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6">
@@ -72,21 +86,34 @@ export default function MentorApplication() {
       status: 'pending',
       languages: form.languages.split(',').map(lang => lang.trim()),
     });
-
+    
     if (result) {
       toast.success('Application submitted successfully!');
       setSubmitted(true);
     } else {
       toast.error('Failed to submit application. Please try again.');
+      
+      // 🔍 Log what we're inserting and comparing
+      console.log("🧠 Authenticated user ID:", user?.id);
+      console.log("📦 Insert payload:", {
+        ...form,
+        user_id: user.id,
+        status: 'pending',
+        languages: form.languages.split(',').map(lang => lang.trim()),
+      });
+    
       console.error("❌ Failed to submit application from MentorApplication.js:", {
         error: result,
         formData: form,
         userId: user.id,
       });
     }
+    
+    
 
     setLoading(false);
   };
+  
 
   if (submitted) {
     return (

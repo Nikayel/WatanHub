@@ -59,7 +59,7 @@ const Footer = ({onAboutClick}) => {
                 <a href="#" className="text-indigo-200 hover:text-pink-400 transition-colors transform hover:scale-110">
                   <Linkedin size={20} />
                 </a>
-                <a href="#" className="text-indigo-200 hover:text-pink-400 transition-colors transform hover:scale-110">
+                <a href="https://www.instagram.com/watan.youth.group" className="text-indigo-200 hover:text-pink-400 transition-colors transform hover:scale-110">
                   <Instagram size={20} />
                 </a>
               </div>

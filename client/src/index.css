@@ -36,6 +36,10 @@
   }
 }
 */
+#USE_CHAT_GPT_AI_ROOT__Context_Menu_Portal {
+  display: none !important;
+}
+
 
 /* You can leave your scrollbar-hide utility if you need it: */
 .scrollbar-hide::-webkit-scrollbar { display: none; }

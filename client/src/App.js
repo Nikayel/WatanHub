@@ -1,6 +1,8 @@
 //UI
 import { Toaster } from 'sonner';
 import { Analytics } from "@vercel/analytics/react"
+// VERCEL EXTRAS
+// import { SpeedInsights } from "@vercel/speed-insights/react"
 // React and Routing
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';

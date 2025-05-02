@@ -155,13 +155,15 @@ Bio: ${student.bio || 'N/A'}
     if (error) {
       toast.error('Assignment failed: ' + error.message);
       console.error(error);
-    } else {
+      return;
+    }
+    await safeUpdate('profiles',{is_assigned: true}, 'id', studentId);
       toast.success('Student successfully assigned!');
       const newLyAssignedStudent = students.find((s) => s.id === studentId);
       if(newLyAssignedStudent) {
         setMentorStudents(prev => [...prev, newLyAssignedStudent]);
       }
-    }
+      await fetchStudents();
    
   };
   
@@ -236,6 +238,7 @@ Bio: ${student.bio || 'N/A'}
           </div>
         </div>
       </div>
+      
 
       {/* Mobile-only action buttons */}
       <div className="sm:hidden flex justify-center gap-4 px-4 py-4">
@@ -509,7 +512,11 @@ Bio: ${student.bio || 'N/A'}
               </h3>
               <div className="flex items-center">
                 <span className="text-xs text-gray-500">
-                  {students.filter((s) => !mentorStudents.find((m) => m.id === s.id)).length} available
+                  { students
+                    .filter((s) => !s.is_assigned && !mentorStudents.find((m) => m.id === s.id))
+                   .length
+                     }{' '}
+                      available
                 </span>
               </div>
             </div>
@@ -735,6 +742,7 @@ Bio: ${student.bio || 'N/A'}
                   .delete()
                   .eq('mentor_id', selectedMentorForAssignment.user_id)
                   .eq('student_id', confirmUnassign.id);
+                  await safeUpdate('profiles',{is_assigned: false}, 'id', confirmUnassign.id);
                 if (error) {
                   toast.error('Failed to unassign student');
                   console.error(error);
