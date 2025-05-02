@@ -1,70 +1,121 @@
-# Getting Started with Create React App
+# 🌐 WatanHub
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+**Empowering Students with Mentorship, Community, and Resources**
 
-## Available Scripts
+WatanHub is a full-stack web application designed to connect students with mentors, provide educational resources, and streamline communication through announcements and blog content.
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## 🚀 Live Demo
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+🔗 https://watanhub.vercel.app
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## ✨ Features
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### 🧭 General
 
-### `npm run build`
+- Beautiful responsive landing page
+- Smooth UI transitions
+- Timeline-based About section
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 👤 Authentication
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- Supabase login/signup
+- Protected & admin-only routes
+- -----> Next Sprint : Google Auth
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### 👨‍🏫 Mentorship
 
-### `npm run eject`
+- Mentor application & review system
+- Admin assignment of students to mentors
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### 🧠 Blog System
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- Public blog viewing
+- Admin-controlled CRUD for blogs
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 📢 Admin Dashboard
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+- View/manage blog analytics
+- Send announcements
 
-## Learn More
+---
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 📸 Screenshots
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+#### 🔐 Admin Dashboard – Mentors & Assignments
 
-### Code Splitting
+![Admin Mentors](./client/public/screenshots/Admin1.png)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+#### 📄 Admin – No Pending Applications
 
-### Analyzing the Bundle Size
+![Admin ](./client/public/screenshots/Admin2.png)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+#### 🧠 Manage Blogs
 
-### Making a Progressive Web App
+![Admin](./client/public/screenshots/Admin2.png)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+#### 📝 Create Blog Form
 
-### Advanced Configuration
+![Admin](./client/public/screenshots/Admin3.png)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+#### 🏠 Homepage
 
-### Deployment
+![Home Page](./client/public/screenshots/home.png)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+---
 
-### `npm run build` fails to minify
+## 🧭 Application Flow
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```text
+1. Visitors land on homepage → see latest blogs and intro to the mission.
+2. Users can:
+   - Read blogs
+   - View mentors and apply to be one
+   - Reach out via contact
+3. Admins can:
+   - Approve mentors
+   - Assign students
+   - Create, update, and delete blogs
+   - Send announcements
+4. Authenticated users can access profile/dashboard.
+```
+
+---
+
+## 🛠️ Tech Stack
+
+| Frontend        | Backend           | Services          | Tooling      |
+| --------------- | ----------------- | ----------------- | ------------ |
+| React + JSX     | Node.js (Express) | Supabase          | dotenv, cors |
+| React Router    | REST API          | Google Sheets API | Tailwind CSS |
+| Sonner (toasts) |                   | Vercel Analytics  |              |
+
+                                        Resend API(For contactForm)
+
+---
+
+## ⚙️ Setup & Development
+
+### 1. Install Dependencies
+
+```bash
+cd client && npm install
+cd ../server && npm install
+```
+
+### 2. Run Locally
+
+```bash
+# Client
+cd client
+npm start
+
+# Server
+cd ../server
+node server.js
+```
+
+---
