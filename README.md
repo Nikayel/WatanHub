@@ -2,7 +2,7 @@
 
 **Empowering Students with Mentorship, Community, and Resources**
 
-WatanHub is a full-stack web application designed to connect students with mentors, provide educational resources, and streamline communication through announcements and blog content.
+WatanHub is a full-stack web application designed to connect students with mentors, provide educational resources, and clear communication through announcements and blog content.
 
 ---
 
