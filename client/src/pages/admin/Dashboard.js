@@ -37,7 +37,7 @@ const [assignedSearch, setAssignedSearch] = useState('');
     if (!user) return;
 
     const checkAdminAndFetch = async () => {
-      const adminData = await safeSelect('admin', '*', { id: user.id });
+      const adminData = await safeSelect('admin', '*', { email: user.email });
       if (adminData && adminData.length > 0) {
         setIsAdmin(true);
         await fetchStudents();
@@ -474,7 +474,7 @@ Bio: ${student.bio || 'N/A'}
                       className="flex items-center py-3 px-2 hover:bg-gray-50 rounded-md transition-colors cursor-pointer"
                     >
                       <div className="flex-shrink-0 h-8 w-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mr-3">
-                        {student.first_name.charAt(0)}{student.last_name.charAt(0)}
+                      {(student.first_name?.[0] || '?') + (student.last_name?.[0] || '')}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800">
