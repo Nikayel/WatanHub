@@ -48,6 +48,26 @@ export default function Dashboard() {
 
     fetchMentor();
   }, [user]);
+  // useEffect(() => {
+  //   if (!user) return;
+  
+  //   const fetchProfile = async () => {
+  //     const { data, error } = await supabase
+  //       .from('profiles')
+  //       .select('first_name, last_name, student_id')
+  //       .eq('id', user.id)
+  //       .single();
+  
+  //     if (error) {
+  //       console.error('Error fetching profile:', error);
+  //     } else {
+  //       setProfileData(data);
+  //     }
+  //   };
+  
+  //   fetchProfile();
+  // }, [user]);
+  
 
   useEffect(() => {
     const fetchAnnouncements = async () => {
