@@ -48,25 +48,26 @@ export default function Dashboard() {
 
     fetchMentor();
   }, [user]);
-  // useEffect(() => {
-  //   if (!user) return;
+  useEffect(() => {
+    if (!user) return;
   
-  //   const fetchProfile = async () => {
-  //     const { data, error } = await supabase
-  //       .from('profiles')
-  //       .select('first_name, last_name, student_id')
-  //       .eq('id', user.id)
-  //       .single();
+    const fetchProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, student_id')
+        .eq('id', user.id)
+        .single();
   
-  //     if (error) {
-  //       console.error('Error fetching profile:', error);
-  //     } else {
-  //       setProfileData(data);
-  //     }
-  //   };
+      if (error) {
+        console.error('Error fetching profile:', error);
+      } else {
+        setProfileData(data);
+      }
+    };
   
-  //   fetchProfile();
-  // }, [user]);
+    fetchProfile();
+  }, [user]);
+  
   
 
   useEffect(() => {
@@ -128,8 +129,16 @@ export default function Dashboard() {
               </Link>
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold">
-              Welcome{profileData ? `, ${profileData.first_name}` : ''}!
-            </h1>
+  {profileData
+    ? `Welcome, ${profileData.first_name} ${profileData.last_name || ''}!`
+    : 'Welcome!'}
+</h1>
+{profileData?.student_id && (
+  <p className="mt-1 text-indigo-100 text-sm sm:text-base">
+    Student ID: <span className="font-semibold">{profileData.student_id}</span>
+  </p>
+)}
+
             <p className="mt-2 text-indigo-100">Here's what's happening today</p>
           </div>
           <Link to="/profile" className="mt-4 sm:mt-0 flex items-center bg-white bg-opacity-20 hover:bg-opacity-30 transition px-4 py-2 rounded-lg">
