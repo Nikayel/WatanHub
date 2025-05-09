@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Resend } from 'resend';
-
+import emailRoutes from './routes/emailRoutes.js';
 dotenv.config();
 
 const app = express();
@@ -14,6 +14,7 @@ const allowedOrigins = [
   'https://watanhub.onrender.com'
 
 ];
+
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -66,6 +67,8 @@ app.post('/api/contact', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+app.use('/api/email', emailRoutes); // all email-related endpoints
+
 
 app.listen(PORT, '0.0.0.0',() => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

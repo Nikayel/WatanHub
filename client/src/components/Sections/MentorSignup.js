@@ -1,8 +1,28 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../lib/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const MentorSignup = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [isMentor, setIsMentor] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const checkMentor = async () => {
+      const { data } = await supabase
+        .from('mentors')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data) setIsMentor(true);
+    };
+
+    checkMentor();
+  }, [user]);
 
   const handleSignupClick = () => {
     navigate('/mentor-application');
@@ -15,9 +35,10 @@ const MentorSignup = () => {
         <p className="mb-8">Share your experience and empower the next generation. Join our team of dedicated mentors.</p>
         <button
           onClick={handleSignupClick}
-          className="px-8 py-3 bg-white text-secondary rounded-full font-semibold hover:bg-gray-100 transition"
+          className="px-8 py-3 bg-white text-secondary rounded-full font-semibold hover:bg-gray-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={isMentor}
         >
-          Sign Up Today
+          {isMentor ? 'You are already a mentor' : 'Sign Up Today'}
         </button>
       </div>
     </section>

@@ -23,21 +23,65 @@ export default function MentorApplication() {
     available_hours_per_week: '',
     bio: '',
   });
+
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [isAlreadyMentor, setIsAlreadyMentor] = useState(false);
+
   useEffect(() => {
-    async function checkAuthUid() {
-      const { data, error } = await supabase.rpc('get_my_uid');
-      if (error) {
-        console.error('❌ Failed to fetch auth.uid() from Supabase:', error);
-      } else {
-        console.log('🧠 Supabase auth.uid() from server:', data);
-        console.log('🧠 Local user.id from useAuth():', user?.id);
+    async function checkStatus() {
+      const { data: mentors } = await supabase
+        .from('mentors')
+        .select('id')
+        .eq('user_id', user?.id)
+        .single();
+  
+      if (mentors) {
+        setIsAlreadyMentor(true);
       }
     }
-
-    if (user) checkAuthUid();
+  
+    if (user) {
+      checkStatus();
+      // checkAuthUid();
+    }
   }, [user]);
+  if (isAlreadyMentor) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-6">
+        <h2 className="text-2xl font-bold mb-4 text-green-700">You're already a mentor!</h2>
+        <p className="text-gray-600 mb-6 text-center max-w-md">
+          Our records show you’re already an approved mentor. Thank you for contributing!
+        </p>
+        <button
+          onClick={() => navigate('/')}
+          className="px-6 py-2 bg-primary text-white rounded-full hover:bg-primary-dark transition"
+        >
+          Return to Home
+        </button>
+      </div>
+    );
+  }
+  const checkStatus = async () => {
+    const { data: mentorRecord } = await supabase
+      .from('mentors')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+  
+    const { data: approvedApp } = await supabase
+      .from('mentorapplications')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'approved')
+      .maybeSingle();
+  
+    if (mentorRecord || approvedApp) {
+      setIsAlreadyMentor(true);
+    }
+  };
+  
+  
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6">

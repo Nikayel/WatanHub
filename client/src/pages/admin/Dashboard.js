@@ -89,13 +89,22 @@ const [assignedSearch, setAssignedSearch] = useState('');
 
   const handleSaveEdit = async () => {
     if (!editingStudent) return;
-    const result = await safeUpdate('profiles', editingStudent, 'id', editingStudent.id);
+    const sanitized = {
+      ...editingStudent,
+      first_name: editingStudent.first_name?.trim(),
+      last_name: editingStudent.last_name?.trim(),
+      email: editingStudent.email?.toLowerCase().trim(),
+      bio: editingStudent.bio?.trim() || null,
+      interests: editingStudent.interests?.trim() || null,
+    };
+    const result = await safeUpdate('profiles', sanitized, 'id', sanitized.id);
     if (result) {
       toast.success('Student updated successfully!');
       await fetchStudents();
       setEditingStudent(null);
     }
   };
+  
 
   const handleCopy = (student) => {
     const info = `
@@ -131,6 +140,15 @@ Bio: ${student.bio || 'N/A'}
         // 2. Update status in mentorApplications table
         await safeUpdate('mentorapplications', { status: 'approved' }, 'id', application.id);
         toast.success(`${application.full_name} approved as mentor!`);
+        await fetch('/api/email/mentor-approved', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: application.email,
+            fullName: application.full_name
+          }),
+        });
+        
         
         // 3. Optional: Refresh data from server to ensure consistency
         await fetchMentorApplications();
@@ -157,13 +175,27 @@ Bio: ${student.bio || 'N/A'}
       console.error(error);
       return;
     }
-    await safeUpdate('profiles',{is_assigned: true}, 'id', studentId);
-      toast.success('Student successfully assigned!');
-      const newLyAssignedStudent = students.find((s) => s.id === studentId);
-      if(newLyAssignedStudent) {
-        setMentorStudents(prev => [...prev, newLyAssignedStudent]);
-      }
-      await fetchStudents();
+    await safeUpdate('profiles', { is_assigned: true }, 'id', studentId);
+toast.success('Student successfully assigned!');
+
+const newLyAssignedStudent = students.find((s) => s.id === studentId);
+if (newLyAssignedStudent) {
+  setMentorStudents(prev => [...prev, newLyAssignedStudent]);
+}
+
+await fetchStudents();
+
+// ✅ Now send the assignment email
+await fetch('/api/email/student-assigned', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: newLyAssignedStudent?.email,
+    fullName: `${newLyAssignedStudent?.first_name} ${newLyAssignedStudent?.last_name}`,
+    mentorName: selectedMentorForAssignment.full_name
+  }),
+});
+  
    
   };
   
@@ -806,6 +838,7 @@ Bio: ${student.bio || 'N/A'}
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">id</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Education</th>
@@ -818,6 +851,7 @@ Bio: ${student.bio || 'N/A'}
                         filteredStudents.map((student) => (
                           <>
                             <tr key={student.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap"> {student.student_id}</td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                   <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">

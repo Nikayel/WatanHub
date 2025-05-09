@@ -38,23 +38,23 @@ const SignUp = ({ isOpen, onClose }) => {
     email: '',
     password: '',
     confirmPassword: '',
-    gender: '',
-    religion: ''
+    // gender: '',
+    // religion: ''
   };
 
-  const initialAdditionalData = {
-    educationLevel: '',
-    placeOfBirth: '',
-    placeOfResidence: '',
-    englishLevel: '',
-    toeflScore: '',
-    interests: '',
-    dateOfBirth: '',
-    bio: ''
-  };
+  // const initialAdditionalData = {
+  //   educationLevel: '',
+  //   placeOfBirth: '',
+  //   placeOfResidence: '',
+  //   englishLevel: '',
+  //   toeflScore: '',
+  //   interests: '',
+  //   dateOfBirth: '',
+  //   bio: ''
+  // };
 
   const [basicData, setBasicData] = useState(initialBasicData);
-  const [additionalData, setAdditionalData] = useState(initialAdditionalData);
+  // const [additionalData, setAdditionalData] = useState(initialAdditionalData);
   const [step, setStep] = useState(1);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -75,10 +75,10 @@ const SignUp = ({ isOpen, onClose }) => {
     }
   }, [user, navigate]);
 
-  const handleAdditionalChange = (e) => {
-    const { name, value } = e.target;
-    setAdditionalData(prev => ({ ...prev, [name]: value }));
-  };
+  // const handleAdditionalChange = (e) => {
+  //   const { name, value } = e.target;
+  //   setAdditionalData(prev => ({ ...prev, [name]: value }));
+  // };
 
   const validateBasicStep = () => {
     if (!basicData.firstName.trim()) return "First name is required";
@@ -129,16 +129,16 @@ const SignUp = ({ isOpen, onClose }) => {
         first_name: basicData.firstName.trim(),
         last_name: basicData.lastName.trim(),
         email: basicData.email.toLowerCase().trim(),
-        education_level: additionalData.educationLevel || null,
-        place_of_birth: additionalData.placeOfBirth.trim() || null,
-        place_of_residence: additionalData.placeOfResidence.trim() || null,
-        english_level: additionalData.englishLevel || null,
-        toefl_score: additionalData.toeflScore ? parseInt(additionalData.toeflScore, 10) : null,
-        interests: additionalData.interests.trim() || null,
-        date_of_birth: additionalData.dateOfBirth || null,
-        bio: additionalData.bio.trim() || null,
-        gender: additionalData.gender || null,            // new
-        religion: additionalData.religion.trim() || null,
+        // education_level: additionalData.educationLevel || null,
+        // place_of_birth: additionalData.placeOfBirth.trim() || null,
+        // place_of_residence: additionalData.placeOfResidence.trim() || null,
+        // english_level: additionalData.englishLevel || null,
+        // toefl_score: additionalData.toeflScore ? parseInt(additionalData.toeflScore, 10) : null,
+        // interests: additionalData.interests.trim() || null,
+        // date_of_birth: additionalData.dateOfBirth || null,
+        // bio: additionalData.bio.trim() || null,
+        // gender: basicData.gender || null,            // new
+        // religion: basicData.religion.trim() || null,
       };
 
       const { data, error } = await supabase
@@ -164,33 +164,35 @@ const SignUp = ({ isOpen, onClose }) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+  
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await signUp(
-        basicData.email, 
+      const { data, error: authError } = await signUp(
+        basicData.email,
         basicData.password,
-        basicData.firstName, 
-        basicData.lastName  
+        basicData.firstName,
+        basicData.lastName
       );
-
-      if (authError || !authData?.user) {
+  
+      if (authError || !data?.user) {
         throw authError || new Error("User creation failed");
       }
-
-      // Create user profile
-      await saveUserProfile(authData.user.id);
-
-      // Close dialog and navigate
-      navigate('/'); 
-      onClose?.();
+  
+      // ✅ Show verification message temporarily
+      setError("🎉 Account created! Please check your email and verify your account before logging in.");
       
+      // ✅ Give them time to read (e.g. 5 seconds), then redirect
+      setTimeout(() => {
+        navigate('/');
+        onClose?.();
+      }, 5000);
+  
     } catch (err) {
-      setError(err.message || 'Signup failed. Please try again.');
+      setError(err.message || "Signup failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+  
 
   const handleGoogleSignUp = async () => {
     setLoading(true);
@@ -373,13 +375,28 @@ const SignUp = ({ isOpen, onClose }) => {
               </div>
 
               {error && (
-                <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-center text-sm">
-                  <div className="p-1 bg-red-100 rounded-full mr-2">
-                    <X size={14} className="text-red-500" />
-                  </div>
-                  {error}
-                </div>
-              )}
+  <div
+    className={`mb-6 p-3 rounded-lg flex items-center text-sm transition-all ${
+      error.includes("verify your account")
+        ? "bg-green-50 border border-green-200 text-green-700"
+        : "bg-red-50 border border-red-200 text-red-600"
+    }`}
+  >
+    <div
+      className={`p-1 rounded-full mr-2 ${
+        error.includes("verify your account") ? "bg-green-100" : "bg-red-100"
+      }`}
+    >
+      {error.includes("verify your account") ? (
+        <CheckCircle size={14} className="text-green-600" />
+      ) : (
+        <X size={14} className="text-red-500" />
+      )}
+    </div>
+    {error}
+  </div>
+)}
+
               
               <form onSubmit={handleSubmit} className={`space-y-6 px-1 pb-6 ${slideStyles[animation]}`}>
                 {step === 1 ? (
@@ -572,178 +589,7 @@ const SignUp = ({ isOpen, onClose }) => {
                 ) : (
                   <>
                     {/* Education Section */}
-                    <FormSection 
-                      title="Education & Language" 
-                      icon={<BookOpen size={18} className="text-primary" />}
-                    >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="educationLevel" className="block text-sm font-medium text-gray-700 mb-1">Education Level</label>
-                          <div className="relative rounded-md">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <BookOpen size={14} className="text-gray-400" />
-                            </div>
-                            <select
-                              id="educationLevel"
-                              name="educationLevel"
-                              value={additionalData.educationLevel}
-                              onChange={handleAdditionalChange}
-                              className="pl-8 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm bg-white appearance-none"
-                            >
-                              <option value="">Select education level</option>
-                              <option value="high_school">High School</option>
-                              <option value="undergraduate">Undergraduate</option>
-                              <option value="graduate">Graduate</option>
-                              <option value="postgraduate">Postgraduate</option>
-                              <option value="other">Other</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                              <ChevronDown size={14} className="text-gray-400" />
-                            </div>
-                          </div>
-                        </div>
-                        <div>
-                          <label htmlFor="englishLevel" className="block text-sm font-medium text-gray-700 mb-1">English Level</label>
-                          <div className="relative rounded-md">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <Award size={14} className="text-gray-400" />
-                            </div>
-                            <select
-                              id="englishLevel"
-                              name="englishLevel"
-                              value={additionalData.englishLevel}
-                              onChange={handleAdditionalChange}
-                              className="pl-8 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm bg-white appearance-none"
-                            >
-                              <option value="">Select English level</option>
-                              <option value="beginner">Beginner</option>
-                              <option value="intermediate">Intermediate</option>
-                              <option value="advanced">Advanced</option>
-                              <option value="fluent">Fluent</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                              <ChevronDown size={14} className="text-gray-400" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="toeflScore" className="block text-sm font-medium text-gray-700 mb-1">TOEFL Score (if applicable)</label>
-                        <div className="relative rounded-md">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Award size={14} className="text-gray-400" />
-                          </div>
-                          <input
-                            id="toeflScore"
-                            name="toeflScore"
-                            type="number"
-                            value={additionalData.toeflScore}
-                            onChange={handleAdditionalChange}
-                            min="0"
-                            max="120"
-                            className="pl-8 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
-                            placeholder="Your TOEFL score"
-                          />
-                        </div>
-                          </div>
-                      </FormSection>
-
-                      {/* Personal Details */}
-                      <FormSection
-                        title="Personal Details"
-                        icon={<Calendar size={18} className="text-primary" />}
-                      >
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-1">
-                              Date of Birth
-                            </label>
-                            <input
-                              id="dateOfBirth"
-                              name="dateOfBirth"
-                              type="date"
-                              value={additionalData.dateOfBirth}
-                              onChange={handleAdditionalChange}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm bg-white"
-                            />
-                          </div>
-                          <div>
-                            <label htmlFor="placeOfBirth" className="block text-sm font-medium text-gray-700 mb-1">
-                              Place of Birth
-                            </label>
-                            <div className="relative rounded-md">
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Globe size={14} className="text-gray-400" />
-                              </div>
-                              <input
-                                id="placeOfBirth"
-                                name="placeOfBirth"
-                                type="text"
-                                value={additionalData.placeOfBirth}
-                                onChange={handleAdditionalChange}
-                                placeholder="City, Country"
-                                className="pl-8 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label htmlFor="placeOfResidence" className="block text-sm font-medium text-gray-700 mb-1">
-                              Place of Residence
-                            </label>
-                            <div className="relative rounded-md">
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Home size={14} className="text-gray-400" />
-                              </div>
-                              <input
-                                id="placeOfResidence"
-                                name="placeOfResidence"
-                                type="text"
-                                value={additionalData.placeOfResidence}
-                                onChange={handleAdditionalChange}
-                                placeholder="City, Country"
-                                className="pl-8 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label htmlFor="interests" className="block text-sm font-medium text-gray-700 mb-1">
-                              Interests
-                            </label>
-                            <div className="relative rounded-md">
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Sparkles size={14} className="text-gray-400" />
-                              </div>
-                              <input
-                                id="interests"
-                                name="interests"
-                                type="text"
-                                value={additionalData.interests}
-                                onChange={handleAdditionalChange}
-                                placeholder="e.g. Coding, Cooking, Traveling"
-                                className="pl-8 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
-                              Short Bio
-                            </label>
-                            <textarea
-                              id="bio"
-                              name="bio"
-                              rows="3"
-                              value={additionalData.bio}
-                              onChange={handleAdditionalChange}
-                              placeholder="Tell us a little about yourself"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
-                            />
-                          </div>
-                        </div>
-                      </FormSection>
+                    
 
                       {/* Navigation Buttons */}
                       <div className="flex justify-between items-center mt-6">
