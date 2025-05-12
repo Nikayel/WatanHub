@@ -4,8 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 
 function AdminRoute({ children }) {
-  const { user, loading } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { user, loading, isAdmin } = useAuth();
   const [checkingAdmin, setCheckingAdmin] = useState(true);
 
   useEffect(() => {
@@ -15,21 +14,27 @@ function AdminRoute({ children }) {
         return;
       }
 
+      // Check if user is admin in profiles table
       const { data, error } = await supabase
-        .from('admin')
-        .select('*')
+        .from('profiles')
+        .select('is_admin')
         .eq('id', user.id)
         .single();
-
-      if (data) {
-        setIsAdmin(true);
-      }
 
       setCheckingAdmin(false);
     };
 
-    checkAdmin();
-  }, [user]);
+    if (loading) {
+      return;
+    }
+
+    // Use the isAdmin from AuthContext directly, but also double-check DB
+    if (!isAdmin) {
+      checkAdmin();
+    } else {
+      setCheckingAdmin(false);
+    }
+  }, [user, loading, isAdmin]);
 
   if (loading || checkingAdmin) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;

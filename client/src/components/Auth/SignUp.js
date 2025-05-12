@@ -10,8 +10,8 @@ import {
   DialogTitle,
   DialogClose,
 } from '../ui/dialog';
-import { 
-  BookOpen, Bookmark, Globe, Home, Mail, Lock, User, Award, 
+import {
+  BookOpen, Bookmark, Globe, Home, Mail, Lock, User, Award,
   Calendar, FileText, Coffee, ArrowLeft, ArrowRight, CheckCircle,
   X, ChevronDown, ChevronUp, Sparkles, Key
 } from 'lucide-react';
@@ -63,12 +63,12 @@ const SignUp = ({ isOpen, onClose }) => {
   const [animation, setAnimation] = useState('');
   const { user, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
-  
+
   const handleBasicChange = (e) => {
     const { name, value } = e.target;
     setBasicData(prev => ({ ...prev, [name]: value }));
   };
-  
+
   useEffect(() => {
     if (user) {
       navigate('/');
@@ -164,7 +164,7 @@ const SignUp = ({ isOpen, onClose }) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-  
+
     try {
       const { data, error: authError } = await signUp(
         basicData.email,
@@ -172,27 +172,27 @@ const SignUp = ({ isOpen, onClose }) => {
         basicData.firstName,
         basicData.lastName
       );
-  
+
       if (authError || !data?.user) {
         throw authError || new Error("User creation failed");
       }
-  
+
       // ✅ Show verification message temporarily
       setError("🎉 Account created! Please check your email and verify your account before logging in.");
-      
+
       // ✅ Give them time to read (e.g. 5 seconds), then redirect
       setTimeout(() => {
         navigate('/');
         onClose?.();
       }, 5000);
-  
+
     } catch (err) {
       setError(err.message || "Signup failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
-  
+
 
   const handleGoogleSignUp = async () => {
     setLoading(true);
@@ -210,14 +210,14 @@ const SignUp = ({ isOpen, onClose }) => {
   // Password strength checker
   const getPasswordStrength = (password) => {
     if (!password) return { strength: 0, text: 'Very Weak', color: 'bg-gray-200' };
-    
+
     let strength = 0;
     if (password.length >= 6) strength += 1;
     if (password.length >= 10) strength += 1;
     if (/[A-Z]/.test(password)) strength += 1;
     if (/[0-9]/.test(password)) strength += 1;
     if (/[^A-Za-z0-9]/.test(password)) strength += 1;
-    
+
     const strengthMap = [
       { text: 'Very Weak', color: 'bg-red-500' },
       { text: 'Weak', color: 'bg-orange-500' },
@@ -225,16 +225,16 @@ const SignUp = ({ isOpen, onClose }) => {
       { text: 'Strong', color: 'bg-lime-500' },
       { text: 'Very Strong', color: 'bg-green-500' },
     ];
-    
-    return { 
-      strength, 
-      text: strengthMap[strength].text, 
-      color: strengthMap[strength].color 
+
+    return {
+      strength,
+      text: strengthMap[strength].text,
+      color: strengthMap[strength].color
     };
   };
-  
+
   const passwordStrength = getPasswordStrength(basicData.password);
-  
+
   // Animation styles
   const slideStyles = {
     "slide-left": "animate-slide-left",
@@ -259,13 +259,13 @@ const SignUp = ({ isOpen, onClose }) => {
                 <circle cx="50" cy="50" r="50" fill="url(#radialGradient)" />
               </svg>
             </div>
-            
+
             <div className="relative z-10 h-full flex flex-col">
               <div className="mb-10">
                 <h2 className="text-2xl font-bold mb-2">Welcome to our Learning Community</h2>
                 <p className="text-blue-100">Join thousands of students enhancing their academic journey</p>
               </div>
-              
+
               <div className="flex-grow space-y-6">
                 <div className="flex items-start space-x-3">
                   <div className="bg-white/20 p-2 rounded-full">
@@ -276,7 +276,7 @@ const SignUp = ({ isOpen, onClose }) => {
                     <p className="text-sm text-blue-100">Learn from world-class educators</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start space-x-3">
                   <div className="bg-white/20 p-2 rounded-full">
                     <User size={20} className="text-white" />
@@ -286,7 +286,7 @@ const SignUp = ({ isOpen, onClose }) => {
                     <p className="text-sm text-blue-100">Tailored to your educational goals</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start space-x-3">
                   <div className="bg-white/20 p-2 rounded-full">
                     <Globe size={20} className="text-white" />
@@ -297,7 +297,7 @@ const SignUp = ({ isOpen, onClose }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="mt-auto">
                 <div className="bg-white/10 p-4 rounded-lg">
                   <p className="text-sm italic">"This platform transformed my learning experience and opened new opportunities."</p>
@@ -316,8 +316,8 @@ const SignUp = ({ isOpen, onClose }) => {
           {/* Right Side - Form Content */}
           <div className="w-full md:w-3/5 flex flex-col overflow-hidden">
             <DialogClose asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="absolute top-2 right-2 h-8 w-8 rounded-full p-0 hover:bg-gray-200"
                 aria-label="Close"
                 onClick={handleClose}
@@ -329,9 +329,9 @@ const SignUp = ({ isOpen, onClose }) => {
             {/* Mobile Header */}
             <div className="flex items-center justify-between md:hidden mb-4 px-4 pt-4">
               {step > 1 ? (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="p-1 hover:bg-gray-100 text-primary"
                   onClick={goToPrevStep}
                 >
@@ -363,8 +363,8 @@ const SignUp = ({ isOpen, onClose }) => {
               {/* Progress Bar */}
               <div className="mb-6 px-1">
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-primary h-2.5 rounded-full transition-all duration-300" 
+                  <div
+                    className="bg-primary h-2.5 rounded-full transition-all duration-300"
                     style={{ width: step === 1 ? '50%' : '100%' }}
                   ></div>
                 </div>
@@ -375,35 +375,33 @@ const SignUp = ({ isOpen, onClose }) => {
               </div>
 
               {error && (
-  <div
-    className={`mb-6 p-3 rounded-lg flex items-center text-sm transition-all ${
-      error.includes("verify your account")
-        ? "bg-green-50 border border-green-200 text-green-700"
-        : "bg-red-50 border border-red-200 text-red-600"
-    }`}
-  >
-    <div
-      className={`p-1 rounded-full mr-2 ${
-        error.includes("verify your account") ? "bg-green-100" : "bg-red-100"
-      }`}
-    >
-      {error.includes("verify your account") ? (
-        <CheckCircle size={14} className="text-green-600" />
-      ) : (
-        <X size={14} className="text-red-500" />
-      )}
-    </div>
-    {error}
-  </div>
-)}
+                <div
+                  className={`mb-6 p-3 rounded-lg flex items-center text-sm transition-all ${error.includes("verify your account")
+                      ? "bg-green-50 border border-green-200 text-green-700"
+                      : "bg-red-50 border border-red-200 text-red-600"
+                    }`}
+                >
+                  <div
+                    className={`p-1 rounded-full mr-2 ${error.includes("verify your account") ? "bg-green-100" : "bg-red-100"
+                      }`}
+                  >
+                    {error.includes("verify your account") ? (
+                      <CheckCircle size={14} className="text-green-600" />
+                    ) : (
+                      <X size={14} className="text-red-500" />
+                    )}
+                  </div>
+                  {error}
+                </div>
+              )}
 
-              
+
               <form onSubmit={handleSubmit} className={`space-y-6 px-1 pb-6 ${slideStyles[animation]}`}>
                 {step === 1 ? (
                   <>
                     {/* Basic Info */}
-                    <FormSection 
-                      title="Personal Information" 
+                    <FormSection
+                      title="Personal Information"
                       icon={<User size={18} className="text-primary" />}
                     >
                       <div className="flex flex-col sm:flex-row gap-3">
@@ -445,9 +443,9 @@ const SignUp = ({ isOpen, onClose }) => {
                         </div>
                       </div>
                     </FormSection>
-                    
-                    <FormSection 
-                      title="Account Credentials" 
+
+                    <FormSection
+                      title="Account Credentials"
                       icon={<Key size={18} className="text-primary" />}
                     >
                       <div>
@@ -468,7 +466,7 @@ const SignUp = ({ isOpen, onClose }) => {
                           />
                         </div>
                       </div>
-                      
+
                       <div>
                         <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password*</label>
                         <div className="relative rounded-md">
@@ -485,7 +483,7 @@ const SignUp = ({ isOpen, onClose }) => {
                             className="pl-8 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm pr-10"
                             placeholder="Create a secure password"
                           />
-                          <button 
+                          <button
                             type="button"
                             className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
                             onClick={() => setShowPassword(!showPassword)}
@@ -497,22 +495,21 @@ const SignUp = ({ isOpen, onClose }) => {
                             )}
                           </button>
                         </div>
-                        
+
                         {/* Password strength indicator */}
                         {basicData.password && (
                           <div className="mt-2">
                             <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full ${passwordStrength.color} transition-all duration-300`} 
+                              <div
+                                className={`h-full ${passwordStrength.color} transition-all duration-300`}
                                 style={{ width: `${(passwordStrength.strength + 1) * 20}%` }}
                               ></div>
                             </div>
                             <div className="flex justify-between items-center mt-1">
                               <span className="text-xs text-gray-500">Password strength</span>
-                              <span className={`text-xs font-medium ${
-                                passwordStrength.strength >= 3 ? 'text-green-600' : 
-                                passwordStrength.strength >= 2 ? 'text-yellow-600' : 'text-red-600'
-                              }`}>
+                              <span className={`text-xs font-medium ${passwordStrength.strength >= 3 ? 'text-green-600' :
+                                  passwordStrength.strength >= 2 ? 'text-yellow-600' : 'text-red-600'
+                                }`}>
                                 {passwordStrength.text}
                               </span>
                             </div>
@@ -520,7 +517,7 @@ const SignUp = ({ isOpen, onClose }) => {
                         )}
                         <p className="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
                       </div>
-                      
+
                       <div>
                         <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Confirm Password*</label>
                         <div className="relative rounded-md">
@@ -537,7 +534,7 @@ const SignUp = ({ isOpen, onClose }) => {
                             className="pl-8 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm pr-10"
                             placeholder="Confirm your password"
                           />
-                          <button 
+                          <button
                             type="button"
                             className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -555,10 +552,10 @@ const SignUp = ({ isOpen, onClose }) => {
                       </div>
                     </FormSection>
 
-                    <Button 
-                      type="button" 
-                      className="w-full py-3 shadow-lg flex items-center justify-center bg-primary hover:bg-primary/90 font-medium text-white rounded-lg" 
-                      onClick={goToNextStep} 
+                    <Button
+                      type="button"
+                      className="w-full py-3 shadow-lg flex items-center justify-center bg-primary hover:bg-primary/90 font-medium text-white rounded-lg"
+                      onClick={goToNextStep}
                       disabled={loading}
                     >
                       Continue to Profile Details <ArrowRight size={16} className="ml-2" />
@@ -569,12 +566,12 @@ const SignUp = ({ isOpen, onClose }) => {
                       <span className="flex-shrink mx-4 text-gray-600 text-sm">or continue with</span>
                       <div className="flex-grow border-t border-gray-300"></div>
                     </div>
-                    
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="w-full py-2.5 shadow-sm flex items-center justify-center border-gray-300 hover:bg-gray-50 transition-colors" 
-                      onClick={handleGoogleSignUp} 
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full py-2.5 shadow-sm flex items-center justify-center border-gray-300 hover:bg-gray-50 transition-colors"
+                      onClick={handleGoogleSignUp}
                       disabled={loading}
                     >
                       <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -589,29 +586,29 @@ const SignUp = ({ isOpen, onClose }) => {
                 ) : (
                   <>
                     {/* Education Section */}
-                    
 
-                      {/* Navigation Buttons */}
-                      <div className="flex justify-between items-center mt-6">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="px-6 py-2"
-                          onClick={goToPrevStep}
-                          disabled={loading}
-                        >
-                          <ArrowLeft size={16} className="mr-2" /> Back
-                        </Button>
-                        <Button
-                          type="submit"
-                          className="px-6 py-2 bg-primary hover:bg-primary/90 text-white"
-                          disabled={loading}
-                        >
-                          {loading ? 'Creating…' : 'Create Account'} <CheckCircle size={16} className="ml-2" />
-                        </Button>
-                      </div>
-                    </>
-                  )}
+
+                    {/* Navigation Buttons */}
+                    <div className="flex justify-between items-center mt-6">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="px-6 py-2"
+                        onClick={goToPrevStep}
+                        disabled={loading}
+                      >
+                        <ArrowLeft size={16} className="mr-2" /> Back
+                      </Button>
+                      <Button
+                        type="submit"
+                        className="px-6 py-2 bg-primary hover:bg-primary/90 text-white"
+                        disabled={loading}
+                      >
+                        {loading ? 'Creating…' : 'Create Account'} <CheckCircle size={16} className="ml-2" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </form>
             </div>
           </div>

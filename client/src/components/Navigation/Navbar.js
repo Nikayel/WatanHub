@@ -4,17 +4,14 @@ import { Button } from "../ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../lib/AuthContext";
-import { supabase } from "../../lib/supabase";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin, isMentor, isStudent } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isMentor, setIsMentor] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -23,31 +20,6 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  useEffect(() => {
-    if (!user) return;
-
-    // Check if user is admin
-    supabase
-      .from("admin")
-      .select("id")
-      .eq("id", user.id)
-      .single()
-      .then(({ data }) => data && setIsAdmin(true));
-
-    // Check if user is mentor
-    supabase
-      .from("mentorapplications")
-      .select("*")
-      .eq("email", user.email)
-      .eq("status", "approved")
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          setIsMentor(true);
-        }
-      });
-  }, [user]);
 
   useEffect(() => {
     if (location.pathname === "/mentors") {

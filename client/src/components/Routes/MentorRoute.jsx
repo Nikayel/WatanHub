@@ -4,8 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthContext';
 
 function MentorRoute({ children }) {
-    const { user, loading } = useAuth();
-    const [isMentor, setIsMentor] = useState(false);
+    const { user, loading, isMentor } = useAuth();
     const [checkingMentor, setCheckingMentor] = useState(true);
 
     useEffect(() => {
@@ -15,6 +14,7 @@ function MentorRoute({ children }) {
                 return;
             }
 
+            // We now use the mentorapplications table to determine if someone is a mentor
             const { data, error } = await supabase
                 .from('mentorapplications')
                 .select('*')
@@ -22,15 +22,20 @@ function MentorRoute({ children }) {
                 .eq('status', 'approved')
                 .single();
 
-            if (data) {
-                setIsMentor(true);
-            }
-
             setCheckingMentor(false);
         };
 
-        checkMentor();
-    }, [user]);
+        if (loading) {
+            return;
+        }
+
+        // Use isMentor from AuthContext directly, but also double-check
+        if (!isMentor) {
+            checkMentor();
+        } else {
+            setCheckingMentor(false);
+        }
+    }, [user, loading, isMentor]);
 
     if (loading || checkingMentor) {
         return <div className="flex items-center justify-center min-h-screen">Loading...</div>;

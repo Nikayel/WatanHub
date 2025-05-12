@@ -4,6 +4,10 @@ import { useAuth } from '../../lib/AuthContext';
 import { safeSelect, safeUpdate, safeInsert } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
+import {
+  PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, Cell, LineChart, Line, AreaChart, Area
+} from 'recharts';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -29,9 +33,26 @@ export default function AdminDashboard() {
   const [mentorSearch, setMentorSearch] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
   const [assignedSearch, setAssignedSearch] = useState('');
+  const [demographicData, setDemographicData] = useState({
+    age: [],
+    gender: [],
+    religion: [],
+    educationLevel: [],
+    englishLevel: [],
+    signupTrend: []
+  });
+  const [noteStats, setNoteStats] = useState({
+    total: 0,
+    acknowledged: 0,
+    pending: 0,
+    trend: []
+  });
 
+  // Colors for charts
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
 
-
+  // Add state for tracking the real-time channel
+  const [noteStatsChannel, setNoteStatsChannel] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -42,6 +63,11 @@ export default function AdminDashboard() {
         setIsAdmin(true);
         await fetchStudents();
         await fetchMentorApplications();
+        await fetchDemographicData();
+        await fetchNoteStats();
+
+        // Set up real-time subscriptions for analytics updates
+        setupRealtimeSubscriptions();
       } else {
         toast.error('Access denied. Admins only.');
       }
@@ -49,7 +75,37 @@ export default function AdminDashboard() {
     };
 
     checkAdminAndFetch();
+
+    return () => {
+      // Clean up subscriptions when component unmounts
+      if (noteStatsChannel) {
+        supabase.removeChannel(noteStatsChannel);
+      }
+    };
   }, [user]);
+
+  // Function to set up real-time subscriptions
+  const setupRealtimeSubscriptions = () => {
+    // Subscribe to mentor_notes table changes to update stats in real-time
+    const channel = supabase
+      .channel('admin-note-stats-changes')
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'mentor_notes'
+        },
+        async () => {
+          console.log('Admin dashboard: Note stats update triggered by database change');
+          // Refresh note statistics
+          await fetchNoteStats();
+        }
+      )
+      .subscribe();
+
+    setNoteStatsChannel(channel);
+    console.log('Admin dashboard: Real-time subscriptions set up');
+  };
 
   const fetchStudents = async () => {
     const studentsData = await safeSelect('profiles', '*');
@@ -59,19 +115,46 @@ export default function AdminDashboard() {
   };
 
   const handleViewAssigned = async (mentor) => {
-    setAssignmentMode(true);
-    setSelectedMentorForAssignment(mentor);
+    try {
+      console.log('Viewing assignments for mentor:', mentor);
+      setAssignmentMode(true);
+      setSelectedMentorForAssignment(mentor);
 
-    const res = await supabase
-      .from('mentor_student')
-      .select('profiles(*)')
-      .eq('mentor_id', mentor.user_id);
+      if (!mentor.user_id) {
+        console.error('Error: mentor.user_id is undefined or null', mentor);
+        toast.error('Error: Cannot find mentor ID');
+        return;
+      }
 
-    if (res.data) {
-      setMentorStudents(res.data.map((r) => r.profiles));
+      console.log('Fetching students assigned to mentor_id:', mentor.user_id);
+      const { data, error } = await supabase
+        .from('mentor_student')
+        .select('profiles(*)')
+        .eq('mentor_id', mentor.user_id);
+
+      if (error) {
+        console.error('Error fetching mentor students:', error);
+        toast.error('Failed to load assigned students');
+        return;
+      }
+
+      console.log('Assigned students data:', data);
+
+      if (!data || data.length === 0) {
+        console.log('No students assigned to this mentor');
+        setMentorStudents([]);
+        return;
+      }
+
+      // Extract the nested profiles data
+      const assignedStudents = data.map(item => item.profiles);
+      console.log('Processed assigned students:', assignedStudents);
+      setMentorStudents(assignedStudents);
+    } catch (error) {
+      console.error('Error in handleViewAssigned:', error);
+      toast.error('An error occurred while loading assignments');
     }
   };
-
 
   const fetchMentorApplications = async () => {
     await fetchApprovedMentors();
@@ -81,11 +164,241 @@ export default function AdminDashboard() {
     }
   };
   const fetchApprovedMentors = async () => {
-    const result = await safeSelect('mentorapplications', '*', { status: 'approved' });
-    if (result) setApprovedMentors(result);
+    try {
+      console.log('Fetching approved mentors');
+      const { data, error } = await supabase
+        .from('mentorapplications')
+        .select('*')
+        .eq('status', 'approved');
+
+      if (error) {
+        console.error('Error fetching approved mentors:', error);
+        throw error;
+      }
+
+      console.log(`Found ${data?.length || 0} approved mentors`);
+      setApprovedMentors(data || []);
+    } catch (error) {
+      console.error('Error in fetchApprovedMentors:', error.message);
+      toast.error('Failed to load approved mentors');
+    }
   };
 
+  const fetchDemographicData = async () => {
+    try {
+      // Get all students for demographic analysis
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('profiles')
+        .select('*');
 
+      if (studentsError) throw studentsError;
+
+      if (!studentsData || studentsData.length === 0) {
+        console.log('No student data available for demographics');
+        return;
+      }
+
+      // Process age data
+      const currentYear = new Date().getFullYear();
+      const ageData = studentsData.reduce((acc, student) => {
+        if (student.birth_year) {
+          const age = currentYear - parseInt(student.birth_year);
+          const ageRange = Math.floor(age / 5) * 5;
+          const label = `${ageRange}-${ageRange + 4}`;
+          const existing = acc.find(item => item.name === label);
+          if (existing) {
+            existing.value += 1;
+          } else {
+            acc.push({ name: label, value: 1 });
+          }
+        }
+        return acc;
+      }, []);
+
+      // Process gender data
+      const genderData = studentsData.reduce((acc, student) => {
+        if (student.gender) {
+          const existing = acc.find(item => item.name === student.gender);
+          if (existing) {
+            existing.value += 1;
+          } else {
+            acc.push({ name: student.gender, value: 1 });
+          }
+        }
+        return acc;
+      }, []);
+
+      // Process religion data
+      const religionData = studentsData.reduce((acc, student) => {
+        if (student.religion) {
+          const existing = acc.find(item => item.name === student.religion);
+          if (existing) {
+            existing.value += 1;
+          } else {
+            acc.push({ name: student.religion, value: 1 });
+          }
+        }
+        return acc;
+      }, []);
+
+      // Process education level data
+      const educationData = studentsData.reduce((acc, student) => {
+        if (student.education_level) {
+          const existing = acc.find(item => item.name === student.education_level);
+          if (existing) {
+            existing.value += 1;
+          } else {
+            acc.push({ name: student.education_level, value: 1 });
+          }
+        }
+        return acc;
+      }, []);
+
+      // Process English level data
+      const englishData = studentsData.reduce((acc, student) => {
+        if (student.english_level) {
+          const existing = acc.find(item => item.name === student.english_level);
+          if (existing) {
+            existing.value += 1;
+          } else {
+            acc.push({ name: student.english_level, value: 1 });
+          }
+        }
+        return acc;
+      }, []);
+
+      // Process signup trend (by month)
+      const signupData = [];
+      const months = {};
+
+      studentsData.forEach(student => {
+        if (student.created_at) {
+          const date = new Date(student.created_at);
+          const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+          if (months[monthYear]) {
+            months[monthYear] += 1;
+          } else {
+            months[monthYear] = 1;
+          }
+        }
+      });
+
+      // Convert to array and sort chronologically
+      Object.keys(months).sort().forEach(key => {
+        const [year, month] = key.split('-');
+        const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'short' });
+        signupData.push({
+          name: `${monthName} ${year}`,
+          value: months[key]
+        });
+      });
+
+      setDemographicData({
+        age: ageData.sort((a, b) => a.name.localeCompare(b.name)),
+        gender: genderData,
+        religion: religionData,
+        educationLevel: educationData,
+        englishLevel: englishData,
+        signupTrend: signupData
+      });
+
+    } catch (error) {
+      console.error('Error processing demographic data:', error);
+    }
+  };
+
+  const fetchNoteStats = async () => {
+    try {
+      console.log('Fetching note statistics for admin dashboard');
+
+      // Get total notes count
+      const { data: totalData, error: totalError } = await supabase
+        .from('mentor_notes')
+        .select('count');
+
+      if (totalError) {
+        console.error('Error fetching total notes count:', totalError);
+        throw totalError;
+      }
+
+      // Get acknowledged notes count
+      const { data: ackData, error: ackError } = await supabase
+        .from('mentor_notes')
+        .select('count')
+        .eq('acknowledged', true);
+
+      if (ackError) {
+        console.error('Error fetching acknowledged notes count:', ackError);
+        throw ackError;
+      }
+
+      // Get breakdown of acknowledged notes by month
+      const { data: timeData, error: timeError } = await supabase
+        .from('mentor_notes')
+        .select('acknowledged, created_at');
+
+      if (timeError) {
+        console.error('Error fetching time-based notes data:', timeError);
+        throw timeError;
+      }
+
+      // Process acknowledgment over time
+      const acknowledgmentByMonth = {};
+      const pendingByMonth = {};
+
+      timeData.forEach(note => {
+        if (!note.created_at) return;
+
+        const date = new Date(note.created_at);
+        const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+        // Initialize if first of this month
+        if (!acknowledgmentByMonth[monthYear]) {
+          acknowledgmentByMonth[monthYear] = 0;
+          pendingByMonth[monthYear] = 0;
+        }
+
+        // Count acknowledged and pending separately
+        if (note.acknowledged) {
+          acknowledgmentByMonth[monthYear] += 1;
+        } else {
+          pendingByMonth[monthYear] += 1;
+        }
+      });
+
+      // Convert to array format for charts
+      const acknowledgedTrend = [];
+
+      Object.keys(acknowledgmentByMonth).sort().forEach(key => {
+        const [year, month] = key.split('-');
+        const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'short' });
+        acknowledgedTrend.push({
+          name: `${monthName} ${year}`,
+          acknowledged: acknowledgmentByMonth[key],
+          pending: pendingByMonth[key]
+        });
+      });
+
+      // Calculate statistics
+      const total = totalData[0]?.count || 0;
+      const acknowledged = ackData[0]?.count || 0;
+
+      const newNoteStats = {
+        total,
+        acknowledged,
+        pending: total - acknowledged,
+        trend: acknowledgedTrend
+      };
+
+      console.log('Updated note statistics:', newNoteStats);
+      setNoteStats(newNoteStats);
+
+    } catch (error) {
+      console.error('Error fetching note stats:', error.message);
+      toast.error('Failed to update statistics');
+    }
+  };
 
   const handleSaveEdit = async () => {
     if (!editingStudent) return;
@@ -104,7 +417,6 @@ export default function AdminDashboard() {
       setEditingStudent(null);
     }
   };
-
 
   const handleCopy = (student) => {
     const info = `
@@ -129,29 +441,39 @@ Bio: ${student.bio || 'N/A'}
     setLoadingActionId(application.id);
 
     try {
-      // 1. Insert into mentors table
+      console.log('Approving mentor application:', application);
+
+      // 1. Insert into mentors table with user_id from application
       const insertResult = await safeInsert('mentors', {
+        user_id: application.user_id,
         full_name: application.full_name,
         languages: application.languages,
         bio: application.bio,
+        email: application.email,
       });
 
       if (insertResult) {
         // 2. Update status in mentorApplications table
         await safeUpdate('mentorapplications', { status: 'approved' }, 'id', application.id);
         toast.success(`${application.full_name} approved as mentor!`);
-        await fetch('/api/email/mentor-approved', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: application.email,
-            fullName: application.full_name
-          }),
-        });
 
+        // 3. Send email notification
+        try {
+          await fetch('/api/email/mentor-approved', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: application.email,
+              fullName: application.full_name
+            }),
+          });
+        } catch (emailError) {
+          console.error('Error sending approval email:', emailError);
+        }
 
-        // 3. Optional: Refresh data from server to ensure consistency
+        // 4. Refresh data
         await fetchMentorApplications();
+        await fetchApprovedMentors();
       }
     } catch (error) {
       // Revert if there's an error
@@ -160,7 +482,8 @@ Bio: ${student.bio || 'N/A'}
           app.id === application.id ? { ...app, status: 'pending' } : app
         )
       );
-      toast.error('Failed to approve mentor');
+      console.error('Error approving mentor:', error);
+      toast.error('Failed to approve mentor: ' + error.message);
     } finally {
       setLoadingActionId(null);
     }
@@ -196,9 +519,7 @@ Bio: ${student.bio || 'N/A'}
       }),
     });
 
-
   };
-
 
   const handleRejectMentor = async (applicationId) => {
     setLoadingActionId(applicationId);
@@ -214,6 +535,41 @@ Bio: ${student.bio || 'N/A'}
       console.error('Error rejecting mentor application:', error);
     } finally {
       setLoadingActionId(null);
+    }
+  };
+
+  const handleUnassignStudent = async (studentId) => {
+    try {
+      console.log('Unassigning student:', studentId, 'from mentor:', selectedMentorForAssignment.user_id);
+
+      const { error } = await supabase
+        .from('mentor_student')
+        .delete()
+        .eq('mentor_id', selectedMentorForAssignment.user_id)
+        .eq('student_id', studentId);
+
+      if (error) {
+        console.error('Error unassigning student:', error);
+        toast.error('Failed to unassign student: ' + error.message);
+        return;
+      }
+
+      // Update student record to mark as unassigned
+      await safeUpdate('profiles', { is_assigned: false }, 'id', studentId);
+
+      // Update UI by removing the student from the list
+      setMentorStudents(prev => prev.filter(student => student.id !== studentId));
+
+      // Refresh students list to show the newly unassigned student in available students
+      await fetchStudents();
+
+      toast.success('Student successfully unassigned');
+
+      // Reset confirmation state
+      setConfirmUnassign(null);
+    } catch (error) {
+      console.error('Error in handleUnassignStudent:', error);
+      toast.error('An error occurred while unassigning student');
     }
   };
 
@@ -243,7 +599,6 @@ Bio: ${student.bio || 'N/A'}
   }
 
   return (
-
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-6 px-4 sm:px-6 lg:px-8 shadow-lg">
@@ -266,11 +621,13 @@ Bio: ${student.bio || 'N/A'}
               <Link to="/admin/announcements/send" className="px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg shadow transition text-sm flex items-center">
                 <span className="mr-1">📢</span> Send Announcement
               </Link>
+              <Link to="/admin/migration" className="px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg shadow transition text-sm flex items-center">
+                <span className="mr-1">🔄</span> Database Migration
+              </Link>
             </div>
           </div>
         </div>
       </div>
-
 
       {/* Mobile-only action buttons */}
       <div className="sm:hidden flex justify-center gap-4 px-4 py-4">
@@ -280,18 +637,41 @@ Bio: ${student.bio || 'N/A'}
         <Link to="/admin/announcements/send" className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow transition text-center flex items-center justify-center">
           <span className="mr-1">📢</span> Announcements
         </Link>
+        <Link to="/admin/migration" className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow transition text-center flex items-center justify-center">
+          <span className="mr-1">🔄</span> Migration
+        </Link>
       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
+            <div className="text-4xl font-bold text-indigo-600 mb-2">{students.length}</div>
+            <div className="text-gray-500 text-sm">Total Students</div>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
+            <div className="text-4xl font-bold text-green-600 mb-2">{approvedMentors.length}</div>
+            <div className="text-gray-500 text-sm">Active Mentors</div>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
+            <div className="text-4xl font-bold text-purple-600 mb-2">{noteStats.total}</div>
+            <div className="text-gray-500 text-sm">Total Notes</div>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
+            <div className="text-4xl font-bold text-blue-600 mb-2">{noteStats.acknowledged}</div>
+            <div className="text-gray-500 text-sm">Notes Acknowledged</div>
+          </div>
+        </div>
+
         {/* Tab Navigation */}
         <div className="mb-8">
           <div className="flex flex-wrap border-b border-gray-200">
             <button
               onClick={() => setActiveTab('students')}
               className={`px-6 py-3 font-medium text-sm ${activeTab === 'students'
-                  ? 'border-b-2 border-indigo-600 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
                 }`}
             >
               Students ({students.length})
@@ -299,8 +679,8 @@ Bio: ${student.bio || 'N/A'}
             <button
               onClick={() => setActiveTab('mentors')}
               className={`px-6 py-3 font-medium text-sm ${activeTab === 'mentors'
-                  ? 'border-b-2 border-indigo-600 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
                 }`}
             >
               Mentor Applications ({mentorApplications.length})
@@ -308,490 +688,237 @@ Bio: ${student.bio || 'N/A'}
             <button
               onClick={() => setActiveTab('assignments')}
               className={`px-6 py-3 font-medium text-sm ${activeTab === 'assignments'
-                  ? 'border-b-2 border-indigo-600 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
                 }`}
             >
               Mentors & Assignments
             </button>
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-6 py-3 font-medium text-sm ${activeTab === 'analytics'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              Analytics & Demographics
+            </button>
           </div>
         </div>
-        {/* Activate the assignemnts button function */}
-        <button
 
-          onClick={() => setActiveTab('assignments')}
-          className={`px-6 py-3 font-medium text-sm ${activeTab === 'assignments'
-              ? 'border-b-2 border-indigo-600 text-indigo-600'
-              : 'text-gray-500 hover:text-gray-700'
-            }`}
-        >
-          Mentors & Assignments
-        </button>
-        {/* //Conditional after user enters the assignment button UI */}
-        {activeTab === 'assignments' && (
-          <div className="bg-white rounded-xl shadow-md p-6 mt-6">
-            {!assignmentMode ? (
-              <>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-bold">Approved Mentors</h2>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search mentors..."
-                      className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                    />
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-2 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                </div>
+        {/* Analytics & Demographics Tab */}
+        {activeTab === 'analytics' && (
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <h2 className="text-2xl font-bold mb-6">Platform Analytics</h2>
 
-                {approvedMentors.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    <p className="text-gray-500 font-medium">No approved mentors yet</p>
-                    <p className="text-sm text-gray-400 mt-1">Approved mentors will appear here</p>
-                  </div>
+            {/* Signup Trend Chart */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-4">Student Signups Over Time</h3>
+              <div className="h-80 bg-gray-50 rounded-lg p-4">
+                {demographicData.signupTrend.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={demographicData.signupTrend}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Area type="monotone" dataKey="value" name="New Students" stroke="#8884d8" fill="#8884d8" fillOpacity={0.3} />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {approvedMentors.map((mentor) => (
-                      <div
-                        key={mentor.id}
-                        className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200"
-                      >
-                        <div className="bg-indigo-50 p-3 border-b border-gray-200">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-medium text-lg mr-3">
-                              {mentor.full_name.split(' ').map(n => n[0]).join('')}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-lg">{mentor.full_name}</p>
-                              <p className="text-sm text-gray-600">{mentor.email}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="p-4">
-                          <div className="mb-3">
-                            <p className="text-sm mb-1">
-                              <span className="font-medium text-indigo-600">Languages:</span>{' '}
-                              {mentor.languages?.join(', ') || 'N/A'}
-                            </p>
-                            <p className="text-sm">
-                              <span className="font-medium text-indigo-600">Bio:</span>{' '}
-                              <span className="text-gray-700">{mentor.bio || 'N/A'}</span>
-                            </p>
-                          </div>
-
-                          <div className="flex space-x-2 mt-3">
-                            <button
-                              onClick={() => {
-                                setSelectedMentorForAssignment(mentor);
-                                setAssignmentMode(true);
-                                handleViewAssigned(mentor);
-                              }}
-                              className="flex-1 py-2 px-3 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            >
-                              Assign Students
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedMentorForAssignment(mentor);
-                                setAssignmentMode(true);
-                                handleViewAssigned(mentor);
-                              }}
-                              className="py-2 px-3 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            >
-                              View Profile
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="h-full flex items-center justify-center">
+                    <p className="text-gray-500">No signup data available</p>
                   </div>
-
                 )}
-              </>
-            ) : (
-              <>
-                <div className="flex justify-between items-center mb-4">
-                  <button
-                    onClick={() => {
-                      setAssignmentMode(false);
-                      setSelectedMentorForAssignment(null);
-                      setMentorStudents([]);
-                    }}
-                    className="flex items-center text-indigo-600 hover:text-indigo-800 font-medium"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                    </svg>
-                    Back to Mentors
-                  </button>
-                  <div className="flex items-center">
-                    <span className="mr-2 text-sm text-gray-500">
-                      {mentorStudents.length} student{mentorStudents.length !== 1 ? 's' : ''} assigned
-                    </span>
-                    <button className="ml-2 text-sm bg-indigo-100 text-indigo-700 py-1 px-3 rounded-full hover:bg-indigo-200 transition-colors">
-                      Export List
-                    </button>
-                  </div>
-                </div>
+              </div>
+            </div>
 
-                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 mb-6">
-                  <div className="flex flex-col md:flex-row md:items-center">
-                    <div className="flex-shrink-0 h-14 w-14 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xl mr-4 mb-3 md:mb-0">
-                      {selectedMentorForAssignment.full_name.split(' ').map(n => n[0]).join('')}
+            {/* Demographics Section */}
+            <h3 className="text-lg font-semibold mb-4">Student Demographics</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+              {/* Age Distribution */}
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                <h4 className="font-medium text-gray-800 mb-3">Age Distribution</h4>
+                <div className="h-64">
+                  {demographicData.age.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={demographicData.age}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="value" name="Students" fill="#8884d8" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No age data available</p>
                     </div>
-                    <div className="flex-1">
-                      <h2 className="text-xl font-semibold text-gray-800">
-                        {selectedMentorForAssignment.full_name}
-                      </h2>
-                      <div className="flex flex-wrap mt-1">
-                        <p className="text-sm text-gray-600 mr-4">
-                          <span className="font-medium">Email:</span> {selectedMentorForAssignment.email}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          <span className="font-medium">Languages:</span> {selectedMentorForAssignment.languages.join(', ')}
-                        </p>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        <span className="font-medium">Bio:</span> {selectedMentorForAssignment.bio}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col md:flex-row gap-6">
-                  {/* Assigned Students Section */}
-                  <div className="flex-1 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                    <h3 className="text-lg font-semibold mb-3 text-indigo-700 flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
-                      Assigned Students
-                    </h3>
-
-                    {mentorStudents.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-6 bg-gray-50 rounded-md border border-dashed border-gray-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                        </svg>
-                        <p className="text-gray-500">No students assigned yet</p>
-                        <p className="text-xs text-gray-400 mt-1">Students will appear here once assigned</p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative mb-3">
-                          <input
-                            type="text"
-                            placeholder="Filter assigned students..."
-                            className="w-full pl-8 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                          />
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                        </div>
-                        <ul className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
-                          {mentorStudents.map((student) => (
-                            <li
-                              key={student.id}
-                              onClick={() => setViewingStudent(student)}
-                              className="flex items-center py-3 px-2 hover:bg-gray-50 rounded-md transition-colors cursor-pointer"
-                            >
-                              <div className="flex-shrink-0 h-8 w-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mr-3">
-                                {(student.first_name?.[0] || '?') + (student.last_name?.[0] || '')}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-800">
-                                  {student.first_name} {student.last_name}
-                                </p>
-                                <p className="text-xs text-gray-500 truncate">{student.email}</p>
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setConfirmUnassign(student);
-                                }}
-                                className="text-xs text-red-600 hover:text-red-800 ml-4 flex items-center"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                                Unassign
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Available Students Section */}
-                  <div className="flex-1 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="text-lg font-semibold text-indigo-700 flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                        </svg>
-                        Available Students
-                      </h3>
-                      <div className="flex items-center">
-                        <span className="text-xs text-gray-500">
-                          {students
-                            .filter((s) => !s.is_assigned && !mentorStudents.find((m) => m.id === s.id))
-                            .length
-                          }{' '}
-                          available
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="relative mb-3">
-                      <input
-                        type="text"
-                        placeholder="Search students..."
-                        className="w-full pl-8 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                      />
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto pr-1">
-                      {students
-                        .filter((s) => !mentorStudents.find((m) => m.id === s.id))
-                        .map((student) => (
-                          <div
-                            key={student.id}
-                            className="border border-gray-200 p-3 rounded-lg shadow-sm hover:shadow transition group"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <div className="flex items-center">
-                                  <div className="h-8 w-8 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center mr-2 text-sm font-medium">
-                                    {student.first_name.charAt(0)}{student.last_name.charAt(0)}
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-sm">
-                                      {student.first_name} {student.last_name}
-                                    </p>
-                                    <p className="text-xs text-gray-500">{student.email}</p>
-                                  </div>
-                                </div>
-
-                                <div className="mt-2 pl-10">
-                                  {student.education_level && (
-                                    <span className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded mr-1 mb-1">
-                                      {student.education_level}
-                                    </span>
-                                  )}
-                                  {student.english_level && (
-                                    <span className="inline-block bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded mr-1 mb-1">
-                                      {student.english_level}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="flex items-start">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAssignStudent(
-                                      selectedMentorForAssignment.user_id,
-                                      student.id
-                                    );
-                                  }}
-                                  className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition flex items-center"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                  </svg>
-                                  Assign
-                                </button>
-                                <button
-                                  onClick={() => setViewingStudent(student)}
-                                  className="ml-2 text-sm px-2 py-1 text-gray-600 hover:text-indigo-600 transition"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Batch Assignment Options */}
-                <div className="mt-4 p-3 border-t border-gray-200 flex justify-between items-center">
-                  <div className="flex items-center">
-                    <button className="text-sm text-indigo-600 hover:text-indigo-800 mr-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                      Import Students
-                    </button>
-                    <button className="text-sm text-indigo-600 hover:text-indigo-800">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      Bulk Assign
-                    </button>
-                  </div>
-                  <div>
-                    <button className="text-sm px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition">
-                      Save Assignments
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Student Profile Modal */}
-            {viewingStudent && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full relative">
-                  <button
-                    onClick={() => setViewingStudent(null)}
-                    className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-
-                  <div className="flex items-center mb-4">
-                    <div className="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl font-medium mr-3">
-                      {viewingStudent.first_name.charAt(0)}{viewingStudent.last_name.charAt(0)}
-                    </div>
-                    <h2 className="text-xl font-semibold">
-                      {viewingStudent.first_name} {viewingStudent.last_name}
-                    </h2>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                    <div className="bg-gray-50 p-3 rounded">
-                      <p className="text-sm"><span className="font-medium text-gray-700">Email:</span> {viewingStudent.email}</p>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded">
-                      <p className="text-sm"><span className="font-medium text-gray-700">Date of Birth:</span> {viewingStudent.date_of_birth || 'N/A'}</p>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded">
-                      <p className="text-sm"><span className="font-medium text-gray-700">Education:</span> {viewingStudent.education_level || 'N/A'}</p>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded">
-                      <p className="text-sm"><span className="font-medium text-gray-700">English Level:</span> {viewingStudent.english_level || 'N/A'}</p>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded">
-                      <p className="text-sm"><span className="font-medium text-gray-700">TOEFL Score:</span> {viewingStudent.toefl_score || 'N/A'}</p>
-                    </div>
-                  </div>
-
-                  <div className="mb-4">
-                    <p className="font-medium text-gray-700 mb-1">Interests:</p>
-                    <p className="text-sm bg-gray-50 p-3 rounded">{viewingStudent.interests || 'N/A'}</p>
-                  </div>
-
-                  <div>
-                    <p className="font-medium text-gray-700 mb-1">Bio:</p>
-                    <p className="text-sm bg-gray-50 p-3 rounded">{viewingStudent.bio || 'N/A'}</p>
-                  </div>
-
-                  <div className="mt-5 flex justify-end space-x-3">
-                    {!mentorStudents.find(s => s.id === viewingStudent.id) ? (
-                      <button
-                        onClick={() => {
-                          handleAssignStudent(selectedMentorForAssignment.user_id, viewingStudent.id);
-                          setViewingStudent(null);
-                        }}
-                        className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition-colors"
-                      >
-                        Assign to Mentor
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setConfirmUnassign(viewingStudent);
-                          setViewingStudent(null);
-                        }}
-                        className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700 transition-colors"
-                      >
-                        Unassign from Mentor
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setViewingStudent(null)}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded hover:bg-gray-300 transition-colors"
-                    >
-                      Close
-                    </button>
-                  </div>
+                  )}
                 </div>
               </div>
-            )}
 
-            {/* Unassign Confirmation Modal */}
-            {confirmUnassign && (
-              <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center p-4">
-                <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
-                  <div className="flex items-center mb-4">
-                    <div className="h-10 w-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center mr-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
+              {/* Gender Distribution */}
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                <h4 className="font-medium text-gray-800 mb-3">Gender Distribution</h4>
+                <div className="h-64">
+                  {demographicData.gender.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={demographicData.gender}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          nameKey="name"
+                          label
+                        >
+                          {demographicData.gender.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No gender data available</p>
                     </div>
-                    <h3 className="text-lg font-semibold">
-                      Unassign Student
-                    </h3>
-                  </div>
+                  )}
+                </div>
+              </div>
 
-                  <p className="text-sm text-gray-600 mb-4">
-                    Are you sure you want to unassign <span className="font-medium">{confirmUnassign.first_name} {confirmUnassign.last_name}</span> from this mentor?
-                  </p>
+              {/* Religion Distribution */}
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                <h4 className="font-medium text-gray-800 mb-3">Religion Distribution</h4>
+                <div className="h-64">
+                  {demographicData.religion.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={demographicData.religion}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          nameKey="name"
+                          label
+                        >
+                          {demographicData.religion.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No religion data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      onClick={() => setConfirmUnassign(null)}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const { error } = await supabase
-                          .from('mentor_student')
-                          .delete()
-                          .eq('mentor_id', selectedMentorForAssignment.user_id)
-                          .eq('student_id', confirmUnassign.id);
-                        await safeUpdate('profiles', { is_assigned: false }, 'id', confirmUnassign.id);
-                        if (error) {
-                          toast.error('Failed to unassign student');
-                          console.error(error);
-                        } else {
-                          toast.success('Student unassigned');
-                          handleViewAssigned(selectedMentorForAssignment);
-                          setConfirmUnassign(null);
-                        }
-                      }}
-                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                    >
-                      Unassign
-                    </button>
-                  </div>
+            {/* Education and English Level */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Education Level */}
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                <h4 className="font-medium text-gray-800 mb-3">Education Level</h4>
+                <div className="h-64">
+                  {demographicData.educationLevel.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart layout="vertical" data={demographicData.educationLevel}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" />
+                        <YAxis dataKey="name" type="category" width={120} />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="value" name="Students" fill="#82ca9d" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No education level data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* English Level */}
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                <h4 className="font-medium text-gray-800 mb-3">English Proficiency</h4>
+                <div className="h-64">
+                  {demographicData.englishLevel.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart layout="vertical" data={demographicData.englishLevel}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" />
+                        <YAxis dataKey="name" type="category" width={120} />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="value" name="Students" fill="#ffc658" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No English level data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Mentorship Analytics */}
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              <h4 className="font-medium text-gray-800 mb-3">Mentorship Notes Analytics</h4>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[
+                      { name: 'Total Notes', value: noteStats.total },
+                      { name: 'Acknowledged', value: noteStats.acknowledged },
+                      { name: 'Pending', value: noteStats.pending }
+                    ]}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="value" name="Notes" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Note Acknowledgment Trend */}
+            {noteStats.trend && noteStats.trend.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mt-6">
+                <h4 className="font-medium text-gray-800 mb-3">Note Acknowledgment Trend</h4>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={noteStats.trend}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="acknowledged" name="Acknowledged Notes" fill="#82ca9d" />
+                      <Bar dataKey="pending" name="Pending Notes" stackId="a" fill="#ffc658" />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             )}
           </div>
         )}
-
-
 
         {/* Students Tab Content */}
         {activeTab === 'students' && (
@@ -1072,9 +1199,237 @@ Bio: ${student.bio || 'N/A'}
             )}
           </div>
         )}
+
+        {/* Mentors & Assignments Tab Content */}
+        {activeTab === 'assignments' && (
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="p-6">
+              <div className="mb-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+                <h2 className="text-xl font-bold">Active Mentors & Student Assignments</h2>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search mentors..."
+                    value={mentorSearch}
+                    onChange={(e) => setMentorSearch(e.target.value)}
+                    className="pl-10 pr-4 py-2 border rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {assignmentMode ? (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => {
+                          setAssignmentMode(false);
+                          setSelectedMentorForAssignment(null);
+                          setMentorStudents([]);
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        Back to Mentors
+                      </button>
+                      <h3 className="text-lg font-medium">
+                        Assignments for: <span className="text-indigo-600">{selectedMentorForAssignment?.full_name}</span>
+                      </h3>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search students..."
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                        className="pl-10 pr-4 py-2 border rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Assigned Students */}
+                    <div className="bg-white border rounded-xl p-4">
+                      <h4 className="text-md font-medium mb-4 flex items-center">
+                        <span className="mr-2 inline-flex items-center justify-center h-6 w-6 rounded-full bg-green-100 text-green-800">
+                          {mentorStudents.length}
+                        </span>
+                        Assigned Students
+                      </h4>
+
+                      {mentorStudents.length === 0 ? (
+                        <div className="text-center p-6 bg-gray-50 rounded-lg">
+                          <p className="text-gray-500">No students assigned to this mentor yet</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                          {mentorStudents
+                            .filter(s => {
+                              if (!assignedSearch) return true;
+                              const fullName = `${s.first_name} ${s.last_name}`.toLowerCase();
+                              return fullName.includes(assignedSearch.toLowerCase()) ||
+                                s.email.toLowerCase().includes(assignedSearch.toLowerCase());
+                            })
+                            .map(student => (
+                              <div key={student.id} className="border rounded-lg p-3 flex justify-between items-center">
+                                <div className="flex items-center">
+                                  <div className="h-9 w-9 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                                    <span className="text-indigo-600 font-medium text-sm">
+                                      {student.first_name?.[0]}{student.last_name?.[0]}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <h5 className="font-medium text-sm">{student.first_name} {student.last_name}</h5>
+                                    <p className="text-xs text-gray-500">{student.email}</p>
+                                  </div>
+                                </div>
+                                {confirmUnassign === student.id ? (
+                                  <div className="flex items-center space-x-2">
+                                    <button
+                                      onClick={() => handleUnassignStudent(student.id)}
+                                      className="px-3 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition"
+                                    >
+                                      Confirm
+                                    </button>
+                                    <button
+                                      onClick={() => setConfirmUnassign(null)}
+                                      className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-gray-300 transition"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setConfirmUnassign(student.id)}
+                                    className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-red-100 hover:text-red-600 transition"
+                                  >
+                                    Unassign
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Available Students */}
+                    <div className="bg-white border rounded-xl p-4">
+                      <h4 className="text-md font-medium mb-4">Available Students</h4>
+
+                      <div className="mb-3">
+                        <input
+                          type="text"
+                          placeholder="Filter by name or email..."
+                          value={assignedSearch}
+                          onChange={(e) => setAssignedSearch(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                        {students
+                          .filter(s => !s.is_assigned) // Only show unassigned students
+                          .filter(s => {
+                            if (!studentSearch) return true;
+                            const fullName = `${s.first_name} ${s.last_name}`.toLowerCase();
+                            return fullName.includes(studentSearch.toLowerCase()) ||
+                              s.email.toLowerCase().includes(studentSearch.toLowerCase());
+                          })
+                          .map(student => (
+                            <div key={student.id} className="border rounded-lg p-3 flex justify-between items-center">
+                              <div className="flex items-center">
+                                <div className="h-9 w-9 bg-gray-100 rounded-full flex items-center justify-center mr-3">
+                                  <span className="text-gray-600 font-medium text-sm">
+                                    {student.first_name?.[0]}{student.last_name?.[0]}
+                                  </span>
+                                </div>
+                                <div>
+                                  <h5 className="font-medium text-sm">{student.first_name} {student.last_name}</h5>
+                                  <p className="text-xs text-gray-500">{student.email}</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleAssignStudent(selectedMentorForAssignment.user_id, student.id)}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 transition"
+                              >
+                                Assign
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {approvedMentors.length === 0 ? (
+                    <div className="text-center p-10 bg-gray-50 rounded-lg">
+                      <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                      </svg>
+                      <h3 className="text-lg font-medium text-gray-900">No approved mentors</h3>
+                      <p className="mt-1 text-sm text-gray-500">Approve mentors from the Mentor Applications tab to see them here.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {approvedMentors
+                        .filter(mentor => {
+                          if (!mentorSearch) return true;
+                          return mentor.full_name.toLowerCase().includes(mentorSearch.toLowerCase()) ||
+                            mentor.email.toLowerCase().includes(mentorSearch.toLowerCase());
+                        })
+                        .map(mentor => (
+                          <div key={mentor.id} className="bg-white border rounded-xl shadow-sm overflow-hidden">
+                            <div className="p-6">
+                              <div className="flex items-start space-x-4">
+                                <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center text-xl font-medium text-indigo-700 flex-shrink-0">
+                                  {mentor.full_name.split(' ').map(n => n[0]).join('')}
+                                </div>
+                                <div className="space-y-1 flex-1">
+                                  <h3 className="text-lg font-medium">{mentor.full_name}</h3>
+                                  <p className="text-sm text-gray-500">{mentor.email}</p>
+                                  {mentor.languages && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                      {mentor.languages.map((lang, idx) => (
+                                        <span key={idx} className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">
+                                          {lang}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="border-t px-6 py-3 bg-gray-50 flex justify-end">
+                              <button
+                                onClick={() => handleViewAssigned(mentor)}
+                                className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition"
+                              >
+                                View Assignments
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-
-
 
       {/* Edit Student Modal */}
       {editingStudent && (
@@ -1097,7 +1452,7 @@ Bio: ${student.bio || 'N/A'}
                     type="text"
                     value={editingStudent.first_name || ''}
                     onChange={(e) => setEditingStudent({ ...editingStudent, first_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
                 {/* Last Name */}
@@ -1109,7 +1464,7 @@ Bio: ${student.bio || 'N/A'}
                     onChange={(e) =>
                       setEditingStudent({ ...editingStudent, last_name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
 
@@ -1122,7 +1477,7 @@ Bio: ${student.bio || 'N/A'}
                     onChange={(e) =>
                       setEditingStudent({ ...editingStudent, email: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
 
@@ -1135,7 +1490,7 @@ Bio: ${student.bio || 'N/A'}
                     onChange={(e) =>
                       setEditingStudent({ ...editingStudent, education_level: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
 
@@ -1148,7 +1503,7 @@ Bio: ${student.bio || 'N/A'}
                     onChange={(e) =>
                       setEditingStudent({ ...editingStudent, english_level: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
 
@@ -1161,7 +1516,7 @@ Bio: ${student.bio || 'N/A'}
                     onChange={(e) =>
                       setEditingStudent({ ...editingStudent, toefl_score: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
 
@@ -1178,7 +1533,7 @@ Bio: ${student.bio || 'N/A'}
                     onChange={(e) =>
                       setEditingStudent({ ...editingStudent, date_of_birth: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
 
@@ -1191,7 +1546,7 @@ Bio: ${student.bio || 'N/A'}
                     onChange={(e) =>
                       setEditingStudent({ ...editingStudent, interests: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
 
@@ -1204,7 +1559,7 @@ Bio: ${student.bio || 'N/A'}
                     onChange={(e) =>
                       setEditingStudent({ ...editingStudent, bio: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-y"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-y"
                   ></textarea>
                 </div>
               </div>

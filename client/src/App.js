@@ -29,6 +29,7 @@ import AdminBlogManage from './pages/admin/AdminBlogManage';
 import AdminBlogCreate from './pages/admin/AdminBlogCreate';
 import AdminBlogEdit from './pages/admin/AdminBlogEdit';
 import AdminAnnouncementSend from './pages/admin/AdminAnnouncementSend'; // 👈 import it
+import MigrationTool from './pages/admin/MigrationTool'; // 👈 import migration tool
 
 //mentor section
 import MentorApplicationPage from './pages/MentorApplicationPage';
@@ -102,6 +103,13 @@ function App() {
           <Route path="/admin/blogs/edit/:id" element={
             <AdminRoute>
               <AdminBlogEdit />
+            </AdminRoute>
+          } />
+
+          {/* New Migration Tool Route */}
+          <Route path="/admin/migration" element={
+            <AdminRoute>
+              <MigrationTool />
             </AdminRoute>
           } />
 
