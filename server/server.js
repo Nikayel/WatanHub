@@ -9,12 +9,10 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 
 const allowedOrigins = [
-  'http://localhost:3001', 
+  'http://localhost:3001',
   'https://watanhub.vercel.app',
   'https://watanhub.onrender.com'
-
 ];
-
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -29,10 +27,24 @@ app.use(cors({
   credentials: true,
 }));
 
-
 app.use(express.json());
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Create resend instance with fallback for development
+let resend;
+try {
+  resend = new Resend(process.env.RESEND_API_KEY);
+} catch (error) {
+  console.warn('⚠️ Resend API key missing. Email functionality will be mocked for development.');
+  // Mock resend for development
+  resend = {
+    emails: {
+      send: async (emailData) => {
+        console.log('📧 MOCK EMAIL SENT:', emailData);
+        return { data: { id: 'mock-email-id' }, error: null };
+      }
+    }
+  };
+}
 
 app.post('/api/contact', async (req, res) => {
   const { name, email, message } = req.body;
@@ -70,6 +82,6 @@ app.post('/api/contact', async (req, res) => {
 app.use('/api/email', emailRoutes); // all email-related endpoints
 
 
-app.listen(PORT, '0.0.0.0',() => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

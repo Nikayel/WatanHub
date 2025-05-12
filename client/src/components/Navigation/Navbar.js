@@ -14,6 +14,7 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMentor, setIsMentor] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -25,12 +26,27 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
 
   useEffect(() => {
     if (!user) return;
+
+    // Check if user is admin
     supabase
       .from("admin")
       .select("id")
       .eq("id", user.id)
       .single()
       .then(({ data }) => data && setIsAdmin(true));
+
+    // Check if user is mentor
+    supabase
+      .from("mentorapplications")
+      .select("*")
+      .eq("email", user.email)
+      .eq("status", "approved")
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setIsMentor(true);
+        }
+      });
   }, [user]);
 
   useEffect(() => {
@@ -69,6 +85,18 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
   const doLogout = async () => {
     await signOut();
     setMobileMenuOpen(false);
+  };
+
+  const getDashboardLink = () => {
+    if (isAdmin) return "/admin/dashboard";
+    if (isMentor) return "/mentor/dashboard";
+    return "/dashboard";
+  };
+
+  const getDashboardText = () => {
+    if (isAdmin) return "Admin Dashboard";
+    if (isMentor) return "Mentor Dashboard";
+    return "Dashboard";
   };
 
   return (
@@ -155,14 +183,16 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
               </>
             ) : (
               <>
-                <Link to={isAdmin ? "/admin/dashboard" : "/dashboard"}>
+                <Link to={getDashboardLink()}>
                   <Button variant="ghost">
-                    {isAdmin ? "Admin Dashboard" : "Dashboard"}
+                    {getDashboardText()}
                   </Button>
                 </Link>
-                <Link to="/profile">
-                  <Button variant="ghost">Profile</Button>
-                </Link>
+                {!isAdmin && (
+                  <Link to="/profile">
+                    <Button variant="ghost">Profile</Button>
+                  </Link>
+                )}
                 <Button onClick={doLogout} variant="destructive">
                   Logout
                 </Button>
@@ -172,85 +202,87 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
 
           {/* Mobile Hamburger */}
           {/* Mobile Hamburger */}
-<div className="flex md:hidden">
-  <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-    <SheetTrigger>
-      <Button variant="ghost" size="icon" className="rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700">
-        <Menu className="h-6 w-6" />
-      </Button>
-    </SheetTrigger>
-    <SheetContent>
-      {/* Close Button */}
-      <div className="flex justify-end p-4">
-        <button
-          onClick={() => setMobileMenuOpen(false)}
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          <X size={24} />
-        </button>
-      </div>
-
-      {/* Mobile Nav Items */}
-      <div className="flex flex-col h-full p-4 space-y-1 mt-12 text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900">
-        {navItems.map((i) => (
-          <div key={i.id}>
-            {i.id === "mentors" ? (
-              <Link to={i.href} onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full flex justify-between py-6">
-                  {i.label}
-                  <ChevronRight size={16} />
+          <div className="flex md:hidden">
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger>
+                <Button variant="ghost" size="icon" className="rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700">
+                  <Menu className="h-6 w-6" />
                 </Button>
-              </Link>
-            ) : (
-              <Button
-                variant="ghost"
-                onClick={(e) => clickItem(e, i.href, i.id)}
-                className="w-full flex justify-between py-6"
-              >
-                {i.label}
-                <ChevronRight size={16} />
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
+              </SheetTrigger>
+              <SheetContent>
+                {/* Close Button */}
+                <div className="flex justify-end p-4">
+                  <button
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
 
-      {/* Auth Buttons */}
-      <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 px-2 pb-6 space-y-3">
-        {user ? (
-          <>
-            <Link to={isAdmin ? "/admin/dashboard" : "/dashboard"} onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="outline" className="w-full">
-                {isAdmin ? "Admin Dashboard" : "Dashboard"}
-              </Button>
-            </Link>
-            <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="outline" className="w-full">
-                Profile
-              </Button>
-            </Link>
-            <Button variant="destructive" onClick={doLogout} className="w-full">
-              Logout
-            </Button>
-          </>
-        ) : (
-          <>
-            <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="outline" className="w-full">
-                Login
-              </Button>
-            </Link>
-            <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
-              <Button className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700">
-                Join Now
-              </Button>
-            </Link>
-          </>
-        )}
-      </div>
-    </SheetContent>
-  </Sheet>
-</div>
+                {/* Mobile Nav Items */}
+                <div className="flex flex-col h-full p-4 space-y-1 mt-12 text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900">
+                  {navItems.map((i) => (
+                    <div key={i.id}>
+                      {i.id === "mentors" ? (
+                        <Link to={i.href} onClick={() => setMobileMenuOpen(false)}>
+                          <Button variant="ghost" className="w-full flex justify-between py-6">
+                            {i.label}
+                            <ChevronRight size={16} />
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          onClick={(e) => clickItem(e, i.href, i.id)}
+                          className="w-full flex justify-between py-6"
+                        >
+                          {i.label}
+                          <ChevronRight size={16} />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Auth Buttons */}
+                <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 px-2 pb-6 space-y-3">
+                  {user ? (
+                    <>
+                      <Link to={getDashboardLink()} onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="outline" className="w-full">
+                          {getDashboardText()}
+                        </Button>
+                      </Link>
+                      {!isAdmin && (
+                        <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
+                          <Button variant="outline" className="w-full">
+                            Profile
+                          </Button>
+                        </Link>
+                      )}
+                      <Button variant="destructive" onClick={doLogout} className="w-full">
+                        Logout
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="outline" className="w-full">
+                          Login
+                        </Button>
+                      </Link>
+                      <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
+                        <Button className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700">
+                          Join Now
+                        </Button>
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
 
 
         </nav>

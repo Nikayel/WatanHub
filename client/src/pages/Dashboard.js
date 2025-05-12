@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
-  Loader, Bell, MessageSquare, User, Calendar, ChevronRight,
+  Loader, Bell, MessageSquare, User, Calendar, ChevronRight, BookOpen, AlignLeft
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -12,9 +13,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
   const [assignedMentor, setAssignedMentor] = useState(null);
+  const [mentorNotes, setMentorNotes] = useState([]);
 
   useEffect(() => {
     if (!user) return;
+
+    let notesCleanup = null;
 
     const fetchMentor = async () => {
       const { data: mentorStudentData, error: mentorStudentError } = await supabase
@@ -43,32 +47,83 @@ export default function Dashboard() {
         console.error('Error fetching mentor:', mentorError);
       } else {
         setAssignedMentor(mentor);
+
+        // Fetch mentor notes once we have the mentor
+        notesCleanup = await fetchMentorNotes(mentorStudentData.mentor_id, user.id);
       }
     };
 
     fetchMentor();
+
+    return () => {
+      if (notesCleanup) notesCleanup();
+    };
   }, [user]);
+
+  const fetchMentorNotes = async (mentorId, studentId) => {
+    try {
+      const { data, error } = await supabase
+        .from('mentor_notes')
+        .select('*')
+        .eq('mentor_id', mentorId)
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setMentorNotes(data || []);
+
+      // Subscribe to real-time updates for mentor notes
+      const notesChannel = supabase
+        .channel('mentor-notes-changes')
+        .on('postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'mentor_notes',
+            filter: `student_id=eq.${studentId}`
+          },
+          ({ new: newNote }) => {
+            setMentorNotes(prev => [newNote, ...prev]);
+            // Show toast notification for new notes
+            toast.success('New note from your mentor!', {
+              description: newNote.content.length > 50
+                ? `${newNote.content.substring(0, 50)}...`
+                : newNote.content
+            });
+          }
+        )
+        .subscribe();
+
+      return () => supabase.removeChannel(notesChannel);
+
+    } catch (error) {
+      console.error('Error fetching mentor notes:', error.message);
+      return () => { }; // Return empty cleanup function in case of error
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
-  
+
     const fetchProfile = async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('first_name, last_name, student_id')
         .eq('id', user.id)
         .single();
-  
+
       if (error) {
         console.error('Error fetching profile:', error);
       } else {
         setProfileData(data);
       }
     };
-  
+
     fetchProfile();
   }, [user]);
-  
-  
+
+
 
   useEffect(() => {
     const fetchAnnouncements = async () => {
@@ -129,15 +184,15 @@ export default function Dashboard() {
               </Link>
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold">
-  {profileData
-    ? `Welcome, ${profileData.first_name} ${profileData.last_name || ''}!`
-    : 'Welcome!'}
-</h1>
-{profileData?.student_id && (
-  <p className="mt-1 text-indigo-100 text-sm sm:text-base">
-    Student ID: <span className="font-semibold">{profileData.student_id}</span>
-  </p>
-)}
+              {profileData
+                ? `Welcome, ${profileData.first_name} ${profileData.last_name || ''}!`
+                : 'Welcome!'}
+            </h1>
+            {profileData?.student_id && (
+              <p className="mt-1 text-indigo-100 text-sm sm:text-base">
+                Student ID: <span className="font-semibold">{profileData.student_id}</span>
+              </p>
+            )}
 
             <p className="mt-2 text-indigo-100">Here's what's happening today</p>
           </div>
@@ -170,6 +225,12 @@ export default function Dashboard() {
                   })}
                 </div>
               </div>
+              {assignedMentor && (
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="text-sm text-green-700">Mentor Notes</div>
+                  <div className="text-2xl font-semibold text-green-900">{mentorNotes.length}</div>
+                </div>
+              )}
               <Link to="/resources" className="block mt-4 bg-gray-50 hover:bg-gray-100 p-4 rounded-lg flex justify-between items-center transition">
                 <span className="font-medium text-gray-800">Resources</span>
                 <ChevronRight size={18} className="text-gray-400" />
@@ -241,6 +302,35 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Mentor Notes */}
+      {assignedMentor && (
+        <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <BookOpen size={20} className="mr-2 text-indigo-600" />
+            Notes from Your Mentor
+          </h2>
+
+          {mentorNotes.length === 0 ? (
+            <div className="bg-gray-50 rounded-lg p-8 text-center">
+              <AlignLeft size={32} className="mx-auto text-gray-400 mb-2" />
+              <p className="text-gray-500">No notes from your mentor yet.</p>
+              <p className="text-sm text-gray-400 mt-1">Check back later for updates from your mentor.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {mentorNotes.map((note) => (
+                <div key={note.id} className="bg-indigo-50 border border-indigo-100 rounded-lg p-5 shadow-sm">
+                  <p className="text-gray-700 whitespace-pre-wrap">{note.content}</p>
+                  <div className="mt-2 text-right text-xs text-gray-500">
+                    {formatDate(note.created_at)} at {formatTime(note.created_at)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

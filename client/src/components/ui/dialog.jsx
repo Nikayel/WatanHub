@@ -11,7 +11,7 @@ const DialogTrigger = DialogPrimitive.Trigger;
 // DialogContent with overlay and centered animation
 const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => (
   <DialogPrimitive.Portal>
-    <DialogPrimitive.Overlay 
+    <DialogPrimitive.Overlay
       className={cn("fixed inset-0 bg-black/50 transition-opacity duration-300")}
     />
     <DialogPrimitive.Content
@@ -36,7 +36,7 @@ const DialogHeader = ({ className, children, ...props }) => (
 );
 DialogHeader.displayName = "DialogHeader";
 
-// DialogTitle using Radix’s Title primitive with custom styles
+// DialogTitle using Radix's Title primitive with custom styles
 const DialogTitle = React.forwardRef(({ className, children, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
@@ -48,10 +48,42 @@ const DialogTitle = React.forwardRef(({ className, children, ...props }, ref) =>
 ));
 DialogTitle.displayName = "DialogTitle";
 
+// DialogDescription component
+const DialogDescription = React.forwardRef(({ className, children, ...props }, ref) => (
+  <DialogPrimitive.Description
+    ref={ref}
+    className={cn("text-sm text-gray-600 mb-4", className)}
+    {...props}
+  >
+    {children}
+  </DialogPrimitive.Description>
+));
+DialogDescription.displayName = "DialogDescription";
+
+// DialogFooter component
+const DialogFooter = ({ className, children, ...props }) => (
+  <div
+    className={cn("flex justify-end space-x-2 mt-4", className)}
+    {...props}
+  >
+    {children}
+  </div>
+);
+DialogFooter.displayName = "DialogFooter";
+
 // Wrap the Radix Close component with forwardRef to ensure it's a function component
 const DialogClose = React.forwardRef((props, ref) => (
   <DialogPrimitive.Close ref={ref} {...props} />
 ));
 DialogClose.displayName = "DialogClose";
 
-export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogClose };
+export {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose
+};

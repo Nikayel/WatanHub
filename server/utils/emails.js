@@ -1,5 +1,20 @@
 import { Resend } from 'resend';
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Create resend instance with fallback for development
+let resend;
+try {
+  resend = new Resend(process.env.RESEND_API_KEY);
+} catch (error) {
+  console.warn('⚠️ Resend API key missing. Email functionality will be mocked for development.');
+  // Mock resend for development
+  resend = {
+    emails: {
+      send: async (emailData) => {
+        console.log('📧 MOCK EMAIL SENT:', emailData);
+        return { data: { id: 'mock-email-id' }, error: null };
+      }
+    }
+  };
+}
 
 export const sendContactFormEmail = async ({ name, email, message }) => {
   try {
@@ -63,7 +78,7 @@ export const sendStudentAssignedEmail = async ({ studentEmail, mentorName }) => 
     const { error } = await resend.emails.send({
       from: 'WatanHub <onboarding@resend.dev>',
       to: [studentEmail],
-      subject: 'You’ve been assigned a mentor!',
+      subject: "You've been assigned a mentor!",
       html: `<p>You're now paired with mentor <strong>${mentorName}</strong>. Make sure to connect soon!</p>`,
     });
 
