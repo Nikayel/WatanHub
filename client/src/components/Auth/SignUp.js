@@ -177,6 +177,10 @@ const SignUp = ({ isOpen, onClose }) => {
         throw authError || new Error("User creation failed");
       }
 
+      // Set a localStorage flag to indicate this is a new signup
+      // This will be used to show the profile tutorial after login
+      localStorage.setItem('newSignup', 'true');
+
       // ✅ Show verification message temporarily
       setError("🎉 Account created! Please check your email and verify your account before logging in.");
 
@@ -377,8 +381,8 @@ const SignUp = ({ isOpen, onClose }) => {
               {error && (
                 <div
                   className={`mb-6 p-3 rounded-lg flex items-center text-sm transition-all ${error.includes("verify your account")
-                      ? "bg-green-50 border border-green-200 text-green-700"
-                      : "bg-red-50 border border-red-200 text-red-600"
+                    ? "bg-green-50 border border-green-200 text-green-700"
+                    : "bg-red-50 border border-red-200 text-red-600"
                     }`}
                 >
                   <div
@@ -508,7 +512,7 @@ const SignUp = ({ isOpen, onClose }) => {
                             <div className="flex justify-between items-center mt-1">
                               <span className="text-xs text-gray-500">Password strength</span>
                               <span className={`text-xs font-medium ${passwordStrength.strength >= 3 ? 'text-green-600' :
-                                  passwordStrength.strength >= 2 ? 'text-yellow-600' : 'text-red-600'
+                                passwordStrength.strength >= 2 ? 'text-yellow-600' : 'text-red-600'
                                 }`}>
                                 {passwordStrength.text}
                               </span>

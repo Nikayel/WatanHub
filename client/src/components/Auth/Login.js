@@ -10,32 +10,40 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const { user,signIn, signInWithGoogle, error, loading } = useAuth();
+    const { user, signIn, signInWithGoogle, error, loading } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const success = await signIn(email, password);
+        const { success } = await signIn(email, password);
         if (success) {
+            // Check if this is a login after a new signup
+            const isNewSignup = localStorage.getItem('newSignup') === 'true';
+            if (isNewSignup) {
+                // Clear the flag once used
+                localStorage.removeItem('newSignup');
+                // Redirect to dashboard, where tutorial will show automatically
+            }
             navigate('/dashboard');
         }
     };
+
     useEffect(() => {
         if (user) {
             navigate('/dashboard');
         }
-        },[user, navigate]);
+    }, [user, navigate]);
 
     const handleGoogleSignIn = async () => {
-        const success = await signInWithGoogle();
+        const { success } = await signInWithGoogle();
         if (success) {
-            navigate('/');
+            navigate('/dashboard');
         }
     };
 
     return (
         <div className="min-h-screen flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
@@ -44,7 +52,7 @@ const Login = () => {
                 <div className="space-y-6">
                     <div className="text-center">
                         <Link to="/" className="inline-block">
-                            <motion.h2 
+                            <motion.h2
                                 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent"
                                 whileHover={{ scale: 1.05 }}
                                 transition={{ type: "spring", stiffness: 300 }}
@@ -59,9 +67,9 @@ const Login = () => {
                             Sign in to continue to your account
                         </p>
                     </div>
-                    
+
                     {error && (
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2"
@@ -90,14 +98,14 @@ const Login = () => {
                                 />
                             </div>
                         </div>
-                        
+
                         <div className="space-y-1">
                             <div className="flex justify-between items-center">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Password
                                 </label>
-                                <Link 
-                                    to="/forgot-password" 
+                                <Link
+                                    to="/forgot-password"
                                     className="text-xs text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
                                 >
                                     Forgot password?
@@ -120,8 +128,8 @@ const Login = () => {
                                     onClick={() => setShowPassword(!showPassword)}
                                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none transition-colors"
                                 >
-                                    {showPassword ? 
-                                        <EyeOff className="h-5 w-5" /> : 
+                                    {showPassword ?
+                                        <EyeOff className="h-5 w-5" /> :
                                         <Eye className="h-5 w-5" />
                                     }
                                 </button>
@@ -132,8 +140,8 @@ const Login = () => {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                         >
-                            <Button 
-                                type="submit" 
+                            <Button
+                                type="submit"
                                 className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all"
                                 disabled={loading}
                             >

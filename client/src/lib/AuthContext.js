@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isMentor, setIsMentor] = useState(false);
   const [isStudent, setIsStudent] = useState(false);
+  const [isProfileComplete, setIsProfileComplete] = useState(true);
 
   // Check if user is admin
   const checkAdmin = async (email) => {
@@ -59,6 +60,31 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Check if profile is complete with all required fields
+  const checkProfileCompleteness = (profileData) => {
+    if (!profileData) return false;
+
+    // Define required fields based on role
+    const requiredFields = ['first_name', 'last_name'];
+    const studentFields = ['education_level', 'english_level', 'interests'];
+
+    // Check basic fields
+    const hasBasicFields = requiredFields.every(field =>
+      profileData[field] && profileData[field].trim() !== ''
+    );
+
+    // For students, check additional fields
+    const needsStudentFields = userRole === ROLES.STUDENT || userRole === null;
+    if (needsStudentFields) {
+      const hasStudentFields = studentFields.every(field =>
+        profileData[field] && profileData[field].toString().trim() !== ''
+      );
+      return hasBasicFields && hasStudentFields;
+    }
+
+    return hasBasicFields;
+  };
+
   // Fetch or insert user profile
   const handleUserProfile = async (currentUser) => {
     if (!currentUser) {
@@ -67,6 +93,7 @@ export const AuthProvider = ({ children }) => {
       setIsAdmin(false);
       setIsMentor(false);
       setIsStudent(false);
+      setIsProfileComplete(true);
       return;
     }
 
@@ -110,12 +137,24 @@ export const AuthProvider = ({ children }) => {
           .eq('id', currentUser.id)
           .single();
 
-        setProfile(newProfile || null);
+        if (newProfile) {
+          setProfile(newProfile);
+          // Check if profile is complete
+          const isComplete = checkProfileCompleteness(newProfile);
+          setIsProfileComplete(isComplete);
+        } else {
+          setProfile(null);
+          setIsProfileComplete(false);
+        }
       } else {
         setProfile(existingProfile);
+        // Check if profile is complete
+        const isComplete = checkProfileCompleteness(existingProfile);
+        setIsProfileComplete(isComplete);
       }
     } catch (err) {
       console.error('Error handling user profile:', err);
+      setIsProfileComplete(false);
     }
   };
 
@@ -284,6 +323,7 @@ export const AuthProvider = ({ children }) => {
         isStudent,
         userRole,
         profile,
+        isProfileComplete,
         signUp,
         signIn,
         signInWithGoogle,

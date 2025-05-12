@@ -39,11 +39,15 @@ import Profile from './pages/Profile';
 import MentorRoute from './components/Routes/MentorRoute';
 import MentorDashboard from './pages/mentor/mentor_dashboard';
 
+// Profile Tutorial Modal
+import ProfileTutorial from './components/ProfileTutorial';
+
 function App() {
   return (
     <>
       <Router>
         <Toaster position="top-center" richColors /> {/* <- here */}
+        <ProfileTutorial />
         <Routes>
 
           {/* Public Routes */}
