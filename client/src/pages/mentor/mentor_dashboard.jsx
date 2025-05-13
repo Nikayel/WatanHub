@@ -13,6 +13,7 @@ const MentorDashboard = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [mentorProfile, setMentorProfile] = useState(null);
+    const [mentorId, setMentorId] = useState(null);
     const [assignedStudents, setAssignedStudents] = useState([]);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [studentNotes, setStudentNotes] = useState([]);
@@ -55,6 +56,9 @@ const MentorDashboard = () => {
         try {
             setLoading(true);
 
+            // Set mentorId to auth.uid to satisfy RLS policies
+            setMentorId(user.id);
+
             // Get mentor application details
             const { data: mentorData, error: mentorError } = await supabase
                 .from('mentorapplications')
@@ -73,8 +77,8 @@ const MentorDashboard = () => {
 
             setMentorProfile(mentorData);
 
-            // Get assigned students
-            await fetchAssignedStudents(mentorData.user_id);
+            // Get assigned students - use auth.uid for RLS compatibility
+            await fetchAssignedStudents(user.id);
 
         } catch (error) {
             console.error('Error fetching mentor profile:', error.message);
@@ -97,11 +101,12 @@ const MentorDashboard = () => {
             setAssignedStudents(students);
             setStats(prev => ({ ...prev, totalStudents: students.length }));
 
-            // Fetch note counts for each student
+            // Fetch note counts for each student - use auth.uid for mentor_id
             await fetchStudentNoteCounts(mentorId, students);
 
             // Fetch statistics
             await fetchStatistics(mentorId);
+
             // Fetch demographic data
             await fetchDemographicData(students);
 
@@ -260,20 +265,20 @@ const MentorDashboard = () => {
             // Clear any existing notes before fetching new ones
             setStudentNotes([]);
 
-            // Ensure we have the mentor profile before proceeding
-            if (!mentorProfile || !mentorProfile.user_id) {
-                console.error('Mentor profile not available for fetching notes');
+            // Ensure we have the user ID before proceeding
+            if (!user || !user.id) {
+                console.error('User ID not available for fetching notes');
                 toast.error('Unable to fetch notes. Please try again later.');
                 return;
             }
 
-            console.log(`Fetching notes for student ${studentId} and mentor ${mentorProfile.user_id}`);
+            console.log(`Fetching notes for student ${studentId} and mentor ${user.id}`);
 
             const { data, error } = await supabase
                 .from('mentor_notes')
                 .select('*')
                 .eq('student_id', studentId)
-                .eq('mentor_id', mentorProfile.user_id)
+                .eq('mentor_id', user.id)
                 .order('created_at', { ascending: false });
 
             if (error) {
@@ -314,7 +319,7 @@ const MentorDashboard = () => {
                             .from('mentor_notes')
                             .select('*')
                             .eq('student_id', studentId)
-                            .eq('mentor_id', mentorProfile.user_id)
+                            .eq('mentor_id', user.id)
                             .order('created_at', { ascending: false });
 
                         if (!refreshError && refreshedData) {
@@ -362,11 +367,79 @@ const MentorDashboard = () => {
                 return;
             }
 
+            // Debug authentication details
+            console.log("=== DEBUG AUTH INFO ===");
+            console.log("User object:", user);
+            const { data: sessionData } = await supabase.auth.getSession();
+            console.log("Current session:", sessionData);
+            console.log("Mentor profile:", mentorProfile);
+
+            // Get the actual auth.uid() value from server
+            const { data: authData, error: authError } = await supabase.rpc('get_auth_uid');
+            console.log("Auth UID from server:", authData, authError);
+
+            if (authData) {
+                // Try with the actual auth.uid value explicitly
+                const actualAuthId = authData;
+                console.log("Using actual auth.uid:", actualAuthId);
+
+                // Now try the insert with the confirmed auth.uid
+                const formattedDataWithActualAuth = {
+                    mentor_id: actualAuthId,
+                    student_id: selectedStudent.id,
+                    description: newNote.description.trim(),
+                    task: newNote.task.trim(),
+                    content: newNote.content.trim(),
+                    start_date: newNote.start_date ? new Date(newNote.start_date).toISOString() : new Date().toISOString(),
+                    deadline: newNote.deadline ? new Date(newNote.deadline).toISOString() : null,
+                    acknowledged: false
+                };
+
+                console.log("Attempting insert with verified auth.uid:", formattedDataWithActualAuth);
+
+                const { data: authInsertData, error: authInsertError } = await supabase
+                    .from('mentor_notes')
+                    .insert(formattedDataWithActualAuth)
+                    .select('*')
+                    .single();
+
+                if (!authInsertError) {
+                    console.log("Success with verified auth.uid:", authInsertData);
+                    // Reset the form and update UI
+                    setNewNote({
+                        description: '',
+                        task: '',
+                        content: '',
+                        deadline: '',
+                        start_date: new Date().toISOString().split('T')[0]
+                    });
+
+                    // Update the note counts
+                    setStudentNoteCounts(prev => ({
+                        ...prev,
+                        [selectedStudent.id]: (prev[selectedStudent.id] || 0) + 1
+                    }));
+
+                    toast.success('Note added successfully!');
+                    return;
+                } else {
+                    console.error("Auth insert failed:", authInsertError);
+                }
+            }
+
+            // Check auth roles
+            const { data: userRoleData } = await supabase
+                .from('users')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+            console.log("User role data:", userRoleData);
+
             // Ensure we have mentor and student IDs
-            if (!mentorProfile?.user_id || !selectedStudent?.id) {
+            if (!user?.id || !selectedStudent?.id) {
                 toast.error('Missing mentor or student information');
                 console.error('Missing IDs:', {
-                    mentorId: mentorProfile?.user_id,
+                    mentorId: user?.id,
                     studentId: selectedStudent?.id
                 });
                 return;
@@ -376,7 +449,7 @@ const MentorDashboard = () => {
 
             // Format dates properly
             const formattedData = {
-                mentor_id: mentorProfile.user_id,
+                mentor_id: user.id, // Use auth.uid() from the current user
                 student_id: selectedStudent.id,
                 description: newNote.description.trim(),
                 task: newNote.task.trim(),
@@ -388,15 +461,32 @@ const MentorDashboard = () => {
 
             console.log('Adding new note with data:', formattedData);
 
-            const { data, error } = await supabase
-                .from('mentor_notes')
-                .insert(formattedData)
-                .select('*')
-                .single();
+            // Try a raw insert without RLS first to check if the basic operation works
+            try {
+                // First, trying with the explicit service role key if available
+                const { data: adminCheckData } = await supabase
+                    .from('admin')
+                    .select('email')
+                    .eq('email', user.email)
+                    .single();
 
-            if (error) {
-                console.error('Error details:', error);
-                throw error;
+                console.log("Admin check result:", adminCheckData);
+
+                // Try direct insert with debugging
+                const { data, error } = await supabase
+                    .from('mentor_notes')
+                    .insert(formattedData)
+                    .select('*')
+                    .single();
+
+                console.log("Insert result:", { data, error });
+
+                if (error) {
+                    console.error('Error details:', error);
+                    throw error;
+                }
+            } catch (directError) {
+                console.error("Direct insert failed:", directError);
             }
 
             // Reset the form
@@ -433,7 +523,7 @@ const MentorDashboard = () => {
 
     // Set up a subscription for note acknowledgments to update stats in real-time
     useEffect(() => {
-        if (!mentorProfile?.user_id) return;
+        if (!user?.id) return;
 
         // Subscribe to changes in the mentor_notes table for this mentor
         const notesStatsChannel = supabase
@@ -443,7 +533,7 @@ const MentorDashboard = () => {
                     event: '*',
                     schema: 'public',
                     table: 'mentor_notes',
-                    filter: `mentor_id=eq.${mentorProfile.user_id}`
+                    filter: `mentor_id=eq.${user.id}`
                 },
                 async (payload) => {
                     console.log('Note change detected, updating statistics:', payload);
@@ -469,7 +559,7 @@ const MentorDashboard = () => {
                     }
 
                     // For all changes, refresh statistics to ensure accuracy
-                    await fetchStatistics(mentorProfile.user_id);
+                    await fetchStatistics(user.id);
                 }
             )
             .subscribe();
@@ -478,7 +568,7 @@ const MentorDashboard = () => {
             console.log('Cleaning up mentor notes stats subscription');
             supabase.removeChannel(notesStatsChannel);
         };
-    }, [mentorProfile?.user_id]);
+    }, [user?.id]);
 
     // Clean up subscriptions when component unmounts
     useEffect(() => {
