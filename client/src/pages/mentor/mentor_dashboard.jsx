@@ -135,13 +135,25 @@ const MentorDashboard = () => {
 
     const fetchDemographicData = async (students) => {
         try {
-            // Process age data
-            const currentYear = new Date().getFullYear();
+            // Process age data using date_of_birth instead of birth_year
             const ageData = students.reduce((acc, student) => {
-                if (student.birth_year) {
-                    const age = currentYear - parseInt(student.birth_year);
+                if (student.date_of_birth) {
+                    const birthDate = new Date(student.date_of_birth);
+                    const today = new Date();
+
+                    // Calculate age
+                    let age = today.getFullYear() - birthDate.getFullYear();
+                    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+                    // Adjust age if birthday hasn't occurred yet this year
+                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                        age--;
+                    }
+
+                    // Create age ranges for chart (e.g., 13-17, 18-22, etc.)
                     const ageRange = Math.floor(age / 5) * 5;
                     const label = `${ageRange}-${ageRange + 4}`;
+
                     const existing = acc.find(item => item.name === label);
                     if (existing) {
                         existing.value += 1;
@@ -179,7 +191,7 @@ const MentorDashboard = () => {
             }, []);
 
             setDemographicData({
-                age: ageData.sort((a, b) => a.name.localeCompare(b.name)),
+                age: ageData.sort((a, b) => parseInt(a.name.split('-')[0]) - parseInt(b.name.split('-')[0])),
                 gender: genderData,
                 religion: religionData
             });
@@ -245,6 +257,18 @@ const MentorDashboard = () => {
 
     const fetchStudentNotes = async (studentId) => {
         try {
+            // Clear any existing notes before fetching new ones
+            setStudentNotes([]);
+
+            // Ensure we have the mentor profile before proceeding
+            if (!mentorProfile || !mentorProfile.user_id) {
+                console.error('Mentor profile not available for fetching notes');
+                toast.error('Unable to fetch notes. Please try again later.');
+                return;
+            }
+
+            console.log(`Fetching notes for student ${studentId} and mentor ${mentorProfile.user_id}`);
+
             const { data, error } = await supabase
                 .from('mentor_notes')
                 .select('*')
@@ -252,12 +276,28 @@ const MentorDashboard = () => {
                 .eq('mentor_id', mentorProfile.user_id)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                console.error('Error details:', error);
+                throw error;
+            }
 
             console.log(`Fetched ${data?.length || 0} notes for student ${studentId}`);
-            setStudentNotes(data || []);
+
+            // Format date fields for display
+            const formattedNotes = data?.map(note => ({
+                ...note,
+                created_at_formatted: new Date(note.created_at).toLocaleString(),
+                start_date_formatted: note.start_date ? new Date(note.start_date).toLocaleDateString() : '',
+                deadline_formatted: note.deadline ? new Date(note.deadline).toLocaleDateString() : ''
+            })) || [];
+
+            setStudentNotes(formattedNotes);
 
             // Setup real-time listener for this student's notes
+            if (notesChannel) {
+                supabase.removeChannel(notesChannel);
+            }
+
             const channel = supabase
                 .channel(`student-notes-${studentId}`)
                 .on('postgres_changes',
@@ -277,8 +317,18 @@ const MentorDashboard = () => {
                             .eq('mentor_id', mentorProfile.user_id)
                             .order('created_at', { ascending: false });
 
-                        if (!refreshError) {
-                            setStudentNotes(refreshedData || []);
+                        if (!refreshError && refreshedData) {
+                            // Format date fields for display
+                            const formattedNotes = refreshedData.map(note => ({
+                                ...note,
+                                created_at_formatted: new Date(note.created_at).toLocaleString(),
+                                start_date_formatted: note.start_date ? new Date(note.start_date).toLocaleDateString() : '',
+                                deadline_formatted: note.deadline ? new Date(note.deadline).toLocaleDateString() : ''
+                            }));
+
+                            setStudentNotes(formattedNotes);
+                        } else if (refreshError) {
+                            console.error('Error refreshing notes:', refreshError);
                         }
                     }
                 )
@@ -305,25 +355,51 @@ const MentorDashboard = () => {
     };
 
     const addNote = async () => {
-        if (!newNote.description.trim() || !newNote.task.trim() || !newNote.content.trim() || !selectedStudent) return;
-
         try {
-            const { error } = await supabase
-                .from('mentor_notes')
-                .insert({
-                    mentor_id: mentorProfile.user_id,
-                    student_id: selectedStudent.id,
-                    description: newNote.description.trim(),
-                    task: newNote.task.trim(),
-                    content: newNote.content.trim(),
-                    start_date: new Date(newNote.start_date).toISOString(),
-                    deadline: newNote.deadline ? new Date(newNote.deadline).toISOString() : null,
-                    created_at: new Date().toISOString()
+            // Validate required fields 
+            if (!newNote.description.trim() || !newNote.task.trim() || !newNote.content.trim()) {
+                toast.error('Please fill in all required fields');
+                return;
+            }
+
+            // Ensure we have mentor and student IDs
+            if (!mentorProfile?.user_id || !selectedStudent?.id) {
+                toast.error('Missing mentor or student information');
+                console.error('Missing IDs:', {
+                    mentorId: mentorProfile?.user_id,
+                    studentId: selectedStudent?.id
                 });
+                return;
+            }
 
-            if (error) throw error;
+            setLoading(true);
 
-            toast.success('Note added successfully');
+            // Format dates properly
+            const formattedData = {
+                mentor_id: mentorProfile.user_id,
+                student_id: selectedStudent.id,
+                description: newNote.description.trim(),
+                task: newNote.task.trim(),
+                content: newNote.content.trim(),
+                start_date: newNote.start_date ? new Date(newNote.start_date).toISOString() : new Date().toISOString(),
+                deadline: newNote.deadline ? new Date(newNote.deadline).toISOString() : null,
+                acknowledged: false
+            };
+
+            console.log('Adding new note with data:', formattedData);
+
+            const { data, error } = await supabase
+                .from('mentor_notes')
+                .insert(formattedData)
+                .select('*')
+                .single();
+
+            if (error) {
+                console.error('Error details:', error);
+                throw error;
+            }
+
+            // Reset the form
             setNewNote({
                 description: '',
                 task: '',
@@ -332,26 +408,20 @@ const MentorDashboard = () => {
                 start_date: new Date().toISOString().split('T')[0]
             });
 
-            // Update student notes and statistics
-            await fetchStudentNotes(selectedStudent.id);
-
-            // Update the note count for the selected student
-            const updatedCounts = { ...studentNoteCounts };
-            updatedCounts[selectedStudent.id] = (updatedCounts[selectedStudent.id] || 0) + 1;
-            setStudentNoteCounts(updatedCounts);
-
-            // Refresh statistics to update the dashboard stats
-            await fetchStatistics(mentorProfile.user_id);
-
-            // Update global stats
-            setStats(prev => ({
+            // Update the note counts
+            setStudentNoteCounts(prev => ({
                 ...prev,
-                notesMade: prev.notesMade + 1
+                [selectedStudent.id]: (prev[selectedStudent.id] || 0) + 1
             }));
 
+            toast.success('Note added successfully!');
+
+            // No need to manually refresh notes as the real-time subscription will handle it
         } catch (error) {
-            console.error('Error adding note:', error.message);
-            toast.error('Failed to add note');
+            console.error('Error adding note:', error);
+            toast.error(error.message || 'Failed to add note. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -418,6 +488,99 @@ const MentorDashboard = () => {
             }
         };
     }, [notesChannel]);
+
+    // Add more professional note editor form
+    // This needs to be placed in the JSX where the notes section is
+    const renderNoteEditorForm = () => {
+        return (
+            <div id="add-note-form" className="mt-8 bg-white rounded-lg border shadow-sm p-6">
+                <h3 className="text-lg font-semibold mb-4">Create New Note</h3>
+
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Description <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={newNote.description}
+                                onChange={(e) => setNewNote({ ...newNote, description: e.target.value })}
+                                placeholder="Brief description of note"
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Task <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={newNote.task}
+                                onChange={(e) => setNewNote({ ...newNote, task: e.target.value })}
+                                placeholder="e.g. 'Review material', 'Prepare for test'"
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Start Date
+                            </label>
+                            <input
+                                type="date"
+                                value={newNote.start_date}
+                                onChange={(e) => setNewNote({ ...newNote, start_date: e.target.value })}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Deadline (Optional)
+                            </label>
+                            <input
+                                type="date"
+                                value={newNote.deadline}
+                                onChange={(e) => setNewNote({ ...newNote, deadline: e.target.value })}
+                                min={newNote.start_date}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Note Content <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                            value={newNote.content}
+                            onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
+                            placeholder="Add detailed instructions, feedback, or observations..."
+                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            rows="4"
+                            required
+                        ></textarea>
+                    </div>
+
+                    <div className="flex justify-end">
+                        <button
+                            onClick={addNote}
+                            disabled={loading || !newNote.description.trim() || !newNote.task.trim() || !newNote.content.trim()}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {loading ? 'Adding...' : 'Add Note'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     if (loading) {
         return (
@@ -551,10 +714,11 @@ const MentorDashboard = () => {
                         {/* Student Details and Notes */}
                         <div className="lg:col-span-2">
                             {selectedStudent ? (
-                                <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                                    <div className="bg-indigo-50 p-6 border-b border-indigo-100">
-                                        <div className="flex items-center">
-                                            <div className="h-12 w-12 bg-indigo-600 rounded-full flex items-center justify-center text-xl text-white font-medium mr-4">
+                                <div className="bg-white rounded-xl shadow-md">
+                                    {/* Student profile header */}
+                                    <div className="p-6 border-b border-gray-200">
+                                        <div className="flex items-center space-x-4">
+                                            <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-800 font-bold text-xl">
                                                 {selectedStudent.first_name[0]}{selectedStudent.last_name[0]}
                                             </div>
                                             <div>
@@ -564,7 +728,7 @@ const MentorDashboard = () => {
                                             </div>
                                             <button
                                                 onClick={() => scheduleMeeting(selectedStudent.id)}
-                                                className="ml-auto bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 transition"
+                                                className="ml-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
                                             >
                                                 Schedule Meeting
                                             </button>
@@ -592,154 +756,108 @@ const MentorDashboard = () => {
 
                                     {/* Notes Section */}
                                     <div className="p-6">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <h3 className="text-lg font-semibold">Notes</h3>
-                                            <div className="flex space-x-2">
-                                                <button
-                                                    onClick={() => setNoteFilter('all')}
-                                                    className={`px-3 py-1 text-sm rounded-lg ${noteFilter === 'all'
-                                                        ? 'bg-indigo-100 text-indigo-800'
-                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                        }`}
-                                                >
-                                                    All Notes
-                                                </button>
-                                                <button
-                                                    onClick={() => setNoteFilter('pending')}
-                                                    className={`px-3 py-1 text-sm rounded-lg ${noteFilter === 'pending'
-                                                        ? 'bg-yellow-100 text-yellow-800'
-                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                        }`}
-                                                >
-                                                    Pending
-                                                </button>
-                                                <button
-                                                    onClick={() => setNoteFilter('acknowledged')}
-                                                    className={`px-3 py-1 text-sm rounded-lg ${noteFilter === 'acknowledged'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                        }`}
-                                                >
-                                                    Completed
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="mb-6 bg-gray-50 rounded-lg p-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                                <div>
-                                                    <label className="block text-gray-700 text-sm font-medium mb-1">Description</label>
-                                                    <input
-                                                        type="text"
-                                                        value={newNote.description}
-                                                        onChange={(e) => setNewNote({ ...newNote, description: e.target.value })}
-                                                        placeholder="Brief description"
-                                                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-gray-700 text-sm font-medium mb-1">Task</label>
-                                                    <input
-                                                        type="text"
-                                                        value={newNote.task}
-                                                        onChange={(e) => setNewNote({ ...newNote, task: e.target.value })}
-                                                        placeholder="Assigned task"
-                                                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    />
+                                        <div className="mt-6">
+                                            <div className="mb-4 flex justify-between items-center">
+                                                <h3 className="text-lg font-semibold">Mentorship Notes</h3>
+                                                <div className="flex items-center space-x-2">
+                                                    <select
+                                                        value={noteFilter}
+                                                        onChange={(e) => setNoteFilter(e.target.value)}
+                                                        className="p-1 text-sm border rounded"
+                                                    >
+                                                        <option value="all">All Notes</option>
+                                                        <option value="pending">Pending</option>
+                                                        <option value="acknowledged">Acknowledged</option>
+                                                    </select>
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                                <div>
-                                                    <label className="block text-gray-700 text-sm font-medium mb-1">Start Date</label>
-                                                    <input
-                                                        type="date"
-                                                        value={newNote.start_date}
-                                                        onChange={(e) => setNewNote({ ...newNote, start_date: e.target.value })}
-                                                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    />
+                                            {studentNotes.length === 0 ? (
+                                                <div className="py-8 px-4 text-center bg-gray-50 rounded-lg border border-dashed">
+                                                    <p className="text-gray-500">No notes available for this student.</p>
+                                                    <button
+                                                        onClick={() => document.getElementById('add-note-form').scrollIntoView({ behavior: 'smooth' })}
+                                                        className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
+                                                    >
+                                                        Create your first note
+                                                    </button>
                                                 </div>
-                                                <div>
-                                                    <label className="block text-gray-700 text-sm font-medium mb-1">Deadline (Optional)</label>
-                                                    <input
-                                                        type="date"
-                                                        value={newNote.deadline}
-                                                        onChange={(e) => setNewNote({ ...newNote, deadline: e.target.value })}
-                                                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-gray-700 text-sm font-medium mb-1">Note Content</label>
-                                                <textarea
-                                                    value={newNote.content}
-                                                    onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
-                                                    placeholder="Add details, feedback, or instructions..."
-                                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    rows="3"
-                                                ></textarea>
-                                            </div>
-
-                                            <div className="flex justify-end mt-3">
-                                                <button
-                                                    onClick={addNote}
-                                                    disabled={!newNote.description.trim() || !newNote.task.trim() || !newNote.content.trim()}
-                                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    Add Note
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-4 max-h-96 overflow-y-auto">
-                                            {getFilteredNotes().length === 0 ? (
-                                                <p className="text-center text-gray-500 py-4">
-                                                    {studentNotes.length === 0
-                                                        ? 'No notes yet'
-                                                        : noteFilter === 'pending'
-                                                            ? 'No pending notes'
-                                                            : 'No completed notes'}
-                                                </p>
                                             ) : (
-                                                getFilteredNotes().map((note) => (
-                                                    <div key={note.id} className="bg-gray-50 p-4 rounded-lg border-l-4 border-indigo-500">
-                                                        <div className="flex justify-between items-start mb-2">
-                                                            <h4 className="font-medium text-indigo-700">{note.description}</h4>
-                                                            <div className="flex items-center">
-                                                                <span className="text-xs font-medium px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full mr-2">
-                                                                    {note.task}
-                                                                </span>
-                                                                {note.acknowledged ? (
-                                                                    <span className="text-xs font-medium px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                                                                        Acknowledged
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-xs font-medium px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
-                                                                        Pending
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
+                                                <div className="space-y-4">
+                                                    {studentNotes
+                                                        .filter(note => {
+                                                            if (noteFilter === 'all') return true;
+                                                            if (noteFilter === 'pending') return !note.acknowledged;
+                                                            if (noteFilter === 'acknowledged') return note.acknowledged;
+                                                            return true;
+                                                        })
+                                                        .map(note => (
+                                                            <div
+                                                                key={note.id}
+                                                                className={`bg-white p-4 rounded-lg border shadow-sm transition-all ${note.acknowledged
+                                                                    ? 'border-green-200'
+                                                                    : 'border-yellow-200'
+                                                                    }`}
+                                                            >
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <div>
+                                                                        <h4 className="font-semibold text-gray-800">{note.description}</h4>
+                                                                        <p className="text-sm text-gray-500">
+                                                                            Task: {note.task}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span className={`px-2 py-1 text-xs rounded-full ${note.acknowledged
+                                                                            ? 'bg-green-100 text-green-800'
+                                                                            : 'bg-yellow-100 text-yellow-800'
+                                                                            }`}>
+                                                                            {note.acknowledged ? 'Acknowledged' : 'Pending'}
+                                                                        </span>
+                                                                        <span className="text-xs text-gray-500 mt-1">
+                                                                            {note.created_at_formatted}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
 
-                                                        <p className="mb-3">{note.content}</p>
+                                                                <div className="mt-2 mb-3 text-sm whitespace-pre-wrap">
+                                                                    {note.content}
+                                                                </div>
 
-                                                        <div className="flex justify-between text-xs text-gray-500">
-                                                            <div>
-                                                                <span className="font-medium">Start:</span> {new Date(note.start_date).toLocaleDateString()}
-                                                                {note.deadline && (
-                                                                    <span className="ml-3">
-                                                                        <span className="font-medium">Deadline:</span> {new Date(note.deadline).toLocaleDateString()}
-                                                                    </span>
-                                                                )}
+                                                                <div className="flex justify-between items-center mt-3 text-xs text-gray-500 border-t pt-2">
+                                                                    <div className="flex space-x-3">
+                                                                        <span>Start: {note.start_date_formatted || 'N/A'}</span>
+                                                                        {note.deadline && <span>Due: {note.deadline_formatted}</span>}
+                                                                    </div>
+
+                                                                    {!note.acknowledged && (
+                                                                        <button
+                                                                            onClick={async () => {
+                                                                                try {
+                                                                                    const { error } = await supabase
+                                                                                        .from('mentor_notes')
+                                                                                        .update({ acknowledged: true })
+                                                                                        .eq('id', note.id);
+
+                                                                                    if (error) throw error;
+                                                                                    toast.success('Note marked as acknowledged');
+                                                                                } catch (err) {
+                                                                                    console.error('Error updating note:', err);
+                                                                                    toast.error('Failed to update note status');
+                                                                                }
+                                                                            }}
+                                                                            className="text-indigo-600 hover:text-indigo-800 px-2 py-1 text-xs rounded hover:bg-indigo-50 transition-colors"
+                                                                        >
+                                                                            Mark as acknowledged
+                                                                        </button>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                Created: {new Date(note.created_at).toLocaleString()}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))
+                                                        ))}
+                                                </div>
                                             )}
+
+                                            {/* Add Note Form */}
+                                            {renderNoteEditorForm()}
                                         </div>
                                     </div>
                                 </div>
@@ -769,9 +887,20 @@ const MentorDashboard = () => {
                                                 <CartesianGrid strokeDasharray="3 3" />
                                                 <XAxis dataKey="name" />
                                                 <YAxis />
-                                                <Tooltip />
-                                                <Legend />
-                                                <Bar dataKey="value" name="Students" fill="#8884d8" />
+                                                <Tooltip
+                                                    formatter={(value, name) => [`${value} students`, 'Count']}
+                                                    labelFormatter={(label) => `Age Range: ${label}`}
+                                                />
+                                                <Bar
+                                                    dataKey="value"
+                                                    name="Students"
+                                                    fill="#8884d8"
+                                                    radius={[4, 4, 0, 0]}
+                                                >
+                                                    {demographicData.age.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                    ))}
+                                                </Bar>
                                             </BarChart>
                                         </ResponsiveContainer>
                                     ) : (

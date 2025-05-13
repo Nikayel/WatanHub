@@ -198,13 +198,30 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Process age data
-      const currentYear = new Date().getFullYear();
+      // Process age data using date_of_birth instead of birth_year
       const ageData = studentsData.reduce((acc, student) => {
-        if (student.birth_year) {
-          const age = currentYear - parseInt(student.birth_year);
+        if (student.date_of_birth) {
+          const birthDate = new Date(student.date_of_birth);
+          const today = new Date();
+
+          // Calculate age
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+
+          // Adjust age if birthday hasn't occurred yet this year
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+          }
+
+          // Check if user is at least 13 years old
+          if (age < 13) {
+            console.warn(`User ${student.id} is under 13 years old (${age} years)`);
+          }
+
+          // Create age ranges for chart (e.g., 13-17, 18-22, etc.)
           const ageRange = Math.floor(age / 5) * 5;
           const label = `${ageRange}-${ageRange + 4}`;
+
           const existing = acc.find(item => item.name === label);
           if (existing) {
             existing.value += 1;
@@ -295,7 +312,7 @@ export default function AdminDashboard() {
       });
 
       setDemographicData({
-        age: ageData.sort((a, b) => a.name.localeCompare(b.name)),
+        age: ageData.sort((a, b) => parseInt(a.name.split('-')[0]) - parseInt(b.name.split('-')[0])),
         gender: genderData,
         religion: religionData,
         educationLevel: educationData,
@@ -747,8 +764,20 @@ Bio: ${student.bio || 'N/A'}
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="value" name="Students" fill="#8884d8" />
+                        <Tooltip
+                          formatter={(value, name) => [`${value} students`, 'Count']}
+                          labelFormatter={(label) => `Age Range: ${label}`}
+                        />
+                        <Bar
+                          dataKey="value"
+                          name="Students"
+                          fill="#8884d8"
+                          radius={[4, 4, 0, 0]}
+                        >
+                          {demographicData.age.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (

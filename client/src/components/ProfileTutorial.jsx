@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import {
     User, BookOpen, GraduationCap, Globe,
     MessageCircle, Calendar, X, ArrowRight,
-    ArrowLeft, CheckCircle, Save
+    ArrowLeft, CheckCircle, Save, AlertCircle
 } from 'lucide-react';
 
 const ProfileTutorial = () => {
@@ -22,6 +22,7 @@ const ProfileTutorial = () => {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [hasShownTutorial, setHasShownTutorial] = useState(false);
+    const [ageError, setAgeError] = useState(false);
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
@@ -101,11 +102,52 @@ const ProfileTutorial = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+
+        // Special handling for date of birth to verify minimum age
+        if (name === 'date_of_birth' && value) {
+            const birthDate = new Date(value);
+            const today = new Date();
+
+            // Calculate age
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+
+            // Adjust age if birthday hasn't occurred yet this year
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+
+            // Check if user is at least 13 years old
+            setAgeError(age < 13);
+        }
+
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSave = async () => {
         if (!user) return;
+
+        // Verify age before saving
+        if (formData.date_of_birth) {
+            const birthDate = new Date(formData.date_of_birth);
+            const today = new Date();
+
+            // Calculate age
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+
+            // Adjust age if birthday hasn't occurred yet this year
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+
+            // Check if user is at least 13 years old
+            if (age < 13) {
+                toast.error('You must be at least 13 years old to use this platform.');
+                setAgeError(true);
+                return;
+            }
+        }
 
         setLoading(true);
         try {
@@ -165,7 +207,15 @@ const ProfileTutorial = () => {
         }
     };
 
-    const nextStep = () => setStep(s => Math.min(s + 1, 4));
+    const nextStep = () => {
+        // Don't allow proceeding if there's an age error
+        if (step === 1 && ageError) {
+            toast.error('You must be at least 13 years old to use this platform.');
+            return;
+        }
+        setStep(s => Math.min(s + 1, 4));
+    };
+
     const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
     const renderStep = () => {
@@ -207,14 +257,24 @@ const ProfileTutorial = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium mb-1">Date of Birth</label>
+                                <label className="block text-sm font-medium mb-1">
+                                    Date of Birth
+                                    <span className="text-xs text-gray-500 ml-1">(must be at least 13 years old)</span>
+                                </label>
                                 <input
                                     type="date"
                                     name="date_of_birth"
                                     value={formData.date_of_birth}
                                     onChange={handleChange}
-                                    className="w-full p-2 border rounded-md"
+                                    className={`w-full p-2 border rounded-md ${ageError ? 'border-red-500' : ''}`}
+                                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split('T')[0]}
                                 />
+                                {ageError && (
+                                    <div className="text-red-500 text-xs mt-1 flex items-center">
+                                        <AlertCircle size={12} className="mr-1" />
+                                        You must be at least 13 years old
+                                    </div>
+                                )}
                             </div>
 
                             <div>
@@ -485,13 +545,14 @@ const ProfileTutorial = () => {
                         <Button
                             onClick={nextStep}
                             className="flex items-center"
+                            disabled={step === 1 && ageError}
                         >
                             Next <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                     ) : (
                         <Button
                             onClick={handleSave}
-                            disabled={loading}
+                            disabled={loading || ageError}
                             className="flex items-center"
                         >
                             {loading ? 'Saving...' : 'Save Profile'} <Save className="ml-2 h-4 w-4" />
