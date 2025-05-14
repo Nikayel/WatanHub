@@ -7,6 +7,7 @@ import {
     PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
 } from 'recharts';
 import OutcomeTagging from '../../components/OutcomeTagging';
+import OutcomeModal from '../../components/OutcomeModal';
 
 // Components
 const MentorDashboard = () => {
@@ -40,6 +41,13 @@ const MentorDashboard = () => {
         notesMade: 0,
         notesAcknowledged: 0
     });
+    const [collegeAdmissions, setCollegeAdmissions] = useState([]);
+    const [scholarships, setScholarships] = useState([]);
+    const [employments, setEmployments] = useState([]);
+    const [outcomeModalOpen, setOutcomeModalOpen] = useState(false);
+    const [outcomeType, setOutcomeType] = useState(null); // 'admission', 'scholarship', 'employment'
+    const [editingOutcome, setEditingOutcome] = useState(null);
+    const [expandedNotes, setExpandedNotes] = useState({});
 
     // Colors for charts
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -259,6 +267,7 @@ const MentorDashboard = () => {
         }
 
         await fetchStudentNotes(student.id);
+        await fetchStudentOutcomes(student.id);
     };
 
     const fetchStudentNotes = async (studentId) => {
@@ -275,6 +284,7 @@ const MentorDashboard = () => {
 
             console.log(`Fetching notes for student ${studentId} and mentor ${user.id}`);
 
+            // Use a more robust query with proper error handling
             const { data, error } = await supabase
                 .from('mentor_notes')
                 .select('*')
@@ -283,7 +293,7 @@ const MentorDashboard = () => {
                 .order('created_at', { ascending: false });
 
             if (error) {
-                console.error('Error details:', error);
+                console.error('Error fetching student notes:', error);
                 throw error;
             }
 
@@ -315,7 +325,33 @@ const MentorDashboard = () => {
                     },
                     async (payload) => {
                         console.log('Real-time update on notes:', payload);
-                        // Refetch notes when there's any change
+
+                        // Update local state directly based on the payload type without re-fetching
+                        if (payload.eventType === 'INSERT') {
+                            const newNote = {
+                                ...payload.new,
+                                created_at_formatted: new Date(payload.new.created_at).toLocaleString(),
+                                start_date_formatted: payload.new.start_date ? new Date(payload.new.start_date).toLocaleDateString() : '',
+                                deadline_formatted: payload.new.deadline ? new Date(payload.new.deadline).toLocaleDateString() : ''
+                            };
+
+                            setStudentNotes(prev => [newNote, ...prev]);
+                        }
+                        else if (payload.eventType === 'UPDATE') {
+                            setStudentNotes(prev =>
+                                prev.map(note => note.id === payload.new.id ? {
+                                    ...payload.new,
+                                    created_at_formatted: new Date(payload.new.created_at).toLocaleString(),
+                                    start_date_formatted: payload.new.start_date ? new Date(payload.new.start_date).toLocaleDateString() : '',
+                                    deadline_formatted: payload.new.deadline ? new Date(payload.new.deadline).toLocaleDateString() : ''
+                                } : note)
+                            );
+                        }
+                        else if (payload.eventType === 'DELETE') {
+                            setStudentNotes(prev => prev.filter(note => note.id !== payload.old.id));
+                        }
+
+                        // As a backup, also refetch notes in case we missed something
                         const { data: refreshedData, error: refreshError } = await supabase
                             .from('mentor_notes')
                             .select('*')
@@ -338,12 +374,71 @@ const MentorDashboard = () => {
                         }
                     }
                 )
-                .subscribe();
+                .subscribe((status) => {
+                    console.log(`Notes subscription status: ${status}`);
+                    if (status === 'SUBSCRIBED') {
+                        console.log(`Successfully subscribed to notes for student ${studentId}`);
+                    }
+                });
 
             setNotesChannel(channel);
         } catch (error) {
             console.error('Error fetching student notes:', error.message);
             toast.error('Failed to load student notes');
+        }
+    };
+
+    const fetchStudentOutcomes = async (studentId) => {
+        try {
+            // Clear previous data
+            setCollegeAdmissions([]);
+            setScholarships([]);
+            setEmployments([]);
+
+            // Fetch college admissions
+            const { data: admissionsData, error: admissionsError } = await supabase
+                .from('college_admissions')
+                .select('*')
+                .eq('student_id', studentId)
+                .order('admission_date', { ascending: false });
+
+            if (admissionsError) {
+                console.error('Error fetching college admissions:', admissionsError);
+            } else {
+                console.log('College admissions fetched:', admissionsData);
+                setCollegeAdmissions(admissionsData || []);
+            }
+
+            // Fetch scholarships
+            const { data: scholarshipsData, error: scholarshipsError } = await supabase
+                .from('scholarship_awards')
+                .select('*')
+                .eq('student_id', studentId)
+                .order('award_date', { ascending: false });
+
+            if (scholarshipsError) {
+                console.error('Error fetching scholarships:', scholarshipsError);
+            } else {
+                console.log('Scholarships fetched:', scholarshipsData);
+                setScholarships(scholarshipsData || []);
+            }
+
+            // Fetch employment
+            const { data: employmentData, error: employmentError } = await supabase
+                .from('student_employment')
+                .select('*')
+                .eq('student_id', studentId)
+                .order('start_date', { ascending: false });
+
+            if (employmentError) {
+                console.error('Error fetching employment data:', employmentError);
+            } else {
+                console.log('Employment data fetched:', employmentData);
+                setEmployments(employmentData || []);
+            }
+        } catch (error) {
+            console.error('Error fetching student outcomes:', error);
+            toast.error('Failed to load student outcomes');
         }
     };
 
@@ -368,74 +463,6 @@ const MentorDashboard = () => {
                 return;
             }
 
-            // Debug authentication details
-            console.log("=== DEBUG AUTH INFO ===");
-            console.log("User object:", user);
-            const { data: sessionData } = await supabase.auth.getSession();
-            console.log("Current session:", sessionData);
-            console.log("Mentor profile:", mentorProfile);
-
-            // Get the actual auth.uid() value from server
-            const { data: authData, error: authError } = await supabase.rpc('get_auth_uid');
-            console.log("Auth UID from server:", authData, authError);
-
-            if (authData) {
-                // Try with the actual auth.uid value explicitly
-                const actualAuthId = authData;
-                console.log("Using actual auth.uid:", actualAuthId);
-
-                // Now try the insert with the confirmed auth.uid
-                const formattedDataWithActualAuth = {
-                    mentor_id: actualAuthId,
-                    student_id: selectedStudent.id,
-                    description: newNote.description.trim(),
-                    task: newNote.task.trim(),
-                    content: newNote.content.trim(),
-                    start_date: newNote.start_date ? new Date(newNote.start_date).toISOString() : new Date().toISOString(),
-                    deadline: newNote.deadline ? new Date(newNote.deadline).toISOString() : null,
-                    acknowledged: false
-                };
-
-                console.log("Attempting insert with verified auth.uid:", formattedDataWithActualAuth);
-
-                const { data: authInsertData, error: authInsertError } = await supabase
-                    .from('mentor_notes')
-                    .insert(formattedDataWithActualAuth)
-                    .select('*')
-                    .single();
-
-                if (!authInsertError) {
-                    console.log("Success with verified auth.uid:", authInsertData);
-                    // Reset the form and update UI
-                    setNewNote({
-                        description: '',
-                        task: '',
-                        content: '',
-                        deadline: '',
-                        start_date: new Date().toISOString().split('T')[0]
-                    });
-
-                    // Update the note counts
-                    setStudentNoteCounts(prev => ({
-                        ...prev,
-                        [selectedStudent.id]: (prev[selectedStudent.id] || 0) + 1
-                    }));
-
-                    toast.success('Note added successfully!');
-                    return;
-                } else {
-                    console.error("Auth insert failed:", authInsertError);
-                }
-            }
-
-            // Check auth roles
-            const { data: userRoleData } = await supabase
-                .from('users')
-                .select('role')
-                .eq('id', user.id)
-                .single();
-            console.log("User role data:", userRoleData);
-
             // Ensure we have mentor and student IDs
             if (!user?.id || !selectedStudent?.id) {
                 toast.error('Missing mentor or student information');
@@ -448,9 +475,9 @@ const MentorDashboard = () => {
 
             setLoading(true);
 
-            // Format dates properly
+            // Format data for insertion
             const formattedData = {
-                mentor_id: user.id, // Use auth.uid() from the current user
+                mentor_id: user.id,
                 student_id: selectedStudent.id,
                 description: newNote.description.trim(),
                 task: newNote.task.trim(),
@@ -462,33 +489,18 @@ const MentorDashboard = () => {
 
             console.log('Adding new note with data:', formattedData);
 
-            // Try a raw insert without RLS first to check if the basic operation works
-            try {
-                // First, trying with the explicit service role key if available
-                const { data: adminCheckData } = await supabase
-                    .from('admin')
-                    .select('email')
-                    .eq('email', user.email)
-                    .single();
+            // Simple direct insert
+            const { data, error } = await supabase
+                .from('mentor_notes')
+                .insert(formattedData)
+                .select();
 
-                console.log("Admin check result:", adminCheckData);
-
-                // Try direct insert with debugging
-                const { data, error } = await supabase
-                    .from('mentor_notes')
-                    .insert(formattedData)
-                    .select('*')
-                    .single();
-
-                console.log("Insert result:", { data, error });
-
-                if (error) {
-                    console.error('Error details:', error);
-                    throw error;
-                }
-            } catch (directError) {
-                console.error("Direct insert failed:", directError);
+            if (error) {
+                console.error('Error details:', error);
+                throw error;
             }
+
+            console.log('Note added successfully:', data);
 
             // Reset the form
             setNewNote({
@@ -505,12 +517,13 @@ const MentorDashboard = () => {
                 [selectedStudent.id]: (prev[selectedStudent.id] || 0) + 1
             }));
 
-            toast.success('Note added successfully!');
+            // Refresh notes immediately rather than waiting for subscription
+            await fetchStudentNotes(selectedStudent.id);
 
-            // No need to manually refresh notes as the real-time subscription will handle it
+            toast.success('Note added successfully!');
         } catch (error) {
             console.error('Error adding note:', error);
-            toast.error(error.message || 'Failed to add note. Please try again.');
+            toast.error(`Failed to add note: ${error.message || 'Unknown error'}`);
         } finally {
             setLoading(false);
         }
@@ -550,6 +563,11 @@ const MentorDashboard = () => {
                                 ...prev,
                                 notesAcknowledged: prev.notesAcknowledged + 1
                             }));
+                            // Show toast notification
+                            toast.success('Note acknowledged by student!', {
+                                position: 'bottom-right',
+                                duration: 3000
+                            });
                         } else {
                             // If acknowledgment was removed
                             setStats(prev => ({
@@ -557,10 +575,43 @@ const MentorDashboard = () => {
                                 notesAcknowledged: Math.max(0, prev.notesAcknowledged - 1)
                             }));
                         }
+                    } else if (payload.eventType === 'INSERT') {
+                        // Immediately increment the total note count
+                        setStats(prev => ({
+                            ...prev,
+                            notesMade: prev.notesMade + 1
+                        }));
+                    } else if (payload.eventType === 'DELETE') {
+                        // Decrement the total note count
+                        setStats(prev => ({
+                            ...prev,
+                            notesMade: Math.max(0, prev.notesMade - 1),
+                            // If the deleted note was acknowledged, decrement that too
+                            notesAcknowledged: payload.old.acknowledged
+                                ? Math.max(0, prev.notesAcknowledged - 1)
+                                : prev.notesAcknowledged
+                        }));
                     }
 
                     // For all changes, refresh statistics to ensure accuracy
                     await fetchStatistics(user.id);
+
+                    // Update note counts for the specific student if selected
+                    if (selectedStudent && (payload.new?.student_id === selectedStudent.id ||
+                        payload.old?.student_id === selectedStudent.id)) {
+                        const { count, error } = await supabase
+                            .from('mentor_notes')
+                            .select('id', { count: 'exact', head: true })
+                            .eq('student_id', selectedStudent.id)
+                            .eq('mentor_id', user.id);
+
+                        if (!error) {
+                            setStudentNoteCounts(prev => ({
+                                ...prev,
+                                [selectedStudent.id]: count || 0
+                            }));
+                        }
+                    }
                 }
             )
             .subscribe();
@@ -569,7 +620,7 @@ const MentorDashboard = () => {
             console.log('Cleaning up mentor notes stats subscription');
             supabase.removeChannel(notesStatsChannel);
         };
-    }, [user?.id]);
+    }, [user?.id, selectedStudent]);
 
     // Clean up subscriptions when component unmounts
     useEffect(() => {
@@ -673,6 +724,91 @@ const MentorDashboard = () => {
         );
     };
 
+    // Handle when an outcome is saved successfully
+    const handleOutcomeSuccess = async (data) => {
+        // Refresh the outcomes data
+        if (selectedStudent?.id) {
+            await fetchStudentOutcomes(selectedStudent.id);
+
+            // Also update the profile's outcome markers if this is a college admission or scholarship
+            if (outcomeType === 'admission') {
+                // Update studentTagging if not already set
+                const hasCollegeAdmit = !!selectedStudent.college_admit;
+                const hasStemMajor = !!selectedStudent.stem_major;
+
+                const newData = data[0] || {};
+                let needsProfileUpdate = false;
+                let updateData = {};
+
+                // If this is a STEM admission and stem_major not marked yet
+                if (newData.is_stem && !hasStemMajor) {
+                    updateData.stem_major = true;
+                    needsProfileUpdate = true;
+                }
+
+                // If this is the first college admission
+                if (!hasCollegeAdmit) {
+                    updateData.college_admit = true;
+                    needsProfileUpdate = true;
+                }
+
+                // Update the student profile if needed
+                if (needsProfileUpdate) {
+                    try {
+                        const { error } = await supabase
+                            .from('profiles')
+                            .update(updateData)
+                            .eq('id', selectedStudent.id);
+
+                        if (error) {
+                            console.error('Error updating student outcome flags:', error);
+                        } else {
+                            // Update local state
+                            setSelectedStudent(prev => ({
+                                ...prev,
+                                ...updateData
+                            }));
+
+                            console.log('Student profile updated with outcome flags');
+                        }
+                    } catch (error) {
+                        console.error('Error in profile update:', error);
+                    }
+                }
+            } else if (outcomeType === 'scholarship' && !selectedStudent.scholarship_awarded) {
+                // Update scholarship_awarded status if not already set
+                try {
+                    const { error } = await supabase
+                        .from('profiles')
+                        .update({ scholarship_awarded: true })
+                        .eq('id', selectedStudent.id);
+
+                    if (error) {
+                        console.error('Error updating scholarship flag:', error);
+                    } else {
+                        // Update local state
+                        setSelectedStudent(prev => ({
+                            ...prev,
+                            scholarship_awarded: true
+                        }));
+
+                        console.log('Student profile updated with scholarship flag');
+                    }
+                } catch (error) {
+                    console.error('Error in profile update:', error);
+                }
+            }
+        }
+    };
+
+    // Toggle note expansion
+    const toggleNoteExpansion = (noteId) => {
+        setExpandedNotes(prev => ({
+            ...prev,
+            [noteId]: !prev[noteId]
+        }));
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -740,6 +876,15 @@ const MentorDashboard = () => {
                                     }`}
                             >
                                 Students & Notes
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('outcomes')}
+                                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'outcomes'
+                                    ? 'border-indigo-500 text-indigo-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                            >
+                                Student Outcomes
                             </button>
                             <button
                                 onClick={() => setActiveTab('analytics')}
@@ -875,22 +1020,6 @@ const MentorDashboard = () => {
                                                 </div>
                                             )}
                                         </div>
-
-                                        {/* Add OutcomeTagging component here */}
-                                        <div className="mt-6">
-                                            <OutcomeTagging
-                                                student={selectedStudent}
-                                                onUpdate={(outcomes) => {
-                                                    // Update the local state to reflect changes
-                                                    setSelectedStudent(prev => ({
-                                                        ...prev,
-                                                        college_admit: outcomes.college_admit,
-                                                        scholarship_awarded: outcomes.scholarship_awarded,
-                                                        stem_major: outcomes.stem_major
-                                                    }));
-                                                }}
-                                            />
-                                        </div>
                                     </div>
 
                                     {/* Notes Section */}
@@ -930,68 +1059,100 @@ const MentorDashboard = () => {
                                                             if (noteFilter === 'acknowledged') return note.acknowledged;
                                                             return true;
                                                         })
-                                                        .map(note => (
-                                                            <div
-                                                                key={note.id}
-                                                                className={`bg-white p-4 rounded-lg border shadow-sm transition-all ${note.acknowledged
-                                                                    ? 'border-green-200'
-                                                                    : 'border-yellow-200'
-                                                                    }`}
-                                                            >
-                                                                <div className="flex justify-between items-start mb-2">
-                                                                    <div>
-                                                                        <h4 className="font-semibold text-gray-800">{note.description}</h4>
-                                                                        <p className="text-sm text-gray-500">
-                                                                            Task: {note.task}
-                                                                        </p>
-                                                                    </div>
-                                                                    <div className="flex flex-col items-end">
-                                                                        <span className={`px-2 py-1 text-xs rounded-full ${note.acknowledged
-                                                                            ? 'bg-green-100 text-green-800'
-                                                                            : 'bg-yellow-100 text-yellow-800'
-                                                                            }`}>
-                                                                            {note.acknowledged ? 'Acknowledged' : 'Pending'}
-                                                                        </span>
-                                                                        <span className="text-xs text-gray-500 mt-1">
-                                                                            {note.created_at_formatted}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
+                                                        .map(note => {
+                                                            const isExpanded = expandedNotes[note.id] === true;
 
-                                                                <div className="mt-2 mb-3 text-sm whitespace-pre-wrap">
-                                                                    {note.content}
-                                                                </div>
-
-                                                                <div className="flex justify-between items-center mt-3 text-xs text-gray-500 border-t pt-2">
-                                                                    <div className="flex space-x-3">
-                                                                        <span>Start: {note.start_date_formatted || 'N/A'}</span>
-                                                                        {note.deadline && <span>Due: {note.deadline_formatted}</span>}
+                                                            return (
+                                                                <div
+                                                                    key={note.id}
+                                                                    className={`bg-white p-4 rounded-lg border shadow-sm transition-all ${note.acknowledged
+                                                                        ? 'border-green-200'
+                                                                        : 'border-yellow-200'
+                                                                        }`}
+                                                                >
+                                                                    <div className="flex justify-between items-start mb-2">
+                                                                        <div>
+                                                                            <h4 className="font-semibold text-gray-800">{note.description}</h4>
+                                                                            <p className="text-sm text-gray-500">
+                                                                                Task: {note.task}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="flex flex-col items-end">
+                                                                            <span className={`px-2 py-1 text-xs rounded-full ${note.acknowledged
+                                                                                ? 'bg-green-100 text-green-800'
+                                                                                : 'bg-yellow-100 text-yellow-800'
+                                                                                }`}>
+                                                                                {note.acknowledged ? 'Acknowledged' : 'Pending'}
+                                                                            </span>
+                                                                            <span className="text-xs text-gray-500 mt-1">
+                                                                                {note.created_at_formatted}
+                                                                            </span>
+                                                                        </div>
                                                                     </div>
 
-                                                                    {!note.acknowledged && (
+                                                                    <div className="mt-2 mb-3 text-sm whitespace-pre-wrap">
+                                                                        {isExpanded ? note.content : (
+                                                                            note.content.length > 100 ?
+                                                                                note.content.substring(0, 100) + '...' :
+                                                                                note.content
+                                                                        )}
+                                                                    </div>
+
+                                                                    {/* Show expand/collapse button if content is long */}
+                                                                    {note.content.length > 100 && (
                                                                         <button
-                                                                            onClick={async () => {
-                                                                                try {
-                                                                                    const { error } = await supabase
-                                                                                        .from('mentor_notes')
-                                                                                        .update({ acknowledged: true })
-                                                                                        .eq('id', note.id);
-
-                                                                                    if (error) throw error;
-                                                                                    toast.success('Note marked as acknowledged');
-                                                                                } catch (err) {
-                                                                                    console.error('Error updating note:', err);
-                                                                                    toast.error('Failed to update note status');
-                                                                                }
-                                                                            }}
-                                                                            className="text-indigo-600 hover:text-indigo-800 px-2 py-1 text-xs rounded hover:bg-indigo-50 transition-colors"
+                                                                            onClick={() => toggleNoteExpansion(note.id)}
+                                                                            className="text-indigo-600 hover:text-indigo-800 text-xs font-medium mb-2 flex items-center"
                                                                         >
-                                                                            Mark as acknowledged
+                                                                            {isExpanded ? (
+                                                                                <>
+                                                                                    <span>Show less</span>
+                                                                                    <svg className="ml-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                                                                    </svg>
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <span>Read more</span>
+                                                                                    <svg className="ml-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                                    </svg>
+                                                                                </>
+                                                                            )}
                                                                         </button>
                                                                     )}
+
+                                                                    <div className="flex justify-between items-center mt-3 text-xs text-gray-500 border-t pt-2">
+                                                                        <div className="flex space-x-3">
+                                                                            <span>Start: {note.start_date_formatted || 'N/A'}</span>
+                                                                            {note.deadline && <span>Due: {note.deadline_formatted}</span>}
+                                                                        </div>
+
+                                                                        {!note.acknowledged && (
+                                                                            <button
+                                                                                onClick={async () => {
+                                                                                    try {
+                                                                                        const { error } = await supabase
+                                                                                            .from('mentor_notes')
+                                                                                            .update({ acknowledged: true })
+                                                                                            .eq('id', note.id);
+
+                                                                                        if (error) throw error;
+                                                                                        toast.success('Note marked as acknowledged');
+                                                                                    } catch (err) {
+                                                                                        console.error('Error updating note:', err);
+                                                                                        toast.error('Failed to update note status');
+                                                                                    }
+                                                                                }}
+                                                                                className="text-indigo-600 hover:text-indigo-800 px-2 py-1 text-xs rounded hover:bg-indigo-50 transition-colors"
+                                                                            >
+                                                                                Mark as acknowledged
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        ))}
+                                                            )
+                                                        })}
                                                 </div>
                                             )}
 
@@ -1006,6 +1167,392 @@ const MentorDashboard = () => {
                                     <h3 className="text-xl font-medium mb-2">Select a Student</h3>
                                     <p className="text-gray-500">
                                         Choose a student from the list to view details and manage your mentorship.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ) : activeTab === 'outcomes' ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Assigned Students List (same as in notes tab) */}
+                        <div className="bg-white rounded-xl shadow-md p-6">
+                            <h2 className="text-xl font-bold mb-4">Your Students</h2>
+
+                            {assignedStudents.length === 0 ? (
+                                <div className="text-center p-6 bg-gray-50 rounded-lg">
+                                    <p className="text-gray-500">No students assigned yet</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {assignedStudents.map((student) => (
+                                        <div
+                                            key={student.id}
+                                            onClick={() => handleStudentSelect(student)}
+                                            className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedStudent?.id === student.id
+                                                ? 'bg-indigo-50 border-indigo-300'
+                                                : 'hover:bg-gray-50 border-gray-200'
+                                                }`}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center">
+                                                    <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                                                        <span className="text-indigo-600 font-medium">
+                                                            {student.first_name?.[0]}{student.last_name?.[0]}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-medium">{student.first_name} {student.last_name}</h3>
+                                                        <p className="text-sm text-gray-500">{student.email}</p>
+                                                        <p className="text-xs text-indigo-600">{student.student_id ? `Student ID: ${student.student_id}` : 'No Student ID'}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Student Outcomes Dashboard */}
+                        <div className="lg:col-span-2">
+                            {selectedStudent ? (
+                                <div className="bg-white rounded-xl shadow-md">
+                                    {/* Student profile header */}
+                                    <div className="p-6 border-b border-gray-200">
+                                        <div className="flex items-center space-x-4">
+                                            <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-800 font-bold text-xl">
+                                                {selectedStudent.first_name[0]}{selectedStudent.last_name[0]}
+                                            </div>
+                                            <div>
+                                                <h2 className="text-2xl font-bold">{selectedStudent.first_name} {selectedStudent.last_name}</h2>
+                                                <p className="text-gray-600">{selectedStudent.email}</p>
+                                                <p className="text-sm font-medium text-indigo-600">{selectedStudent.student_id ? `Student ID: ${selectedStudent.student_id}` : ''}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Outcomes Summary Dashboard */}
+                                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                                        <h3 className="text-lg font-semibold mb-3">Outcomes Summary</h3>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <h4 className="font-medium text-gray-800">College Admission</h4>
+                                                        <p className="text-sm text-gray-500">
+                                                            {collegeAdmissions.length > 0
+                                                                ? `${collegeAdmissions.length} admission(s) recorded`
+                                                                : 'No admissions recorded'}
+                                                        </p>
+                                                    </div>
+                                                    <div className={`rounded-full w-3 h-3 ${collegeAdmissions.length > 0 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <h4 className="font-medium text-gray-800">Scholarships</h4>
+                                                        <p className="text-sm text-gray-500">
+                                                            {scholarships.length > 0
+                                                                ? `${scholarships.length} scholarship(s) awarded`
+                                                                : 'No scholarships recorded'}
+                                                        </p>
+                                                    </div>
+                                                    <div className={`rounded-full w-3 h-3 ${scholarships.length > 0 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <h4 className="font-medium text-gray-800">Employment</h4>
+                                                        <p className="text-sm text-gray-500">
+                                                            {employments.length > 0
+                                                                ? `${employments.length} position(s) recorded`
+                                                                : 'No employment recorded'}
+                                                        </p>
+                                                    </div>
+                                                    <div className={`rounded-full w-3 h-3 ${employments.length > 0 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* OutcomeTagging component for quick profile flags */}
+                                        <div className="mt-4 bg-white p-4 rounded-lg shadow-sm">
+                                            <h4 className="font-medium text-gray-800 mb-3">Quick Outcome Flags</h4>
+                                            <OutcomeTagging
+                                                student={selectedStudent}
+                                                onUpdate={(outcomes) => {
+                                                    // Update the local state to reflect changes
+                                                    setSelectedStudent(prev => ({
+                                                        ...prev,
+                                                        college_admit: outcomes.college_admit,
+                                                        scholarship_awarded: outcomes.scholarship_awarded,
+                                                        stem_major: outcomes.stem_major
+                                                    }));
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Outcomes tabs */}
+                                    <div className="border-b border-gray-200">
+                                        <nav className="flex justify-between -mb-px px-6 py-2">
+                                            <div className="flex space-x-2">
+                                                <button
+                                                    onClick={() => setOutcomeType('admission')}
+                                                    className={`py-2 px-4 text-center border-b-2 font-medium text-sm transition ${outcomeType === 'admission' || !outcomeType
+                                                        ? 'border-indigo-500 text-indigo-600'
+                                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                                        }`}
+                                                >
+                                                    College Admissions
+                                                </button>
+                                                <button
+                                                    onClick={() => setOutcomeType('scholarship')}
+                                                    className={`py-2 px-4 text-center border-b-2 font-medium text-sm transition ${outcomeType === 'scholarship'
+                                                        ? 'border-indigo-500 text-indigo-600'
+                                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                                        }`}
+                                                >
+                                                    Scholarships
+                                                </button>
+                                                <button
+                                                    onClick={() => setOutcomeType('employment')}
+                                                    className={`py-2 px-4 text-center border-b-2 font-medium text-sm transition ${outcomeType === 'employment'
+                                                        ? 'border-indigo-500 text-indigo-600'
+                                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                                        }`}
+                                                >
+                                                    Employment
+                                                </button>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setEditingOutcome(null);
+                                                    setOutcomeModalOpen(true);
+                                                }}
+                                                className="px-3 py-1 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition flex items-center"
+                                            >
+                                                <span className="mr-1">+</span> Add New
+                                            </button>
+                                        </nav>
+                                    </div>
+
+                                    {/* Outcomes content */}
+                                    <div className="p-6">
+                                        {(!outcomeType || outcomeType === 'admission') && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold mb-4">College Admissions</h3>
+
+                                                {collegeAdmissions.length === 0 ? (
+                                                    <div className="py-8 px-4 text-center bg-gray-50 rounded-lg border border-dashed">
+                                                        <p className="text-gray-500">No college admissions recorded yet.</p>
+                                                        <button
+                                                            onClick={() => {
+                                                                setOutcomeType('admission');
+                                                                setEditingOutcome(null);
+                                                                setOutcomeModalOpen(true);
+                                                            }}
+                                                            className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
+                                                        >
+                                                            Add college admission
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-4">
+                                                        {collegeAdmissions.map(admission => (
+                                                            <div key={admission.id} className="bg-white p-4 rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <div>
+                                                                        <h4 className="font-semibold text-gray-800">{admission.college_name}</h4>
+                                                                        <p className="text-sm text-gray-600">
+                                                                            {admission.major ? `Major: ${admission.major}` : 'Major not specified'}
+                                                                            {admission.is_stem && <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">STEM</span>}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
+                                                                            {new Date(admission.admission_date).toLocaleDateString()}
+                                                                        </span>
+                                                                        <p className="text-xs text-gray-500 mt-1">
+                                                                            {admission.city && admission.country ? `${admission.city}, ${admission.country}` :
+                                                                                admission.city || admission.country || 'Location not specified'}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                {admission.notes && (
+                                                                    <div className="mt-2 text-sm text-gray-600 border-t pt-2">
+                                                                        {admission.notes}
+                                                                    </div>
+                                                                )}
+                                                                <div className="mt-3 flex justify-end">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setOutcomeType('admission');
+                                                                            setEditingOutcome(admission);
+                                                                            setOutcomeModalOpen(true);
+                                                                        }}
+                                                                        className="text-xs text-indigo-600 hover:text-indigo-800"
+                                                                    >
+                                                                        Edit
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {outcomeType === 'scholarship' && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold mb-4">Scholarships</h3>
+
+                                                {scholarships.length === 0 ? (
+                                                    <div className="py-8 px-4 text-center bg-gray-50 rounded-lg border border-dashed">
+                                                        <p className="text-gray-500">No scholarships recorded yet.</p>
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingOutcome(null);
+                                                                setOutcomeModalOpen(true);
+                                                            }}
+                                                            className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
+                                                        >
+                                                            Add scholarship
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-4">
+                                                        {scholarships.map(scholarship => (
+                                                            <div key={scholarship.id} className="bg-white p-4 rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <div>
+                                                                        <h4 className="font-semibold text-gray-800">{scholarship.scholarship_name}</h4>
+                                                                        <p className="text-sm text-gray-600">
+                                                                            {scholarship.provider && `Provider: ${scholarship.provider}`}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <span className="text-sm font-semibold">
+                                                                            {scholarship.amount ? `${scholarship.amount} ${scholarship.currency}` : 'Amount not specified'}
+                                                                        </span>
+                                                                        <p className="text-xs text-gray-500 mt-1">
+                                                                            Awarded: {new Date(scholarship.award_date).toLocaleDateString()}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                {(scholarship.duration || scholarship.renewable || scholarship.requirements) && (
+                                                                    <div className="mt-2 text-sm text-gray-600">
+                                                                        {scholarship.duration && <span>Duration: {scholarship.duration}</span>}
+                                                                        {scholarship.renewable && <span className="ml-2">Renewable</span>}
+                                                                        {scholarship.requirements && <p className="mt-1">Requirements: {scholarship.requirements}</p>}
+                                                                    </div>
+                                                                )}
+                                                                {scholarship.notes && (
+                                                                    <div className="mt-2 text-sm text-gray-600 border-t pt-2">
+                                                                        {scholarship.notes}
+                                                                    </div>
+                                                                )}
+                                                                <div className="mt-3 flex justify-end">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setOutcomeType('scholarship');
+                                                                            setEditingOutcome(scholarship);
+                                                                            setOutcomeModalOpen(true);
+                                                                        }}
+                                                                        className="text-xs text-indigo-600 hover:text-indigo-800"
+                                                                    >
+                                                                        Edit
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {outcomeType === 'employment' && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold mb-4">Employment & Internships</h3>
+
+                                                {employments.length === 0 ? (
+                                                    <div className="py-8 px-4 text-center bg-gray-50 rounded-lg border border-dashed">
+                                                        <p className="text-gray-500">No employment records yet.</p>
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingOutcome(null);
+                                                                setOutcomeModalOpen(true);
+                                                            }}
+                                                            className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
+                                                        >
+                                                            Add employment record
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-4">
+                                                        {employments.map(job => (
+                                                            <div key={job.id} className="bg-white p-4 rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <div>
+                                                                        <h4 className="font-semibold text-gray-800">{job.position}</h4>
+                                                                        <p className="text-sm text-gray-600">
+                                                                            {job.company_name}
+                                                                            {job.employment_type && (
+                                                                                <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                                                                    {job.employment_type.replace('_', ' ')}
+                                                                                </span>
+                                                                            )}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        {job.salary && (
+                                                                            <span className="text-sm font-semibold">
+                                                                                {job.salary} {job.currency}
+                                                                            </span>
+                                                                        )}
+                                                                        <p className="text-xs text-gray-500 mt-1">
+                                                                            {job.start_date ? new Date(job.start_date).toLocaleDateString() : 'Start date not specified'}
+                                                                            {job.is_current
+                                                                                ? ' - Present'
+                                                                                : job.end_date ? ` - ${new Date(job.end_date).toLocaleDateString()}` : ''}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                {job.notes && (
+                                                                    <div className="mt-2 text-sm text-gray-600 border-t pt-2">
+                                                                        {job.notes}
+                                                                    </div>
+                                                                )}
+                                                                <div className="mt-3 flex justify-end">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setOutcomeType('employment');
+                                                                            setEditingOutcome(job);
+                                                                            setOutcomeModalOpen(true);
+                                                                        }}
+                                                                        className="text-xs text-indigo-600 hover:text-indigo-800"
+                                                                    >
+                                                                        Edit
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-white rounded-xl shadow-md p-10 flex flex-col items-center justify-center text-center">
+                                    <div className="text-7xl mb-4">👈</div>
+                                    <h3 className="text-xl font-medium mb-2">Select a Student</h3>
+                                    <p className="text-gray-500">
+                                        Choose a student from the list to view and track their outcomes.
                                     </p>
                                 </div>
                             )}
@@ -1119,13 +1666,84 @@ const MentorDashboard = () => {
 
                         <div className="mt-8 bg-gray-50 p-4 rounded-lg">
                             <h3 className="text-lg font-semibold mb-4">Note Completion Analytics</h3>
-                            <div className="h-64">
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h4 className="font-medium text-gray-800">Total Notes</h4>
+                                            <p className="text-3xl font-bold text-indigo-600">{stats.notesMade}</p>
+                                        </div>
+                                        <div className="bg-indigo-100 p-2 rounded-full">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-gray-500 mt-2">Total notes created for all students</p>
+                                </div>
+
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h4 className="font-medium text-gray-800">Acknowledged</h4>
+                                            <p className="text-3xl font-bold text-green-600">{stats.notesAcknowledged}</p>
+                                        </div>
+                                        <div className="bg-green-100 p-2 rounded-full">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-gray-500 mt-2">Notes acknowledged by students</p>
+                                </div>
+
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h4 className="font-medium text-gray-800">Pending</h4>
+                                            <p className="text-3xl font-bold text-yellow-600">{Math.max(0, stats.notesMade - stats.notesAcknowledged)}</p>
+                                        </div>
+                                        <div className="bg-yellow-100 p-2 rounded-full">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-gray-500 mt-2">Notes waiting for acknowledgment</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h4 className="font-medium text-gray-800">Completion Rate</h4>
+                                    <div className="text-sm font-medium text-indigo-600">
+                                        {stats.notesMade > 0
+                                            ? `${Math.round((stats.notesAcknowledged / stats.notesMade) * 100)}%`
+                                            : '0%'
+                                        }
+                                    </div>
+                                </div>
+
+                                <div className="w-full bg-gray-200 rounded-full h-4">
+                                    <div
+                                        className="bg-indigo-600 h-4 rounded-full transition-all duration-500 ease-in-out"
+                                        style={{
+                                            width: stats.notesMade > 0
+                                                ? `${(stats.notesAcknowledged / stats.notesMade) * 100}%`
+                                                : '0%'
+                                        }}
+                                    ></div>
+                                </div>
+                            </div>
+
+                            <div className="h-64 mt-6">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart
                                         data={[
                                             { name: 'Total Notes', value: stats.notesMade },
                                             { name: 'Acknowledged', value: stats.notesAcknowledged },
-                                            { name: 'Pending', value: stats.notesMade - stats.notesAcknowledged }
+                                            { name: 'Pending', value: Math.max(0, stats.notesMade - stats.notesAcknowledged) }
                                         ]}
                                     >
                                         <CartesianGrid strokeDasharray="3 3" />
@@ -1133,7 +1751,20 @@ const MentorDashboard = () => {
                                         <YAxis />
                                         <Tooltip />
                                         <Legend />
-                                        <Bar dataKey="value" name="Notes" fill="#82ca9d" />
+                                        <Bar
+                                            dataKey="value"
+                                            name="Notes"
+                                            fill="#82ca9d"
+                                            radius={[4, 4, 0, 0]}
+                                        >
+                                            {[
+                                                { name: 'Total Notes', fill: '#6366f1' },
+                                                { name: 'Acknowledged', fill: '#10b981' },
+                                                { name: 'Pending', fill: '#f59e0b' }
+                                            ].map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                            ))}
+                                        </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -1141,6 +1772,20 @@ const MentorDashboard = () => {
                     </div>
                 )}
             </div>
+
+            {/* Outcome Modal for adding/editing outcomes */}
+            <OutcomeModal
+                isOpen={outcomeModalOpen}
+                onClose={() => {
+                    setOutcomeModalOpen(false);
+                    // Don't reset outcome type when closing to maintain tab selection
+                }}
+                student={selectedStudent}
+                mentorId={user?.id}
+                outcomeType={outcomeType}
+                initialData={editingOutcome}
+                onSuccess={handleOutcomeSuccess}
+            />
         </div>
     );
 };

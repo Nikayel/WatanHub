@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { updateTermsAcceptance } from '../../lib/UserTerms';
 import { Button } from '../ui/button';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -56,16 +57,16 @@ const DISPOSABLE_EMAIL_DOMAINS = [
   'mytemp.email', 'safetymail.info', 'trash-mail.at', 'trashmail.ws'
 ];
 
-// Enhanced FormSection component with improved styling
+// Compact FormSection component with improved styling
 const FormSection = ({ children, title, icon }) => (
-  <div className="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-100 transition-all hover:shadow-md">
-    <div className="flex items-center mb-4">
-      <div className="p-2 bg-primary/10 rounded-full mr-3">
+  <div className="mb-3 bg-white rounded-lg shadow-sm p-3 border border-gray-100 transition-all hover:shadow-md">
+    <div className="flex items-center mb-2">
+      <div className="p-1.5 bg-primary/10 rounded-full mr-2">
         {icon}
       </div>
-      <h3 className="font-medium text-gray-800">{title}</h3>
+      <h3 className="font-medium text-gray-800 text-sm">{title}</h3>
     </div>
-    <div className="space-y-4">
+    <div className="space-y-3">
       {children}
     </div>
   </div>
@@ -79,6 +80,7 @@ const SignUp = ({ isOpen, onClose }) => {
     confirmEmail: '',
     password: '',
     confirmPassword: '',
+    termsAccepted: false,
   };
 
   const [basicData, setBasicData] = useState(initialBasicData);
@@ -93,8 +95,11 @@ const SignUp = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
 
   const handleBasicChange = (e) => {
-    const { name, value } = e.target;
-    setBasicData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setBasicData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
 
     // Clear email error when typing
     if (name === 'email' || name === 'confirmEmail') {
@@ -161,6 +166,9 @@ const SignUp = ({ isOpen, onClose }) => {
     if (basicData.password.length < 6) return "Password must be at least 6 characters";
     if (basicData.password !== basicData.confirmPassword) return "Passwords do not match";
 
+    // Terms of service validation
+    if (!basicData.termsAccepted) return "You must accept the Terms of Service and Privacy Policy";
+
     return null;
   };
 
@@ -171,24 +179,7 @@ const SignUp = ({ isOpen, onClose }) => {
       return;
     }
     setError(null);
-    setAnimation('slide-left');
-    setTimeout(() => {
-      setStep(2);
-      setAnimation('');
-      // Scroll to top on mobile
-      window.scrollTo(0, 0);
-    }, 300);
-  };
-
-  const goToPrevStep = () => {
-    setAnimation('slide-right');
-    setTimeout(() => {
-      setStep(1);
-      setError(null);
-      setAnimation('');
-      // Scroll to top on mobile
-      window.scrollTo(0, 0);
-    }, 300);
+    handleSubmit(new Event('submit'));
   };
 
   const handleClose = () => {
@@ -199,12 +190,16 @@ const SignUp = ({ isOpen, onClose }) => {
   const saveUserProfile = async (userId) => {
     let profileData;
     try {
+      // Ensure the terms_accepted is explicitly set to true when termsAccepted is checked
       profileData = {
         id: userId,
         first_name: basicData.firstName.trim(),
         last_name: basicData.lastName.trim(),
         email: basicData.email.toLowerCase().trim(),
+        terms_accepted: basicData.termsAccepted === true,
       };
+
+      console.log("Creating profile with data:", profileData);
 
       const { data, error } = await supabase
         .from('profiles')
@@ -213,6 +208,8 @@ const SignUp = ({ isOpen, onClose }) => {
         .single();
 
       if (error) throw error;
+
+      console.log("Profile created successfully:", data);
       return data;
     } catch (error) {
       console.error("Profile save error:", {
@@ -239,6 +236,10 @@ const SignUp = ({ isOpen, onClose }) => {
         return;
       }
 
+      // Log for debugging
+      console.log("Terms accepted status before signup:", basicData.termsAccepted);
+
+      // Create the auth user
       const { data, error: authError } = await signUp(
         basicData.email,
         basicData.password,
@@ -250,8 +251,25 @@ const SignUp = ({ isOpen, onClose }) => {
         throw authError || new Error("User creation failed");
       }
 
+      // After successful signup, update the terms_accepted field using the utility
+      try {
+        const termsUpdated = await updateTermsAcceptance(data.user.id, basicData.termsAccepted);
+        if (termsUpdated) {
+          console.log("Terms acceptance updated successfully");
+        } else {
+          console.warn("Terms acceptance update may have failed");
+        }
+
+        // Also create a full profile to ensure all data is saved
+        await saveUserProfile(data.user.id);
+      } catch (profileError) {
+        console.error("Error updating terms acceptance:", profileError);
+      }
+
       // Set flag to show onboarding on first login
       localStorage.setItem('newSignup', 'true');
+      // Also set a flag to remember user accepted terms
+      localStorage.setItem('termsAccepted', 'true');
 
       // Show success toast if not redirected
       toast.success('Account created successfully! Please check your email to confirm your account.');
@@ -284,22 +302,15 @@ const SignUp = ({ isOpen, onClose }) => {
 
   const passwordStrength = getPasswordStrength(basicData.password);
 
-  // Animation styles
-  const slideStyles = {
-    "slide-left": "animate-slide-left",
-    "slide-right": "animate-slide-right",
-    "": ""
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose} className="max-w-2xl mx-auto">
-      <DialogContent className="max-w-2xl sm:max-w-2xl min-h-[50vh] overflow-auto">
+    <Dialog open={isOpen} onOpenChange={handleClose} className="max-w-md mx-auto">
+      <DialogContent className="max-w-md sm:max-w-md max-h-[90vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center">
+          <DialogTitle className="text-xl font-bold text-center">
             Join WatanHub
           </DialogTitle>
-          <p className="text-center text-gray-500 mt-1">
-            {step === 1 ? "Create your account" : "Additional Information"}
+          <p className="text-center text-gray-500 mt-1 text-sm">
+            Create your account
           </p>
         </DialogHeader>
 
@@ -310,196 +321,180 @@ const SignUp = ({ isOpen, onClose }) => {
         </DialogClose>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4 text-red-600 text-sm flex items-start">
+          <div className="bg-red-50 border border-red-200 rounded-md p-2 mb-3 text-red-600 text-sm flex items-start">
             <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={step === 1 ? goToNextStep : handleSubmit} className={`space-y-4 ${animation}`}>
-          {step === 1 && (
-            <>
-              {/* User details section */}
-              <FormSection title="Personal Information" icon={<User className="h-5 w-5 text-primary" />}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                      First Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="firstName"
-                      name="firstName"
-                      value={basicData.firstName}
-                      onChange={handleBasicChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                      Last Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="lastName"
-                      name="lastName"
-                      value={basicData.lastName}
-                      onChange={handleBasicChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                      required
-                    />
-                  </div>
-                </div>
-              </FormSection>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* User details section */}
+          <FormSection title="Personal Information" icon={<User className="h-4 w-4 text-primary" />}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="firstName" className="block text-xs font-medium text-gray-700 mb-1">
+                  First Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="firstName"
+                  name="firstName"
+                  value={basicData.firstName}
+                  onChange={handleBasicChange}
+                  className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="lastName" className="block text-xs font-medium text-gray-700 mb-1">
+                  Last Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="lastName"
+                  name="lastName"
+                  value={basicData.lastName}
+                  onChange={handleBasicChange}
+                  className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  required
+                />
+              </div>
+            </div>
+          </FormSection>
 
-              {/* Account details section */}
-              <FormSection title="Account Details" icon={<Mail className="h-5 w-5 text-primary" />}>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={basicData.email}
-                    onChange={handleBasicChange}
-                    className={`w-full p-2 border ${emailError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-2 focus:ring-primary focus:border-primary`}
-                    required
-                  />
-                </div>
+          {/* Account details section */}
+          <FormSection title="Account Details" icon={<Mail className="h-4 w-4 text-primary" />}>
+            <div>
+              <label htmlFor="email" className="block text-xs font-medium text-gray-700 mb-1">
+                Email <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={basicData.email}
+                onChange={handleBasicChange}
+                className={`w-full p-2 text-sm border ${emailError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-2 focus:ring-primary focus:border-primary`}
+                required
+              />
+            </div>
 
-                {/* Email confirmation field */}
-                <div>
-                  <label htmlFor="confirmEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    id="confirmEmail"
-                    name="confirmEmail"
-                    value={basicData.confirmEmail}
-                    onChange={handleBasicChange}
-                    className={`w-full p-2 border ${emailError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-2 focus:ring-primary focus:border-primary`}
-                    required
-                  />
-                  {emailError && (
-                    <p className="mt-1 text-sm text-red-600">{emailError}</p>
+            {/* Email confirmation field */}
+            <div>
+              <label htmlFor="confirmEmail" className="block text-xs font-medium text-gray-700 mb-1">
+                Confirm Email <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                id="confirmEmail"
+                name="confirmEmail"
+                value={basicData.confirmEmail}
+                onChange={handleBasicChange}
+                className={`w-full p-2 text-sm border ${emailError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-2 focus:ring-primary focus:border-primary`}
+                required
+              />
+              {emailError && (
+                <p className="mt-1 text-xs text-red-600">{emailError}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-xs font-medium text-gray-700 mb-1">
+                Password <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  value={basicData.password}
+                  onChange={handleBasicChange}
+                  className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-500" />
                   )}
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                    Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      id="password"
-                      name="password"
-                      value={basicData.password}
-                      onChange={handleBasicChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary pr-10"
-                      required
-                    />
-                    <button
-                      type="button"
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-gray-500" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-gray-500" />
-                      )}
-                    </button>
-                  </div>
-                  <div className="mt-1 flex items-center gap-1">
-                    <div className={`h-1 flex-1 rounded-full ${getPasswordStrengthColor(basicData.password)}`}></div>
-                    <div className={`h-1 flex-1 rounded-full ${basicData.password.length >= 8 ? getPasswordStrengthColor(basicData.password) : 'bg-gray-200'}`}></div>
-                    <div className={`h-1 flex-1 rounded-full ${basicData.password.length >= 10 ? getPasswordStrengthColor(basicData.password) : 'bg-gray-200'}`}></div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Minimum 6 characters, stronger with numbers & symbols</p>
-                </div>
-
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      value={basicData.confirmPassword}
-                      onChange={handleBasicChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary pr-10"
-                      required
-                    />
-                    <button
-                      type="button"
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4 text-gray-500" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-gray-500" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </FormSection>
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button
-                  type="button"
-                  onClick={handleClose}
-                  variant="outline"
-                  className="rounded-lg"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  className="rounded-lg"
-                  onClick={goToNextStep}
-                  disabled={loading}
-                >
-                  Continue
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                </button>
               </div>
-            </>
-          )}
-
-          {step === 2 && (
-            <>
-              {/* Education Section */}
-
-
-              {/* Navigation Buttons */}
-              <div className="flex justify-between items-center mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="px-6 py-2"
-                  onClick={goToPrevStep}
-                  disabled={loading}
-                >
-                  <ArrowLeft size={16} className="mr-2" /> Back
-                </Button>
-                <Button
-                  type="submit"
-                  className="px-6 py-2 bg-primary hover:bg-primary/90 text-white"
-                  disabled={loading}
-                >
-                  {loading ? 'Creating…' : 'Create Account'} <CheckCircle size={16} className="ml-2" />
-                </Button>
+              <div className="mt-1 flex items-center gap-1">
+                <div className={`h-1 flex-1 rounded-full ${getPasswordStrengthColor(basicData.password)}`}></div>
+                <div className={`h-1 flex-1 rounded-full ${basicData.password.length >= 8 ? getPasswordStrengthColor(basicData.password) : 'bg-gray-200'}`}></div>
+                <div className={`h-1 flex-1 rounded-full ${basicData.password.length >= 10 ? getPasswordStrengthColor(basicData.password) : 'bg-gray-200'}`}></div>
               </div>
-            </>
-          )}
+              <p className="text-xs text-gray-500 mt-1">Minimum 6 characters, stronger with numbers & symbols</p>
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="block text-xs font-medium text-gray-700 mb-1">
+                Confirm Password <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={basicData.confirmPassword}
+                  onChange={handleBasicChange}
+                  className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-500" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </FormSection>
+
+          {/* Terms & Privacy section - simplified */}
+          <div className="flex items-start space-x-3 mt-2 px-2">
+            <input
+              type="checkbox"
+              id="termsAccepted"
+              name="termsAccepted"
+              checked={basicData.termsAccepted}
+              onChange={handleBasicChange}
+              className="mt-1"
+              required
+            />
+            <label htmlFor="termsAccepted" className="text-xs text-gray-600">
+              I agree to the <a href="/terms" target="_blank" className="text-indigo-600 hover:text-indigo-800 underline">Terms</a> and <a href="/privacy" target="_blank" className="text-indigo-600 hover:text-indigo-800 underline">Privacy Policy</a>. <span className="text-red-500">*</span>
+            </label>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-2">
+            <Button
+              type="button"
+              onClick={handleClose}
+              variant="outline"
+              className="rounded-lg text-sm py-1 px-3 h-8"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="rounded-lg text-sm py-1 px-3 h-8"
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : 'Create Account'}
+              <CheckCircle className="ml-2 h-3.5 w-3.5" />
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

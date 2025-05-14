@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from './supabase';
 import { ROLES, getUserRole, getStudentProfile, getMentorProfile } from './UserRoles';
+import { hasAcceptedTerms } from './UserTerms';
 
 const AuthContext = createContext();
 
@@ -14,6 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [isMentor, setIsMentor] = useState(false);
   const [isStudent, setIsStudent] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(true);
+  const [hasAcceptedTermsOfService, setHasAcceptedTermsOfService] = useState(false);
 
   // Check if user is admin
   const checkAdmin = async (email) => {
@@ -94,6 +96,7 @@ export const AuthProvider = ({ children }) => {
       setIsMentor(false);
       setIsStudent(false);
       setIsProfileComplete(true);
+      setHasAcceptedTermsOfService(false);
       return;
     }
 
@@ -108,6 +111,10 @@ export const AuthProvider = ({ children }) => {
       if (profileError && profileError.code !== 'PGRST116') {
         console.error("Profile fetch error:", profileError.message);
       }
+
+      // Check if terms have been accepted
+      const termsAccepted = await hasAcceptedTerms(currentUser.id);
+      setHasAcceptedTermsOfService(termsAccepted);
 
       // Determine if user is admin or mentor
       const isUserAdmin = await checkAdmin(currentUser.email);
@@ -345,10 +352,12 @@ export const AuthProvider = ({ children }) => {
         userRole,
         profile,
         isProfileComplete,
+        hasAcceptedTermsOfService,
         signUp,
         signIn,
         signInWithGoogle,
         signOut,
+        handleUserProfile,
       }}
     >
       {children}

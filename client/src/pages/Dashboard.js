@@ -1,16 +1,25 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { getStudentProfile } from '../lib/UserRoles';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Loader, Bell, MessageSquare, User, Calendar, ChevronRight, BookOpen, AlignLeft,
-  CheckCircle, Clock, FileText, CheckSquare, AlertTriangle
+  CheckCircle, Clock, FileText, CheckSquare, AlertTriangle, Sparkles,
+  GraduationCap, Bookmark, Book, LineChart
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '../components/ui/dialog';
 
-export default function Dashboard() {
-  const { user } = useAuth();
+const Dashboard = () => {
+  const { user, isMentor, isAdmin } = useAuth();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
@@ -20,6 +29,11 @@ export default function Dashboard() {
   const [pendingNotes, setPendingNotes] = useState(0);
   const [acknowledgedNotes, setAcknowledgedNotes] = useState(0);
   const [upcomingDeadlines, setUpcomingDeadlines] = useState([]);
+  const [expandedNotes, setExpandedNotes] = useState({});
+  const [confirmingNote, setConfirmingNote] = useState(null);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [noteFilter, setNoteFilter] = useState('all');
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!user) return;
@@ -65,6 +79,18 @@ export default function Dashboard() {
       if (notesCleanup) notesCleanup();
     };
   }, [user]);
+
+  useEffect(() => {
+    // Redirect mentors to mentor dashboard
+    if (isMentor) {
+      navigate('/mentor/dashboard');
+    }
+    // Redirect admins to admin dashboard
+    else if (isAdmin) {
+      navigate('/admin/dashboard');
+    }
+    // Regular students remain on this dashboard
+  }, [isMentor, isAdmin, navigate]);
 
   const fetchMentorNotes = async (mentorId, studentId) => {
     try {
@@ -179,6 +205,14 @@ export default function Dashboard() {
 
   const acknowledgeNote = async (noteId) => {
     try {
+      // If not confirming yet, just set the confirming state
+      if (confirmingNote !== noteId) {
+        setConfirmingNote(noteId);
+        return;
+      }
+
+      // If already confirming, proceed with acknowledgment
+      setConfirmingNote(null);
       console.log("Acknowledging note:", noteId);
 
       const { error } = await supabase
@@ -212,6 +246,19 @@ export default function Dashboard() {
       console.error('Error acknowledging note:', error.message);
       toast.error('Failed to complete task');
     }
+  };
+
+  // Toggle note expansion
+  const toggleNoteExpansion = (noteId) => {
+    setExpandedNotes(prev => ({
+      ...prev,
+      [noteId]: !prev[noteId]
+    }));
+  };
+
+  // Cancel acknowledgment confirmation
+  const cancelAcknowledgment = () => {
+    setConfirmingNote(null);
   };
 
   useEffect(() => {
@@ -255,6 +302,23 @@ export default function Dashboard() {
     return () => supabase.removeChannel(channel);
   }, [user]);
 
+  // Check for first-time login
+  useEffect(() => {
+    if (!user) return;
+
+    const isNewSignup = localStorage.getItem('newSignup') === 'true';
+    if (isNewSignup) {
+      // Show welcome popup
+      setShowWelcomePopup(true);
+      // Clear the flag once used
+      localStorage.removeItem('newSignup');
+    }
+  }, [user]);
+
+  const closeWelcomePopup = () => {
+    setShowWelcomePopup(false);
+  };
+
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric'
   });
@@ -282,6 +346,79 @@ export default function Dashboard() {
     return 'bg-blue-100 text-blue-800';
   };
 
+  // Add the welcome dialog right before the return statement
+  const WelcomeDialog = () => (
+    <Dialog open={showWelcomePopup} onOpenChange={setShowWelcomePopup}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold text-center">
+            Welcome to WatanHub!
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="py-4">
+          <div className="flex items-center justify-center mb-4">
+            <div className="p-3 bg-indigo-100 rounded-full">
+              <Sparkles className="h-8 w-8 text-indigo-600" />
+            </div>
+          </div>
+
+          <h3 className="text-lg font-medium text-center mb-4">
+            You're all set to start your journey!
+          </h3>
+
+          <div className="space-y-3 text-gray-600">
+            <p className="flex items-start">
+              <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+              <span>We'll connect you with a mentor within 72 hours.</span>
+            </p>
+
+            <p className="flex items-start">
+              <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+              <span>Most communications will happen through WhatsApp once you're connected.</span>
+            </p>
+
+            <p className="flex items-start">
+              <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+              <span>Your data is protected and only used to improve your experience.</span>
+            </p>
+
+            <p className="flex items-start">
+              <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+              <span>Check the dashboard regularly for updates from your mentor.</span>
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <button
+            onClick={closeWelcomePopup}
+            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg"
+          >
+            Get Started
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  // Render Coming Soon content
+  const renderComingSoon = (title, description, icon) => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="bg-indigo-100 p-4 rounded-full mb-4">
+          {icon}
+        </div>
+        <h3 className="text-2xl font-bold text-gray-800 mb-2">{title}</h3>
+        <p className="text-gray-600 max-w-md mx-auto mb-6">{description}</p>
+        <div className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md">
+          <Bookmark className="mr-2 h-4 w-4" />
+          <span>Coming Soon</span>
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -295,6 +432,9 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      {/* Welcome Dialog */}
+      <WelcomeDialog />
+
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-md p-6 sm:p-8 mb-8 text-white">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
@@ -329,41 +469,90 @@ export default function Dashboard() {
 
       {/* Navigation Tabs */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
-        <div className="flex border-b border-gray-100">
+        <div className="flex flex-wrap border-b border-gray-100">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`flex-1 py-4 px-4 text-center font-medium text-sm ${activeTab === 'overview'
+            className={`py-4 px-4 text-center font-medium text-sm ${activeTab === 'overview'
               ? 'text-indigo-600 border-b-2 border-indigo-500'
               : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
           >
-            Overview
+            <div className="flex items-center">
+              <LineChart className="h-4 w-4 mr-1" />
+              <span>Overview</span>
+            </div>
           </button>
           <button
             onClick={() => setActiveTab('tasks')}
-            className={`flex-1 py-4 px-4 text-center font-medium text-sm ${activeTab === 'tasks'
+            className={`py-4 px-4 text-center font-medium text-sm ${activeTab === 'tasks'
               ? 'text-indigo-600 border-b-2 border-indigo-500'
               : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
           >
-            Tasks & Notes
-            {pendingNotes > 0 && (
-              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                {pendingNotes}
-              </span>
-            )}
+            <div className="flex items-center">
+              <CheckSquare className="h-4 w-4 mr-1" />
+              <span>Tasks & Notes</span>
+              {pendingNotes > 0 && (
+                <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                  {pendingNotes}
+                </span>
+              )}
+            </div>
           </button>
           <button
             onClick={() => setActiveTab('announcements')}
-            className={`flex-1 py-4 px-4 text-center font-medium text-sm ${activeTab === 'announcements'
+            className={`py-4 px-4 text-center font-medium text-sm ${activeTab === 'announcements'
               ? 'text-indigo-600 border-b-2 border-indigo-500'
               : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
           >
-            Announcements
+            <div className="flex items-center">
+              <Bell className="h-4 w-4 mr-1" />
+              <span>Announcements</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('courses')}
+            className={`py-4 px-4 text-center font-medium text-sm ${activeTab === 'courses'
+              ? 'text-indigo-600 border-b-2 border-indigo-500'
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+          >
+            <div className="flex items-center">
+              <BookOpen className="h-4 w-4 mr-1" />
+              <span>Courses</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('assignments')}
+            className={`py-4 px-4 text-center font-medium text-sm ${activeTab === 'assignments'
+              ? 'text-indigo-600 border-b-2 border-indigo-500'
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+          >
+            <div className="flex items-center">
+              <FileText className="h-4 w-4 mr-1" />
+              <span>Assignments</span>
+            </div>
           </button>
         </div>
       </div>
+
+      {activeTab === 'courses' && (
+        renderComingSoon(
+          "Courses Coming Soon",
+          "We're currently developing an exciting collection of courses to help you on your educational journey. Stay tuned for updates!",
+          <GraduationCap className="h-8 w-8 text-indigo-600" />
+        )
+      )}
+
+      {activeTab === 'assignments' && (
+        renderComingSoon(
+          "Assignments Coming Soon",
+          "Our team is working on a comprehensive assignment system to help track your progress and achievements. Check back soon!",
+          <Book className="h-8 w-8 text-indigo-600" />
+        )
+      )}
 
       {activeTab === 'overview' && (
         <>
@@ -372,16 +561,12 @@ export default function Dashboard() {
             {/* Quick Stats */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 h-full">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                  <Calendar size={20} className="mr-2 text-indigo-600" />
+                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <Calendar size={18} className="mr-2 text-indigo-600" />
                   Quick Stats
                 </h2>
-                <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="text-sm text-gray-500">Announcements</div>
-                    <div className="text-2xl font-semibold text-gray-800">{announcements.length}</div>
-                  </div>
-                  <div className="bg-indigo-50 p-4 rounded-lg">
+                <div className="space-y-3">
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg">
                     <div className="text-sm text-indigo-700">Today's Date</div>
                     <div className="text-xl font-semibold text-indigo-900">
                       {new Date().toLocaleDateString('en-US', {
@@ -389,22 +574,52 @@ export default function Dashboard() {
                       })}
                     </div>
                   </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-gray-500">Announcements</div>
+                      <div className="text-2xl font-semibold text-gray-800">{announcements.length}</div>
+                    </div>
+                    <Bell size={18} className="text-indigo-600" />
+                  </div>
+
                   {assignedMentor && (
                     <>
-                      <div className="bg-green-50 p-4 rounded-lg">
-                        <div className="text-sm text-green-700">Mentor Notes</div>
-                        <div className="text-2xl font-semibold text-green-900">{mentorNotes.length}</div>
+                      <div className="bg-green-50 p-4 rounded-lg flex items-center justify-between">
+                        <div>
+                          <div className="text-sm text-green-700">Mentor Notes</div>
+                          <div className="text-2xl font-semibold text-green-900">{mentorNotes.length}</div>
+                        </div>
+                        <FileText size={18} className="text-green-600" />
                       </div>
-                      <div className="bg-yellow-50 p-4 rounded-lg">
-                        <div className="text-sm text-yellow-700">Pending Tasks</div>
-                        <div className="text-2xl font-semibold text-yellow-900">{pendingNotes}</div>
+
+                      <div className="bg-amber-50 p-4 rounded-lg flex items-center justify-between">
+                        <div>
+                          <div className="text-sm text-amber-700">Pending Tasks</div>
+                          <div className="text-2xl font-semibold text-amber-900">{pendingNotes}</div>
+                        </div>
+                        <Clock size={18} className="text-amber-600" />
                       </div>
                     </>
                   )}
-                  <Link to="/resources" className="block mt-4 bg-gray-50 hover:bg-gray-100 p-4 rounded-lg flex justify-between items-center transition">
-                    <span className="font-medium text-gray-800">Resources</span>
-                    <ChevronRight size={18} className="text-gray-400" />
-                  </Link>
+
+                  <div className="mt-3 space-y-2">
+                    <Link to="/resources" className="block bg-gray-50 hover:bg-gray-100 p-3 rounded-lg flex justify-between items-center transition">
+                      <div className="flex items-center">
+                        <BookOpen size={16} className="text-indigo-600 mr-2" />
+                        <span className="font-medium text-gray-800">Resources</span>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </Link>
+
+                    <Link to="/profile" className="block bg-gray-50 hover:bg-gray-100 p-3 rounded-lg flex justify-between items-center transition">
+                      <div className="flex items-center">
+                        <User size={16} className="text-indigo-600 mr-2" />
+                        <span className="font-medium text-gray-800">Profile</span>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
@@ -413,15 +628,16 @@ export default function Dashboard() {
             <div className="lg:col-span-2">
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                    <Bell size={20} className="mr-2 text-indigo-600" />
+                  <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                    <Bell size={18} className="mr-2 text-indigo-600" />
                     Latest Announcements
                   </h2>
                   <button
                     onClick={() => setActiveTab('announcements')}
-                    className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-800 flex items-center"
                   >
                     View All
+                    <ChevronRight size={14} className="ml-1" />
                   </button>
                 </div>
                 <div className="space-y-4">
@@ -458,14 +674,14 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Upcoming Deadlines */}
+          {/* Upcoming Deadlines - Improved visual style */}
           {upcomingDeadlines.length > 0 && (
             <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                <Clock size={20} className="mr-2 text-indigo-600" />
+              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <Clock size={18} className="mr-2 text-indigo-600" />
                 Upcoming Deadlines
               </h2>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {upcomingDeadlines.map((note) => {
                   const daysRemaining = getDaysRemaining(note.deadline);
                   const badgeColor = getStatusBadgeColor(daysRemaining);
@@ -481,23 +697,17 @@ export default function Dashboard() {
                             </span>
                           </div>
                           <p className="text-gray-700 mb-2">{note.description}</p>
-                          <p className="text-sm text-gray-500">{note.content.substring(0, 100)}...</p>
+                          <p className="text-sm text-gray-500 line-clamp-2">{note.content}</p>
                         </div>
+                      </div>
+                      <div className="mt-3 flex justify-between items-center">
+                        <span className="text-xs text-gray-500">Deadline: {formatDate(note.deadline)}</span>
                         <button
                           onClick={() => acknowledgeNote(note.id)}
                           className="flex items-center px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-lg hover:bg-green-200 transition"
                         >
                           <CheckCircle size={14} className="mr-1" />
                           Mark Complete
-                        </button>
-                      </div>
-                      <div className="mt-3 flex justify-between items-center text-xs text-gray-500">
-                        <span>Deadline: {formatDate(note.deadline)}</span>
-                        <button
-                          onClick={() => setActiveTab('tasks')}
-                          className="text-indigo-600 hover:text-indigo-800 font-medium"
-                        >
-                          View Details
                         </button>
                       </div>
                     </div>
@@ -510,12 +720,12 @@ export default function Dashboard() {
           {/* Mentor */}
           {assignedMentor && (
             <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                <User size={20} className="mr-2 text-indigo-600" />
+              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <User size={18} className="mr-2 text-indigo-600" />
                 Your Assigned Mentor
               </h2>
               <div className="flex items-start space-x-4">
-                <div className="h-14 w-14 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xl font-medium">
+                <div className="h-16 w-16 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg flex items-center justify-center text-xl font-medium">
                   {assignedMentor.full_name?.split(' ').map(n => n[0]).join('')}
                 </div>
                 <div>
@@ -527,26 +737,57 @@ export default function Dashboard() {
                   <p className="text-sm text-gray-500 mt-1">
                     <span className="font-medium text-indigo-600">Bio:</span> {assignedMentor.bio || 'No bio available.'}
                   </p>
+                  <button className="mt-3 px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition">
+                    Message Mentor
+                  </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Quick Links */}
+          {/* Quick Links - Updated to navigate to tabs instead of separate pages */}
           <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Quick Navigation</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {['Courses', 'Assignments', 'Resources'].map((item, index) => (
-                <Link key={index} to={`/${item.toLowerCase()}`} className="bg-gradient-to-br from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 rounded-xl p-6 text-center transition shadow-sm hover:shadow flex flex-col items-center justify-center">
+              {[
+                {
+                  title: 'Tasks',
+                  icon: <CheckSquare size={20} />,
+                  description: 'View pending tasks',
+                  action: () => setActiveTab('tasks'),
+                  color: 'from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100',
+                  iconBg: 'bg-blue-100 text-blue-600'
+                },
+                {
+                  title: 'Announcements',
+                  icon: <Bell size={20} />,
+                  description: 'Latest updates',
+                  action: () => setActiveTab('announcements'),
+                  color: 'from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100',
+                  iconBg: 'bg-purple-100 text-purple-600'
+                },
+                {
+                  title: 'Profile',
+                  icon: <User size={20} />,
+                  path: '/profile',
+                  description: 'Edit your profile',
+                  color: 'from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100',
+                  iconBg: 'bg-emerald-100 text-emerald-600'
+                }
+              ].map((item, index) => (
+                <button
+                  key={index}
+                  onClick={() => item.path ? navigate(item.path) : item.action()}
+                  className={`bg-gradient-to-br ${item.color} rounded-xl p-5 text-center transition shadow-sm hover:shadow flex flex-col items-center justify-center cursor-pointer`}
+                >
                   <div className="bg-white rounded-full p-3 shadow-sm mb-3">
-                    <div className="bg-indigo-100 rounded-full w-10 h-10 flex items-center justify-center text-indigo-600">
-                      {index === 0 && <Calendar size={20} />}
-                      {index === 1 && <MessageSquare size={20} />}
-                      {index === 2 && <User size={20} />}
+                    <div className={`rounded-full w-10 h-10 flex items-center justify-center ${item.iconBg}`}>
+                      {item.icon}
                     </div>
                   </div>
-                  <h3 className="font-semibold text-gray-800">{item}</h3>
-                  <p className="text-sm text-gray-500 mt-1">View your {item.toLowerCase()}</p>
-                </Link>
+                  <h3 className="font-semibold text-gray-800">{item.title}</h3>
+                  <p className="text-sm text-gray-500 mt-1">{item.description}</p>
+                </button>
               ))}
             </div>
           </div>
@@ -555,101 +796,211 @@ export default function Dashboard() {
 
       {activeTab === 'tasks' && assignedMentor && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-              <FileText size={20} className="mr-2 text-indigo-600" />
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+              <FileText size={18} className="mr-2 text-indigo-600" />
               Tasks & Notes from Your Mentor
             </h2>
             <div className="flex space-x-2">
-              <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 flex items-center">
+              <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 flex items-center">
                 <Clock size={12} className="mr-1" />
-                Pending: {pendingNotes}
+                <span className="whitespace-nowrap">Total: {mentorNotes.length}</span>
+              </span>
+              <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800 flex items-center">
+                <Clock size={12} className="mr-1" />
+                <span className="whitespace-nowrap">Pending: {pendingNotes}</span>
               </span>
               <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 flex items-center">
                 <CheckSquare size={12} className="mr-1" />
-                Completed: {acknowledgedNotes}
+                <span className="whitespace-nowrap">Completed: {acknowledgedNotes}</span>
               </span>
             </div>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg mb-4">
-            <h3 className="text-md font-medium mb-2 text-gray-700">Filter Tasks</h3>
-            <div className="flex flex-wrap gap-2">
-              <button className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium">
-                All Tasks
-              </button>
-              <button className="px-3 py-1 bg-white border border-gray-200 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-100">
-                Pending
-              </button>
-              <button className="px-3 py-1 bg-white border border-gray-200 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-100">
-                Completed
-              </button>
-              <button className="px-3 py-1 bg-white border border-gray-200 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-100">
-                Upcoming Deadlines
-              </button>
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-md font-medium text-indigo-800">Task Completion</h3>
+              <span className="text-sm font-medium text-indigo-800">
+                {mentorNotes.length > 0
+                  ? `${Math.round((acknowledgedNotes / mentorNotes.length) * 100)}%`
+                  : '0%'}
+              </span>
+            </div>
+            <div className="w-full bg-white rounded-full h-2.5 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-500"
+                style={{
+                  width: mentorNotes.length > 0
+                    ? `${(acknowledgedNotes / mentorNotes.length) * 100}%`
+                    : '0%'
+                }}
+              ></div>
             </div>
           </div>
 
+          <div className="mb-6 flex flex-wrap gap-2">
+            <button
+              onClick={() => setNoteFilter('all')}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${noteFilter === 'all'
+                ? 'bg-indigo-100 text-indigo-800'
+                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'
+                }`}
+            >
+              All Tasks
+            </button>
+            <button
+              onClick={() => setNoteFilter('pending')}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${noteFilter === 'pending'
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'
+                }`}
+            >
+              Pending
+            </button>
+            <button
+              onClick={() => setNoteFilter('acknowledged')}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${noteFilter === 'acknowledged'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'
+                }`}
+            >
+              Completed
+            </button>
+          </div>
+
           {mentorNotes.length === 0 ? (
-            <div className="bg-gray-50 rounded-lg p-8 text-center">
-              <AlignLeft size={32} className="mx-auto text-gray-400 mb-2" />
-              <p className="text-gray-500">No notes from your mentor yet.</p>
-              <p className="text-sm text-gray-400 mt-1">Check back later for updates from your mentor.</p>
+            <div className="py-12 px-4 text-center bg-gray-50 rounded-lg border border-dashed">
+              <AlignLeft size={48} className="mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500 font-medium">No notes from your mentor yet.</p>
+              <p className="text-sm text-gray-400 mt-1 max-w-md mx-auto">
+                Once your mentor adds tasks or notes, they will appear here. You'll also receive a notification.
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {mentorNotes.map((note) => {
-                const daysRemaining = note.deadline ? getDaysRemaining(note.deadline) : null;
+              {mentorNotes
+                .filter(note => {
+                  if (noteFilter === 'all') return true;
+                  if (noteFilter === 'pending') return !note.acknowledged;
+                  if (noteFilter === 'acknowledged') return note.acknowledged;
+                  return true;
+                })
+                .map(note => {
+                  const isExpanded = expandedNotes[note.id] === true;
+                  const daysRemaining = note.deadline ? getDaysRemaining(note.deadline) : null;
 
-                return (
-                  <div key={note.id} className="bg-white border border-gray-100 hover:border-indigo-200 rounded-lg p-5 shadow-sm hover:shadow transition">
-                    <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <h3 className="text-lg font-semibold text-indigo-700 mr-2">{note.task}</h3>
-                          <span className="text-xs font-medium px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full">
-                            {note.acknowledged ? 'Completed' : 'Pending'}
-                          </span>
-                          {!note.acknowledged && note.deadline && daysRemaining <= 3 && (
-                            <span className={`ml-2 text-xs px-2 py-1 rounded-full flex items-center ${getStatusBadgeColor(daysRemaining)}`}>
-                              <AlertTriangle size={12} className="mr-1" />
-                              {daysRemaining <= 0 ? 'Due Today!' : `${daysRemaining} days left`}
+                  return (
+                    <div
+                      key={note.id}
+                      className={`bg-white p-5 rounded-lg border shadow-sm transition-all ${note.acknowledged
+                        ? 'border-l-4 border-l-green-500 border-t border-r border-b border-gray-100'
+                        : 'border-l-4 border-l-amber-500 border-t border-r border-b border-gray-100'
+                        }`}
+                    >
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-800">{note.task}</h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${note.acknowledged
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-amber-100 text-amber-800'
+                              }`}>
+                              {note.acknowledged ? 'Completed' : 'Pending'}
                             </span>
-                          )}
-                        </div>
-                        <h4 className="font-medium text-gray-800 mb-2">{note.description}</h4>
-                        <div className="mb-3 text-gray-700 whitespace-pre-wrap">{note.content}</div>
+                            {!note.acknowledged && note.deadline && daysRemaining <= 3 && (
+                              <span className={`text-xs px-2 py-0.5 rounded-full flex items-center ${getStatusBadgeColor(daysRemaining)}`}>
+                                <AlertTriangle size={10} className="mr-1" />
+                                {daysRemaining <= 0 ? 'Due Today!' : `${daysRemaining} days left`}
+                              </span>
+                            )}
+                          </div>
 
-                        <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                          <span className="px-2 py-1 bg-gray-100 rounded-md">
-                            <span className="font-medium">Start:</span> {new Date(note.start_date).toLocaleDateString()}
-                          </span>
-                          {note.deadline && (
+                          <h4 className="font-medium text-gray-700 mb-2">{note.description}</h4>
+
+                          {/* Display truncated or full content based on expanded state */}
+                          <div className={`mb-3 text-gray-600 whitespace-pre-wrap transition-all duration-200 ${isExpanded ? '' : 'line-clamp-2'
+                            }`}>
+                            {note.content}
+                          </div>
+
+                          {/* Show expand/collapse button if content is long */}
+                          {note.content.length > 100 && (
+                            <button
+                              onClick={() => toggleNoteExpansion(note.id)}
+                              className="text-indigo-600 hover:text-indigo-800 text-sm font-medium mb-2 flex items-center"
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <span>Show less</span>
+                                  <svg className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                  </svg>
+                                </>
+                              ) : (
+                                <>
+                                  <span>Read more</span>
+                                  <svg className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </>
+                              )}
+                            </button>
+                          )}
+
+                          <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-3">
                             <span className="px-2 py-1 bg-gray-100 rounded-md">
-                              <span className="font-medium">Deadline:</span> {new Date(note.deadline).toLocaleDateString()}
+                              <span className="font-medium">Start:</span> {new Date(note.start_date).toLocaleDateString()}
                             </span>
-                          )}
-                          <span className="px-2 py-1 bg-gray-100 rounded-md">
-                            <span className="font-medium">Created:</span> {formatDate(note.created_at)}
-                          </span>
+                            {note.deadline && (
+                              <span className="px-2 py-1 bg-gray-100 rounded-md">
+                                <span className="font-medium">Deadline:</span> {new Date(note.deadline).toLocaleDateString()}
+                              </span>
+                            )}
+                            <span className="px-2 py-1 bg-gray-100 rounded-md">
+                              <span className="font-medium">Created:</span> {formatDate(note.created_at)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
 
-                      {!note.acknowledged && (
-                        <div className="flex flex-col items-end justify-start">
-                          <button
-                            onClick={() => acknowledgeNote(note.id)}
-                            className="flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition"
-                          >
-                            <CheckCircle size={16} className="mr-2" />
-                            Mark as Complete
-                          </button>
-                        </div>
-                      )}
+                        {!note.acknowledged && (
+                          <div className="flex flex-col items-end justify-start">
+                            {confirmingNote === note.id ? (
+                              <div className="flex flex-col space-y-2">
+                                <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm text-amber-800 mb-2 max-w-xs">
+                                  <p className="font-medium mb-1">Please confirm:</p>
+                                  <p className="text-xs">I have completed this task and understand this will be marked as acknowledged.</p>
+                                </div>
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => acknowledgeNote(note.id)}
+                                    className="flex items-center px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition"
+                                  >
+                                    <CheckCircle size={14} className="mr-1" />
+                                    Confirm
+                                  </button>
+                                  <button
+                                    onClick={cancelAcknowledgment}
+                                    className="flex items-center px-3 py-1.5 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => acknowledgeNote(note.id)}
+                                className="flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition shadow-sm"
+                              >
+                                <CheckCircle size={16} className="mr-2" />
+                                Mark as Complete
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  );
+                })}
             </div>
           )}
         </div>
@@ -657,42 +1008,60 @@ export default function Dashboard() {
 
       {activeTab === 'announcements' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-            <Bell size={20} className="mr-2 text-indigo-600" />
-            All Announcements
-          </h2>
-          <div className="space-y-4">
-            {announcements.length === 0 ? (
-              <div className="bg-gray-50 rounded-lg p-8 text-center">
-                <MessageSquare size={32} className="mx-auto text-gray-400 mb-2" />
-                <p className="text-gray-500">No announcements yet.</p>
-                <p className="text-sm text-gray-400 mt-1">Check back later for updates.</p>
-              </div>
-            ) : (
-              announcements.map((a) => (
-                <div key={a.id} className="bg-white border border-gray-100 hover:border-indigo-200 rounded-lg p-5 shadow-sm hover:shadow transition group">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-indigo-700 group-hover:text-indigo-800">{a.title}</h3>
-                    <div className="text-xs text-gray-400 mt-1 sm:mt-0 flex items-center">
-                      <Calendar size={12} className="mr-1" />
-                      {formatDate(a.created_at)} at {formatTime(a.created_at)}
-                    </div>
-                  </div>
-                  <p className="text-gray-700">{a.message}</p>
-                  {a.cta_link && (
-                    <div className="mt-3 text-right">
-                      <Link to={a.cta_link} className="text-sm font-medium text-indigo-600 hover:text-indigo-800 flex items-center justify-end">
-                        <span>Learn more</span>
-                        <ChevronRight size={16} className="ml-1" />
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+              <Bell size={18} className="mr-2 text-indigo-600" />
+              All Announcements
+            </h2>
+            <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-800">
+              {announcements.length} total
+            </span>
           </div>
+
+          {announcements.length === 0 ? (
+            <div className="py-12 px-4 text-center bg-gray-50 rounded-lg border border-dashed">
+              <Bell size={48} className="mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500 font-medium">No announcements yet.</p>
+              <p className="text-sm text-gray-400 mt-1 max-w-md mx-auto">
+                Stay tuned! Important announcements and updates will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {announcements.map((a) => (
+                <div key={a.id} className="bg-white border border-gray-100 hover:border-indigo-200 rounded-lg p-5 shadow-sm hover:shadow transition-all duration-200 group">
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-lg font-semibold text-indigo-700 group-hover:text-indigo-800 mb-2">
+                      {a.title}
+                    </h3>
+                    <span className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full whitespace-nowrap">
+                      {formatDate(a.created_at)}
+                    </span>
+                  </div>
+
+                  <p className="text-gray-600 mb-3 line-clamp-3">{a.message}</p>
+
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span className="flex items-center">
+                      <Clock size={12} className="mr-1" />
+                      {formatTime(a.created_at)}
+                    </span>
+
+                    {a.cta_link && (
+                      <Link to={a.cta_link} className="text-sm font-medium text-indigo-600 hover:text-indigo-800 flex items-center">
+                        <span>Learn more</span>
+                        <ChevronRight size={14} className="ml-1" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+
+export default Dashboard;

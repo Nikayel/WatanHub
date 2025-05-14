@@ -1,3 +1,4 @@
+import React from 'react';
 //UI
 import { Toaster } from 'sonner';
 import { Analytics } from "@vercel/analytics/react"
@@ -23,6 +24,9 @@ import BlogDetail from './pages/BlogDetails';
 import Login from './components/Auth/Login';
 import SignUp from './components/Auth/SignUp';
 
+// User Terms
+import TermsChecker from './components/TermsChecker';
+
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminBlogManage from './pages/admin/AdminBlogManage';
@@ -42,6 +46,8 @@ import MentorDashboard from './pages/mentor/mentor_dashboard';
 
 // Profile Tutorial Modal
 import ProfileTutorial from './components/ProfileTutorial';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
 
 function App() {
   return (
@@ -49,6 +55,7 @@ function App() {
       <Router>
         <Toaster position="top-center" richColors /> {/* <- here */}
         <ProfileTutorial />
+        <TermsChecker />
         <Routes>
 
           {/* Public Routes */}
@@ -123,6 +130,9 @@ function App() {
               <MigrationTool />
             </AdminRoute>
           } />
+
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
 
         </Routes>
       </Router>

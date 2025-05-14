@@ -10,7 +10,7 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const { user, signIn, signInWithGoogle, error, loading } = useAuth();
+    const { user, signIn, signInWithGoogle, error, loading, isMentor, isAdmin } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -22,23 +22,27 @@ const Login = () => {
             if (isNewSignup) {
                 // Clear the flag once used
                 localStorage.removeItem('newSignup');
-                // Redirect to dashboard, where tutorial will show automatically
             }
-            navigate('/dashboard');
+            // Redirect will happen in the useEffect
         }
     };
 
     useEffect(() => {
         if (user) {
-            navigate('/dashboard');
+            // Redirect based on user role
+            if (isAdmin) {
+                navigate('/admin/dashboard');
+            } else if (isMentor) {
+                navigate('/mentor/dashboard');
+            } else {
+                navigate('/dashboard');
+            }
         }
-    }, [user, navigate]);
+    }, [user, navigate, isMentor, isAdmin]);
 
     const handleGoogleSignIn = async () => {
         const { success } = await signInWithGoogle();
-        if (success) {
-            navigate('/dashboard');
-        }
+        // Redirect will happen in the useEffect
     };
 
     return (

@@ -52,6 +52,12 @@ function AdminDashboard() {
     pending: 0,
     trend: []
   });
+  const [studentNotes, setStudentNotes] = useState({});
+  const [outcomesStats, setOutcomesStats] = useState({
+    collegeAdmissions: { total: 0, stemCount: 0, byMonth: [] },
+    scholarships: { total: 0, totalValue: 0, byType: [] },
+    employment: { total: 0, byType: [] }
+  });
 
   // Colors for charts
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
@@ -70,6 +76,7 @@ function AdminDashboard() {
         await fetchMentorApplications();
         await fetchDemographicData();
         await fetchNoteStats();
+        await fetchOutcomesStats(); // Add this line
 
         // Set up real-time subscriptions for analytics updates
         setupRealtimeSubscriptions();
@@ -91,31 +98,165 @@ function AdminDashboard() {
 
   // Function to set up real-time subscriptions
   const setupRealtimeSubscriptions = () => {
-    // Subscribe to mentor_notes table changes to update stats in real-time
-    const channel = supabase
-      .channel('admin-note-stats-changes')
+    if (!user) return;
+
+    // Subscribe to mentor applications
+    const mentorAppChannel = supabase
+      .channel('mentor-applications-changes')
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'mentorapplications'
+        },
+        (payload) => {
+          console.log('Mentor application changed:', payload);
+          fetchMentorApplications();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to mentor_notes for real-time note statistics 
+    const notesStatsChannel = supabase
+      .channel('admin-notes-stats')
       .on('postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'mentor_notes'
         },
-        async () => {
-          console.log('Admin dashboard: Note stats update triggered by database change');
-          // Refresh note statistics
-          await fetchNoteStats();
+        (payload) => {
+          console.log('Note change detected, updating admin statistics:', payload);
+
+          // Update note stats based on the type of change
+          if (payload.eventType === 'INSERT') {
+            setNoteStats(prev => ({
+              ...prev,
+              total: prev.total + 1,
+              pending: prev.pending + 1
+            }));
+          } else if (payload.eventType === 'DELETE') {
+            setNoteStats(prev => ({
+              ...prev,
+              total: Math.max(0, prev.total - 1),
+              // If the deleted note was acknowledged, decrement that too
+              acknowledged: payload.old.acknowledged
+                ? Math.max(0, prev.acknowledged - 1)
+                : prev.acknowledged,
+              pending: !payload.old.acknowledged
+                ? Math.max(0, prev.pending - 1)
+                : prev.pending
+            }));
+          } else if (payload.eventType === 'UPDATE' &&
+            payload.new.acknowledged !== payload.old.acknowledged) {
+            if (payload.new.acknowledged) {
+              // Note was acknowledged
+              setNoteStats(prev => ({
+                ...prev,
+                acknowledged: prev.acknowledged + 1,
+                pending: Math.max(0, prev.pending - 1)
+              }));
+            } else {
+              // Acknowledgment was removed
+              setNoteStats(prev => ({
+                ...prev,
+                acknowledged: Math.max(0, prev.acknowledged - 1),
+                pending: prev.pending + 1
+              }));
+            }
+          }
+
+          // Refresh note stats completely every 10 updates to ensure accuracy
+          if (Math.random() < 0.1) {
+            fetchNoteStats();
+          }
         }
       )
       .subscribe();
 
-    setNoteStatsChannel(channel);
-    console.log('Admin dashboard: Real-time subscriptions set up');
+    // Subscribe to outcome tables for real-time updates
+    const collegeAdmissionsChannel = supabase
+      .channel('admin-college-admissions')
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'college_admissions'
+        },
+        (payload) => {
+          console.log('College admission change detected:', payload);
+          // Refresh demographics data to update outcomes statistics
+          fetchDemographicData();
+          fetchOutcomesStats(); // Add this line
+        }
+      )
+      .subscribe();
+
+    const scholarshipsChannel = supabase
+      .channel('admin-scholarships')
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'scholarship_awards'
+        },
+        (payload) => {
+          console.log('Scholarship change detected:', payload);
+          // Refresh demographics data to update outcomes statistics
+          fetchDemographicData();
+          fetchOutcomesStats(); // Add this line
+        }
+      )
+      .subscribe();
+
+    const employmentChannel = supabase
+      .channel('admin-employment')
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'student_employment'
+        },
+        (payload) => {
+          console.log('Employment change detected:', payload);
+          fetchOutcomesStats(); // Add this line
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(mentorAppChannel);
+      supabase.removeChannel(notesStatsChannel);
+      supabase.removeChannel(collegeAdmissionsChannel);
+      supabase.removeChannel(scholarshipsChannel);
+      supabase.removeChannel(employmentChannel); // Add this line
+    };
   };
 
   const fetchStudents = async () => {
-    const studentsData = await safeSelect('profiles', '*');
-    if (studentsData) {
-      setStudents(studentsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+    try {
+      const studentsData = await safeSelect('profiles', '*');
+      if (studentsData) {
+        setStudents(studentsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+
+        // Fetch note counts for each student
+        const noteCounts = {};
+        for (const student of studentsData) {
+          const { count, error } = await supabase
+            .from('mentor_notes')
+            .select('id', { count: 'exact', head: true })
+            .eq('student_id', student.id);
+
+          if (!error) {
+            noteCounts[student.id] = count || 0;
+          }
+        }
+
+        setStudentNotes(noteCounts);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      toast.error('Failed to load students');
     }
   };
 
@@ -401,6 +542,136 @@ function AdminDashboard() {
     } catch (error) {
       console.error('Error fetching note stats:', error.message);
       toast.error('Failed to update statistics');
+    }
+  };
+
+  // Function to fetch outcomes statistics
+  const fetchOutcomesStats = async () => {
+    try {
+      console.log('Fetching outcomes statistics');
+
+      // Fetch college admissions data
+      const { data: admissionsData, error: admissionsError } = await supabase
+        .from('college_admissions')
+        .select('*');
+
+      if (admissionsError) {
+        console.error('Error fetching college admissions:', admissionsError);
+        throw admissionsError;
+      }
+
+      // Fetch scholarships data
+      const { data: scholarshipsData, error: scholarshipsError } = await supabase
+        .from('scholarship_awards')
+        .select('*');
+
+      if (scholarshipsError) {
+        console.error('Error fetching scholarships:', scholarshipsError);
+        throw scholarshipsError;
+      }
+
+      // Fetch employment data
+      const { data: employmentData, error: employmentError } = await supabase
+        .from('student_employment')
+        .select('*');
+
+      if (employmentError) {
+        console.error('Error fetching employment data:', employmentError);
+        throw employmentError;
+      }
+
+      // Process college admissions stats
+      const stemCount = admissionsData?.filter(a => a.is_stem).length || 0;
+
+      // Process admissions by month
+      const admissionsByMonth = {};
+      admissionsData?.forEach(admission => {
+        if (admission.admission_date) {
+          const date = new Date(admission.admission_date);
+          const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
+
+          if (!admissionsByMonth[monthYear]) {
+            admissionsByMonth[monthYear] = { all: 0, stem: 0 };
+          }
+
+          admissionsByMonth[monthYear].all += 1;
+          if (admission.is_stem) {
+            admissionsByMonth[monthYear].stem += 1;
+          }
+        }
+      });
+
+      // Convert to array for charts
+      const admissionsTrend = Object.keys(admissionsByMonth).sort().map(key => ({
+        name: key,
+        all: admissionsByMonth[key].all,
+        stem: admissionsByMonth[key].stem
+      }));
+
+      // Process scholarships stats
+      const totalScholarshipValue = scholarshipsData?.reduce((sum, scholarship) => {
+        return sum + (parseFloat(scholarship.amount) || 0);
+      }, 0);
+
+      // Group scholarships by type
+      const scholarshipsByType = {};
+      scholarshipsData?.forEach(scholarship => {
+        const type = scholarship.scholarship_type || 'Unspecified';
+
+        if (!scholarshipsByType[type]) {
+          scholarshipsByType[type] = { count: 0, value: 0 };
+        }
+
+        scholarshipsByType[type].count += 1;
+        scholarshipsByType[type].value += parseFloat(scholarship.amount) || 0;
+      });
+
+      // Convert to array for charts
+      const scholarshipsByTypeArray = Object.keys(scholarshipsByType).map(key => ({
+        name: key,
+        count: scholarshipsByType[key].count,
+        value: scholarshipsByType[key].value
+      }));
+
+      // Process employment data
+      const employmentByType = {};
+      employmentData?.forEach(job => {
+        const type = job.employment_type || 'Unspecified';
+
+        if (!employmentByType[type]) {
+          employmentByType[type] = 0;
+        }
+
+        employmentByType[type] += 1;
+      });
+
+      // Convert to array for charts
+      const employmentByTypeArray = Object.keys(employmentByType).map(key => ({
+        name: key,
+        value: employmentByType[key]
+      }));
+
+      setOutcomesStats({
+        collegeAdmissions: {
+          total: admissionsData?.length || 0,
+          stemCount,
+          byMonth: admissionsTrend
+        },
+        scholarships: {
+          total: scholarshipsData?.length || 0,
+          totalValue: totalScholarshipValue,
+          byType: scholarshipsByTypeArray
+        },
+        employment: {
+          total: employmentData?.length || 0,
+          byType: employmentByTypeArray
+        }
+      });
+
+      console.log('Outcomes statistics fetched successfully');
+    } catch (error) {
+      console.error('Error fetching outcomes statistics:', error);
+      toast.error('Failed to load outcomes statistics');
     }
   };
 
@@ -762,6 +1033,15 @@ Bio: ${student.bio || 'N/A'}
                 }`}
             >
               Analytics & Demographics
+            </button>
+            <button
+              onClick={() => setActiveTab('outcomes')}
+              className={`px-6 py-3 font-medium text-sm ${activeTab === 'outcomes'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              Outcomes Analytics
             </button>
           </div>
         </div>
@@ -1159,6 +1439,315 @@ Bio: ${student.bio || 'N/A'}
           </div>
         )}
 
+        {/* Outcomes Analytics Tab */}
+        {activeTab === 'outcomes' && (
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <h2 className="text-2xl font-bold mb-6">Student Outcomes Analytics</h2>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">College Admissions</p>
+                    <h3 className="text-3xl font-bold text-indigo-600">{outcomesStats.collegeAdmissions.total}</h3>
+                  </div>
+                  <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                      <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">STEM Admissions</span>
+                    <span className="text-sm font-medium">{outcomesStats.collegeAdmissions.stemCount}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                    <div
+                      className="bg-green-600 h-2.5 rounded-full"
+                      style={{
+                        width: outcomesStats.collegeAdmissions.total > 0
+                          ? `${(outcomesStats.collegeAdmissions.stemCount / outcomesStats.collegeAdmissions.total) * 100}%`
+                          : '0%'
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Scholarship Awards</p>
+                    <h3 className="text-3xl font-bold text-green-600">{outcomesStats.scholarships.total}</h3>
+                  </div>
+                  <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <span className="text-sm text-gray-500">Total Value</span>
+                  <p className="text-xl font-medium text-gray-800">
+                    ${outcomesStats.scholarships.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Employment Records</p>
+                    <h3 className="text-3xl font-bold text-purple-600">{outcomesStats.employment.total}</h3>
+                  </div>
+                  <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <div className="flex flex-wrap gap-2">
+                    {outcomesStats.employment.byType.map((type, index) => (
+                      <span key={index} className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                        {type.name}: {type.value}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* College Admissions Charts */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-4">College Admissions Over Time</h3>
+              <div className="h-80 bg-white border border-gray-200 rounded-lg p-4">
+                {outcomesStats.collegeAdmissions.byMonth.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={outcomesStats.collegeAdmissions.byMonth}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="all" name="All Admissions" fill="#8884d8" />
+                      <Bar dataKey="stem" name="STEM Admissions" fill="#82ca9d" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <p className="text-gray-500">No admission data available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Scholarships Charts */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-4">Scholarship Distribution</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="h-80 bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-medium mb-2">Count by Type</h4>
+                  {outcomesStats.scholarships.byType.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="90%">
+                      <PieChart>
+                        <Pie
+                          data={outcomesStats.scholarships.byType}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={true}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="count"
+                          nameKey="name"
+                          label
+                        >
+                          {outcomesStats.scholarships.byType.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value, name, props) => [`${value} scholarships`, props.payload.name]} />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No scholarship data available</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="h-80 bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-medium mb-2">Value by Type</h4>
+                  {outcomesStats.scholarships.byType.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="90%">
+                      <BarChart data={outcomesStats.scholarships.byType}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Value']} />
+                        <Bar dataKey="value" name="Scholarship Value" fill="#82ca9d">
+                          {outcomesStats.scholarships.byType.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No scholarship data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Employment Charts */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-4">Employment Analysis</h3>
+              <div className="h-80 bg-white border border-gray-200 rounded-lg p-4">
+                {outcomesStats.employment.byType.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={outcomesStats.employment.byType}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                        nameKey="name"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {outcomesStats.employment.byType.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value, name) => [value, name]} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <p className="text-gray-500">No employment data available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Combined Outcomes Success Metrics */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Overall Student Success Metrics</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h4 className="font-medium text-gray-800 mb-3">Success Breakdown</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium">College Admissions</span>
+                        <span className="text-sm font-medium">{students.length > 0 ? ((outcomesStats.collegeAdmissions.total / students.length) * 100).toFixed(1) : 0}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div className="bg-indigo-600 h-2.5 rounded-full" style={{
+                          width: students.length > 0 ? `${(outcomesStats.collegeAdmissions.total / students.length) * 100}%` : '0%'
+                        }}></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium">Scholarship Recipients</span>
+                        <span className="text-sm font-medium">{students.length > 0 ? ((outcomesStats.scholarships.total / students.length) * 100).toFixed(1) : 0}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div className="bg-green-600 h-2.5 rounded-full" style={{
+                          width: students.length > 0 ? `${(outcomesStats.scholarships.total / students.length) * 100}%` : '0%'
+                        }}></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium">Employment Placed</span>
+                        <span className="text-sm font-medium">{students.length > 0 ? ((outcomesStats.employment.total / students.length) * 100).toFixed(1) : 0}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div className="bg-purple-600 h-2.5 rounded-full" style={{
+                          width: students.length > 0 ? `${(outcomesStats.employment.total / students.length) * 100}%` : '0%'
+                        }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h4 className="font-medium text-gray-800 mb-3">Overall Success Rate</h4>
+                  <div className="flex items-center space-x-6">
+                    <div className="relative h-32 w-32">
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl font-bold">
+                          {students.length > 0 ?
+                            ((students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length / students.length) * 100).toFixed(0)
+                            : 0}%
+                        </span>
+                      </div>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              {
+                                name: 'Success',
+                                value: students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length
+                              },
+                              {
+                                name: 'Pending',
+                                value: students.length - students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length
+                              }
+                            ]}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={40}
+                            outerRadius={50}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            <Cell fill="#4F46E5" />
+                            <Cell fill="#E5E7EB" />
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-600 mb-4">
+                        <span className="font-medium">
+                          {students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length}
+                        </span> out of <span className="font-medium">{students.length}</span> students have achieved at least one successful outcome.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full">
+                          College: {students.filter(s => s.college_admit).length}
+                        </span>
+                        <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                          Scholarship: {students.filter(s => s.scholarship_awarded).length}
+                        </span>
+                        <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                          Employment: {students.filter(s => s.employed).length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Students Tab Content */}
         {activeTab === 'students' && (
           <div>
@@ -1205,6 +1794,7 @@ Bio: ${student.bio || 'N/A'}
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Education</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">English</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
@@ -1229,6 +1819,12 @@ Bio: ${student.bio || 'N/A'}
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.email}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.education_level || 'N/A'}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.english_level || 'N/A'}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${studentNotes[student.id] > 0 ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                  {studentNotes[student.id] || 0}
+                                </span>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div className="flex flex-wrap gap-2">
                                   <button onClick={() => handleCopy(student)} className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
@@ -1306,6 +1902,12 @@ Bio: ${student.bio || 'N/A'}
                           <div className="flex justify-between">
                             <span className="text-sm text-gray-500">English Level:</span>
                             <span className="text-sm font-medium">{student.english_level || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-500">Notes:</span>
+                            <span className={`text-sm font-medium ${studentNotes[student.id] > 0 ? 'text-indigo-600' : ''}`}>
+                              {studentNotes[student.id] || 0}
+                            </span>
                           </div>
                           {expanded === student.id && (
                             <>
