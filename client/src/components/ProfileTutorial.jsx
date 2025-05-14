@@ -88,7 +88,7 @@ const translations = {
         genderOptions: {
             male: "Male",
             female: "Female",
-            nonBinary: "Non-binary",
+            // nonBinary: "Non-binary",
             preferNotToSay: "Prefer not to say"
         },
         placeOfBirth: "Place of Birth",
@@ -165,7 +165,7 @@ const translations = {
         genderOptions: {
             male: "مرد",
             female: "زن",
-            nonBinary: "غیر دوگانه",
+            // nonBinary: "غیر دوگانه",
             preferNotToSay: "ترجیح می‌دهم نگویم"
         },
         placeOfBirth: "محل تولد",
@@ -177,8 +177,8 @@ const translations = {
         educationDesc: "تجربه‌های تحصیلی خود را به اشتراک بگذارید تا به ما کمک کند محتوای مناسب برای شما پیدا کنیم.",
         educationLevel: "سطح تحصیلات",
         educationOptions: {
-            highSchool: "دبیرستان",
-            bachelors: "کارشناسی",
+            highSchool: "لیسه/صنف ده - دوازده",
+            bachelors: "لیسانس",
             masters: "کارشناسی ارشد",
             phd: "دکترا",
             other: "دیگر"
@@ -201,11 +201,11 @@ const translations = {
         bioPlaceholder: "کمی درباره خودتان، پیشینه‌تان و اهداف تحصیلی‌تان بنویسید...",
 
         // Socioeconomic background - Farsi
-        backgroundTitle: "اطلاعات زمینه‌ای",
+        backgroundTitle: "اطلاعات",
         backgroundDesc: "این اطلاعات به ما کمک می‌کند تا مربی مناسب برای شما تعیین کنیم و فرصت‌های بورسیه را متناسب با شما کنیم. پاسخ‌های شما محرمانه باقی می‌ماند.",
-        province: "استان",
-        schoolType: "نوع مدرسه",
-        income: "محدوده درآمد خانوار",
+        province: "ولایت",
+        schoolType: "نوع مکتب",
+        income: " درآمد خانوار",
         parentalEducation: "سطح تحصیلات والدین",
         internetSpeed: "کیفیت دسترسی به اینترنت",
 
@@ -242,7 +242,7 @@ const translations = {
         genderOptions: {
             male: "نارینه",
             female: "ښځینه",
-            nonBinary: "غیر دوه ګونی",
+            // nonBinary: "غیر دوه ګونی",
             preferNotToSay: "غوره ګڼم چې ونه وایم"
         },
         placeOfBirth: "د زیږیدنې ځای",
@@ -820,17 +820,14 @@ const ProfileTutorial = () => {
 
                             <div>
                                 <label className="block text-sm font-medium mb-1">{t('income')}</label>
-                                <select
+                                <input
+                                    type="text"
                                     name="household_income_band"
                                     value={formData.household_income_band}
                                     onChange={handleChange}
                                     className="w-full p-2 border rounded-md"
-                                >
-                                    <option value="">{t('selectIncome')}</option>
-                                    {INCOME_RANGES.map(range => (
-                                        <option key={range} value={range}>{range}</option>
-                                    ))}
-                                </select>
+                                    placeholder={t('income')}
+                                />
                             </div>
 
                             <div>

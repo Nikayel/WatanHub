@@ -493,36 +493,92 @@ Bio: ${student.bio || 'N/A'}
     }
   };
   const handleAssignStudent = async (mentorId, studentId) => {
-    const { data, error } = await supabase
-      .from('mentor_student')
-      .insert([{ mentor_id: mentorId, student_id: studentId }]);
+    try {
+      console.log('Assigning student to mentor:', { mentorId, studentId });
 
-    if (error) {
-      toast.error('Assignment failed: ' + error.message);
-      console.error(error);
-      return;
+      if (!mentorId || !studentId) {
+        toast.error('Missing mentor or student information');
+        console.error('Invalid parameters:', { mentorId, studentId });
+        return;
+      }
+
+      // First check if assignment already exists to avoid duplicate entries
+      const { data: existingAssignment, error: checkError } = await supabase
+        .from('mentor_student')
+        .select('*')
+        .eq('mentor_id', mentorId)
+        .eq('student_id', studentId)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking existing assignment:', checkError);
+        toast.error('Failed to verify assignment status');
+        return;
+      }
+
+      if (existingAssignment) {
+        console.log('Student already assigned to this mentor', existingAssignment);
+        toast.info('Student is already assigned to this mentor');
+        return;
+      }
+
+      // Create the assignment
+      const { data, error } = await supabase
+        .from('mentor_student')
+        .insert([{ mentor_id: mentorId, student_id: studentId }])
+        .select();
+
+      if (error) {
+        console.error('Assignment failed - detailed error:', error);
+        toast.error('Assignment failed: ' + error.message);
+        return;
+      }
+
+      console.log('Assignment successful:', data);
+
+      // Update the student's assigned status
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ is_assigned: true })
+        .eq('id', studentId);
+
+      if (updateError) {
+        console.error('Failed to update student assignment status:', updateError);
+        toast.warning('Assignment created but failed to update student status');
+      }
+
+      // Update UI state
+      toast.success('Student successfully assigned!');
+
+      const newlyAssignedStudent = students.find((s) => s.id === studentId);
+      if (newlyAssignedStudent) {
+        setMentorStudents(prev => [...prev, newlyAssignedStudent]);
+      }
+
+      // Refresh students list
+      await fetchStudents();
+
+      // Send email notification if available
+      try {
+        if (newlyAssignedStudent) {
+          await fetch('/api/email/student-assigned', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: newlyAssignedStudent.email,
+              fullName: `${newlyAssignedStudent.first_name} ${newlyAssignedStudent.last_name}`,
+              mentorName: selectedMentorForAssignment.full_name
+            }),
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send assignment email:', emailError);
+        // Non-blocking error - don't show toast for this
+      }
+    } catch (error) {
+      console.error('Unexpected error in handleAssignStudent:', error);
+      toast.error('An unexpected error occurred during assignment');
     }
-    await safeUpdate('profiles', { is_assigned: true }, 'id', studentId);
-    toast.success('Student successfully assigned!');
-
-    const newLyAssignedStudent = students.find((s) => s.id === studentId);
-    if (newLyAssignedStudent) {
-      setMentorStudents(prev => [...prev, newLyAssignedStudent]);
-    }
-
-    await fetchStudents();
-
-    // ✅ Now send the assignment email
-    await fetch('/api/email/student-assigned', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: newLyAssignedStudent?.email,
-        fullName: `${newLyAssignedStudent?.first_name} ${newLyAssignedStudent?.last_name}`,
-        mentorName: selectedMentorForAssignment.full_name
-      }),
-    });
-
   };
 
   const handleRejectMentor = async (applicationId) => {
@@ -1197,6 +1253,13 @@ Bio: ${student.bio || 'N/A'}
                                     <div><strong>Bio:</strong> {student.bio || 'N/A'}</div>
                                     <div><strong>Date of Birth:</strong> {student.date_of_birth || 'N/A'}</div>
                                     <div><strong>Signed Up:</strong> {new Date(student.created_at).toLocaleDateString()}</div>
+
+                                    {/* Socioeconomic fields */}
+                                    <div><strong>Province:</strong> {student.province || 'N/A'}</div>
+                                    <div><strong>School Type:</strong> {student.school_type || 'N/A'}</div>
+                                    <div><strong>Household Income:</strong> {student.household_income_band || 'N/A'}</div>
+                                    <div><strong>Parental Education:</strong> {student.parental_education || 'N/A'}</div>
+                                    <div><strong>Internet Access:</strong> {student.internet_speed || 'N/A'}</div>
                                   </div>
                                 </td>
                               </tr>
@@ -1261,6 +1324,28 @@ Bio: ${student.bio || 'N/A'}
                               <div className="flex justify-between mt-2">
                                 <span className="text-sm text-gray-500">DoB:</span>
                                 <span className="text-sm font-medium">{student.date_of_birth || 'N/A'}</span>
+                              </div>
+
+                              {/* Socioeconomic fields */}
+                              <div className="flex justify-between mt-2">
+                                <span className="text-sm text-gray-500">Province:</span>
+                                <span className="text-sm font-medium">{student.province || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between mt-2">
+                                <span className="text-sm text-gray-500">School Type:</span>
+                                <span className="text-sm font-medium">{student.school_type || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between mt-2">
+                                <span className="text-sm text-gray-500">Household Income:</span>
+                                <span className="text-sm font-medium">{student.household_income_band || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between mt-2">
+                                <span className="text-sm text-gray-500">Parental Education:</span>
+                                <span className="text-sm font-medium">{student.parental_education || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between mt-2">
+                                <span className="text-sm text-gray-500">Internet Access:</span>
+                                <span className="text-sm font-medium">{student.internet_speed || 'N/A'}</span>
                               </div>
                             </>
                           )}

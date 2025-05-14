@@ -843,7 +843,7 @@ const MentorDashboard = () => {
                                                 <span>{selectedStudent.interests || 'Not specified'}</span>
                                             </div>
 
-                                            {/* New socioeconomic fields */}
+                                            {/* Socioeconomic fields - only show if available */}
                                             {selectedStudent.province && (
                                                 <div className="bg-white p-3 rounded-lg shadow-sm">
                                                     <span className="text-sm font-medium text-gray-600 block mb-1">Province</span>
