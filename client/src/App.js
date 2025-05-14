@@ -36,6 +36,7 @@ import MentorApplicationPage from './pages/MentorApplicationPage';
 // User Pages
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
+import OnboardingSurvey from './pages/OnboardingSurvey';
 import MentorRoute from './components/Routes/MentorRoute';
 import MentorDashboard from './pages/mentor/mentor_dashboard';
 
@@ -75,6 +76,12 @@ function App() {
           <Route path="/profile" element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/onboarding-survey" element={
+            <ProtectedRoute>
+              <OnboardingSurvey />
             </ProtectedRoute>
           } />
 

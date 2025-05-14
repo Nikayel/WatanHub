@@ -9,7 +9,7 @@ import {
   ResponsiveContainer, Cell, LineChart, Line, AreaChart, Area
 } from 'recharts';
 
-export default function AdminDashboard() {
+function AdminDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [mentorApplications, setMentorApplications] = useState([]);
@@ -39,7 +39,12 @@ export default function AdminDashboard() {
     religion: [],
     educationLevel: [],
     englishLevel: [],
-    signupTrend: []
+    signupTrend: [],
+    province: [],
+    schoolType: [],
+    householdIncome: [],
+    parentalEducation: [],
+    internetSpeed: []
   });
   const [noteStats, setNoteStats] = useState({
     total: 0,
@@ -198,30 +203,19 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Process age data using date_of_birth instead of birth_year
+      // Process age data
       const ageData = studentsData.reduce((acc, student) => {
         if (student.date_of_birth) {
           const birthDate = new Date(student.date_of_birth);
           const today = new Date();
-
-          // Calculate age
           let age = today.getFullYear() - birthDate.getFullYear();
           const monthDiff = today.getMonth() - birthDate.getMonth();
-
-          // Adjust age if birthday hasn't occurred yet this year
           if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
             age--;
           }
-
-          // Check if user is at least 13 years old
-          if (age < 13) {
-            console.warn(`User ${student.id} is under 13 years old (${age} years)`);
-          }
-
-          // Create age ranges for chart (e.g., 13-17, 18-22, etc.)
+          // Create age ranges
           const ageRange = Math.floor(age / 5) * 5;
           const label = `${ageRange}-${ageRange + 4}`;
-
           const existing = acc.find(item => item.name === label);
           if (existing) {
             existing.value += 1;
@@ -233,96 +227,89 @@ export default function AdminDashboard() {
       }, []);
 
       // Process gender data
-      const genderData = studentsData.reduce((acc, student) => {
-        if (student.gender) {
-          const existing = acc.find(item => item.name === student.gender);
-          if (existing) {
-            existing.value += 1;
-          } else {
-            acc.push({ name: student.gender, value: 1 });
-          }
-        }
-        return acc;
-      }, []);
+      const genderData = processFieldData(studentsData, 'gender');
 
       // Process religion data
-      const religionData = studentsData.reduce((acc, student) => {
-        if (student.religion) {
-          const existing = acc.find(item => item.name === student.religion);
-          if (existing) {
-            existing.value += 1;
-          } else {
-            acc.push({ name: student.religion, value: 1 });
-          }
-        }
-        return acc;
-      }, []);
+      const religionData = processFieldData(studentsData, 'religion');
 
       // Process education level data
-      const educationData = studentsData.reduce((acc, student) => {
-        if (student.education_level) {
-          const existing = acc.find(item => item.name === student.education_level);
-          if (existing) {
-            existing.value += 1;
-          } else {
-            acc.push({ name: student.education_level, value: 1 });
-          }
-        }
-        return acc;
-      }, []);
+      const educationLevelData = processFieldData(studentsData, 'education_level');
 
       // Process English level data
-      const englishData = studentsData.reduce((acc, student) => {
-        if (student.english_level) {
-          const existing = acc.find(item => item.name === student.english_level);
+      const englishLevelData = processFieldData(studentsData, 'english_level');
+
+      // NEW: Process province data
+      const provinceData = processFieldData(studentsData, 'province');
+
+      // NEW: Process school type data
+      const schoolTypeData = processFieldData(studentsData, 'school_type');
+
+      // NEW: Process household income data
+      const incomeData = processFieldData(studentsData, 'household_income_band');
+
+      // NEW: Process parental education data
+      const parentalEducationData = processFieldData(studentsData, 'parental_education');
+
+      // NEW: Process internet speed data
+      const internetSpeedData = processFieldData(studentsData, 'internet_speed');
+
+      // Process signup trend (by month)
+      const signupsByMonth = studentsData.reduce((acc, student) => {
+        if (student.created_at) {
+          const date = new Date(student.created_at);
+          const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
+          const existing = acc.find(item => item.name === monthYear);
           if (existing) {
             existing.value += 1;
           } else {
-            acc.push({ name: student.english_level, value: 1 });
+            acc.push({ name: monthYear, value: 1, date: date });
           }
         }
         return acc;
       }, []);
 
-      // Process signup trend (by month)
-      const signupData = [];
-      const months = {};
-
-      studentsData.forEach(student => {
-        if (student.created_at) {
-          const date = new Date(student.created_at);
-          const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-
-          if (months[monthYear]) {
-            months[monthYear] += 1;
-          } else {
-            months[monthYear] = 1;
-          }
-        }
-      });
-
-      // Convert to array and sort chronologically
-      Object.keys(months).sort().forEach(key => {
-        const [year, month] = key.split('-');
-        const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'short' });
-        signupData.push({
-          name: `${monthName} ${year}`,
-          value: months[key]
+      // Sort by date
+      const sortedSignups = signupsByMonth.sort((a, b) => a.date - b.date)
+        .map(item => {
+          const { date, ...rest } = item;
+          return rest;
         });
-      });
 
       setDemographicData({
-        age: ageData.sort((a, b) => parseInt(a.name.split('-')[0]) - parseInt(b.name.split('-')[0])),
+        age: ageData.sort((a, b) => parseInt(a.name) - parseInt(b.name)),
         gender: genderData,
         religion: religionData,
-        educationLevel: educationData,
-        englishLevel: englishData,
-        signupTrend: signupData
+        educationLevel: educationLevelData,
+        englishLevel: englishLevelData,
+        signupTrend: sortedSignups,
+        // New demographic data
+        province: provinceData,
+        schoolType: schoolTypeData,
+        householdIncome: incomeData,
+        parentalEducation: parentalEducationData,
+        internetSpeed: internetSpeedData
       });
 
     } catch (error) {
-      console.error('Error processing demographic data:', error);
+      console.error('Error fetching demographic data:', error);
+      toast.error('Failed to fetch demographic data');
     }
+  };
+
+  // Helper function to process field data for charts
+  const processFieldData = (data, field) => {
+    return data.reduce((acc, item) => {
+      if (item[field]) {
+        const value = item[field].toString();
+        const existing = acc.find(entry => entry.name === value);
+        if (existing) {
+          existing.value += 1;
+        } else {
+          acc.push({ name: value, value: 1 });
+        }
+      }
+      return acc;
+    }, []);
   };
 
   const fetchNoteStats = async () => {
@@ -753,9 +740,9 @@ Bio: ${student.bio || 'N/A'}
 
             {/* Demographics Section */}
             <h3 className="text-lg font-semibold mb-4">Student Demographics</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
               {/* Age Distribution */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              <div className="bg-white border rounded-lg shadow-sm p-4">
                 <h4 className="font-medium text-gray-800 mb-3">Age Distribution</h4>
                 <div className="h-64">
                   {demographicData.age.length > 0 ? (
@@ -789,7 +776,7 @@ Bio: ${student.bio || 'N/A'}
               </div>
 
               {/* Gender Distribution */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              <div className="bg-white border rounded-lg shadow-sm p-4">
                 <h4 className="font-medium text-gray-800 mb-3">Gender Distribution</h4>
                 <div className="h-64">
                   {demographicData.gender.length > 0 ? (
@@ -822,7 +809,7 @@ Bio: ${student.bio || 'N/A'}
               </div>
 
               {/* Religion Distribution */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              <div className="bg-white border rounded-lg shadow-sm p-4">
                 <h4 className="font-medium text-gray-800 mb-3">Religion Distribution</h4>
                 <div className="h-64">
                   {demographicData.religion.length > 0 ? (
@@ -853,12 +840,9 @@ Bio: ${student.bio || 'N/A'}
                   )}
                 </div>
               </div>
-            </div>
 
-            {/* Education and English Level */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               {/* Education Level */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              <div className="bg-white border rounded-lg shadow-sm p-4">
                 <h4 className="font-medium text-gray-800 mb-3">Education Level</h4>
                 <div className="h-64">
                   {demographicData.educationLevel.length > 0 ? (
@@ -881,7 +865,7 @@ Bio: ${student.bio || 'N/A'}
               </div>
 
               {/* English Level */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              <div className="bg-white border rounded-lg shadow-sm p-4">
                 <h4 className="font-medium text-gray-800 mb-3">English Proficiency</h4>
                 <div className="h-64">
                   {demographicData.englishLevel.length > 0 ? (
@@ -904,8 +888,198 @@ Bio: ${student.bio || 'N/A'}
               </div>
             </div>
 
+            {/* New Socioeconomic Demographics Section */}
+            <h3 className="text-lg font-semibold mb-4 mt-8 border-t pt-8">Socioeconomic Demographics</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+              {/* Province Chart */}
+              <div className="bg-white border rounded-lg shadow-sm p-4">
+                <h4 className="font-medium text-gray-800 mb-3">Student Provinces</h4>
+                <div className="h-64">
+                  {demographicData.province.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={demographicData.province.sort((a, b) => b.value - a.value).slice(0, 10)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-45} textAnchor="end" height={80} />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="value" name="Students" fill="#8884d8">
+                          {demographicData.province.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No province data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* School Type Chart */}
+              <div className="bg-white border rounded-lg shadow-sm p-4">
+                <h4 className="font-medium text-gray-800 mb-3">School Types</h4>
+                <div className="h-64">
+                  {demographicData.schoolType.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={demographicData.schoolType}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={true}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          nameKey="name"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {demographicData.schoolType.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value, name) => [value, name]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No school type data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Household Income Chart */}
+              <div className="bg-white border rounded-lg shadow-sm p-4">
+                <h4 className="font-medium text-gray-800 mb-3">Household Income Bands</h4>
+                <div className="h-64">
+                  {demographicData.householdIncome.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={demographicData.householdIncome}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-45} textAnchor="end" height={80} />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="value" name="Students" fill="#8884d8">
+                          {demographicData.householdIncome.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No income data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Parental Education Chart */}
+              <div className="bg-white border rounded-lg shadow-sm p-4">
+                <h4 className="font-medium text-gray-800 mb-3">Parental Education</h4>
+                <div className="h-64">
+                  {demographicData.parentalEducation.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={demographicData.parentalEducation}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={true}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          nameKey="name"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {demographicData.parentalEducation.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value, name) => [value, name]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No parental education data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Internet Speed Chart */}
+              <div className="bg-white border rounded-lg shadow-sm p-4">
+                <h4 className="font-medium text-gray-800 mb-3">Internet Access Quality</h4>
+                <div className="h-64">
+                  {demographicData.internetSpeed.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={demographicData.internetSpeed}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-45} textAnchor="end" height={80} />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="value" name="Students" fill="#8884d8">
+                          {demographicData.internetSpeed.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No internet quality data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Scholarship Eligibility Potential */}
+              <div className="bg-white border rounded-lg shadow-sm p-4">
+                <h4 className="font-medium text-gray-800 mb-3">Scholarship Eligibility Potential</h4>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={[
+                        {
+                          name: 'High Potential', value: students?.filter(s =>
+                            s.household_income_band?.includes('Less than') ||
+                            s.household_income_band?.includes('10,000') ||
+                            s.household_income_band?.includes('30,000')
+                          )?.length || 0
+                        },
+                        {
+                          name: 'Medium Potential', value: students?.filter(s =>
+                            s.household_income_band?.includes('50,000') ||
+                            s.household_income_band?.includes('70,000')
+                          )?.length || 0
+                        },
+                        {
+                          name: 'Low Potential', value: students?.filter(s =>
+                            s.household_income_band?.includes('100,000') ||
+                            s.household_income_band?.includes('More than')
+                          )?.length || 0
+                        }
+                      ]}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="value" name="Students">
+                        <Cell fill="#4CAF50" />
+                        <Cell fill="#FFC107" />
+                        <Cell fill="#F44336" />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
             {/* Mentorship Analytics */}
-            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+            <div className="mt-8 border-t pt-8">
               <h4 className="font-medium text-gray-800 mb-3">Mentorship Notes Analytics</h4>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -926,26 +1100,6 @@ Bio: ${student.bio || 'N/A'}
                 </ResponsiveContainer>
               </div>
             </div>
-
-            {/* Note Acknowledgment Trend */}
-            {noteStats.trend && noteStats.trend.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mt-6">
-                <h4 className="font-medium text-gray-800 mb-3">Note Acknowledgment Trend</h4>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={noteStats.trend}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="acknowledged" name="Acknowledged Notes" fill="#82ca9d" />
-                      <Bar dataKey="pending" name="Pending Notes" stackId="a" fill="#ffc658" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -1459,159 +1613,8 @@ Bio: ${student.bio || 'N/A'}
           </div>
         )}
       </div>
-
-      {/* Edit Student Modal */}
-      {editingStudent && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl transform transition-all" onClick={(e) => e.stopPropagation()}>
-            <div className="border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-800">Edit Student Profile</h2>
-              <button onClick={() => setEditingStudent(null)} className="text-gray-500 hover:text-gray-700">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </button>
-            </div>
-
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                  <input
-                    type="text"
-                    value={editingStudent.first_name || ''}
-                    onChange={(e) => setEditingStudent({ ...editingStudent, first_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                {/* Last Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                  <input
-                    type="text"
-                    value={editingStudent.last_name || ''}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, last_name: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                {/* Email */}
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={editingStudent.email || ''}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, email: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                {/* Education Level */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Education Level</label>
-                  <input
-                    type="text"
-                    value={editingStudent.education_level || ''}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, education_level: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                {/* English Level */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">English Level</label>
-                  <input
-                    type="text"
-                    value={editingStudent.english_level || ''}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, english_level: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                {/* TOEFL Score */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">TOEFL Score</label>
-                  <input
-                    type="number"
-                    value={editingStudent.toefl_score || ''}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, toefl_score: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                {/* Date of Birth */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                  <input
-                    type="date"
-                    value={
-                      editingStudent.date_of_birth
-                        ? editingStudent.date_of_birth.split('T')[0]
-                        : ''
-                    }
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, date_of_birth: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                {/* Interests */}
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Interests</label>
-                  <input
-                    type="text"
-                    value={editingStudent.interests || ''}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, interests: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                {/* Bio */}
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
-                  <textarea
-                    rows={4}
-                    value={editingStudent.bio || ''}
-                    onChange={(e) =>
-                      setEditingStudent({ ...editingStudent, bio: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm resize-y"
-                  ></textarea>
-                </div>
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => setEditingStudent(null)}
-                  className="px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveEdit}
-                  className="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
+export default AdminDashboard;

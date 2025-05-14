@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import {
     PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
 } from 'recharts';
+import OutcomeTagging from '../../components/OutcomeTagging';
 
 // Components
 const MentorDashboard = () => {
@@ -841,6 +842,54 @@ const MentorDashboard = () => {
                                                 <span className="text-sm font-medium text-gray-600 block mb-1">Interests</span>
                                                 <span>{selectedStudent.interests || 'Not specified'}</span>
                                             </div>
+
+                                            {/* New socioeconomic fields */}
+                                            {selectedStudent.province && (
+                                                <div className="bg-white p-3 rounded-lg shadow-sm">
+                                                    <span className="text-sm font-medium text-gray-600 block mb-1">Province</span>
+                                                    <span>{selectedStudent.province}</span>
+                                                </div>
+                                            )}
+                                            {selectedStudent.school_type && (
+                                                <div className="bg-white p-3 rounded-lg shadow-sm">
+                                                    <span className="text-sm font-medium text-gray-600 block mb-1">School Type</span>
+                                                    <span>{selectedStudent.school_type}</span>
+                                                </div>
+                                            )}
+                                            {selectedStudent.household_income_band && (
+                                                <div className="bg-white p-3 rounded-lg shadow-sm">
+                                                    <span className="text-sm font-medium text-gray-600 block mb-1">Household Income</span>
+                                                    <span>{selectedStudent.household_income_band}</span>
+                                                </div>
+                                            )}
+                                            {selectedStudent.parental_education && (
+                                                <div className="bg-white p-3 rounded-lg shadow-sm">
+                                                    <span className="text-sm font-medium text-gray-600 block mb-1">Parental Education</span>
+                                                    <span>{selectedStudent.parental_education}</span>
+                                                </div>
+                                            )}
+                                            {selectedStudent.internet_speed && (
+                                                <div className="bg-white p-3 rounded-lg shadow-sm">
+                                                    <span className="text-sm font-medium text-gray-600 block mb-1">Internet Access</span>
+                                                    <span>{selectedStudent.internet_speed}</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Add OutcomeTagging component here */}
+                                        <div className="mt-6">
+                                            <OutcomeTagging
+                                                student={selectedStudent}
+                                                onUpdate={(outcomes) => {
+                                                    // Update the local state to reflect changes
+                                                    setSelectedStudent(prev => ({
+                                                        ...prev,
+                                                        college_admit: outcomes.college_admit,
+                                                        scholarship_awarded: outcomes.scholarship_awarded,
+                                                        stem_major: outcomes.stem_major
+                                                    }));
+                                                }}
+                                            />
                                         </div>
                                     </div>
 

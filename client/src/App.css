@@ -12,10 +12,17 @@
     animation: App-logo-spin infinite 20s linear;
   }
 }
+
 @keyframes slideIn {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
+
 .App-link {
   color: #61dafb;
 }
@@ -24,7 +31,23 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Fix for modals and dialogs */
+.dialog-overlay {
+  z-index: 50 !important;
+}
+
+.dialog-content {
+  z-index: 51 !important;
+}
+
+/* Ensures the welcome component stays below modal content */
+.welcome {
+  z-index: 10;
+  position: relative;
 }

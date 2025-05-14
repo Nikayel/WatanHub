@@ -235,8 +235,29 @@ export const AuthProvider = ({ children }) => {
   const signUp = async (email, password, firstName, lastName) => {
     try {
       setLoading(true);
+
+      // Basic email validation
+      if (!email.match(/^\S+@\S+\.\S+$/)) {
+        throw new Error("Please enter a valid email address");
+      }
+
+      // Normalize email to lowercase
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // Check for disposable email domains
+      const domain = normalizedEmail.split('@')[1];
+      const disposableDomains = [
+        'tempmail.com', 'temp-mail.org', 'mailinator.com', 'tempail.com',
+        '10minutemail.com', 'guerrillamail.com', 'sharklasers.com',
+        'trashmail.com', 'throwawaymail.com', 'yopmail.com'
+      ];
+
+      if (disposableDomains.includes(domain)) {
+        throw new Error("Please use a non-disposable email address");
+      }
+
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
         options: {
           data: {
