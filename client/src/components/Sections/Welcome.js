@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../lib/AuthContext';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ArrowRight, LogIn } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Welcome = () => {
   const particlesRef = useRef(null);
@@ -17,9 +18,8 @@ const Welcome = () => {
 
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight * (window.innerWidth < 640 ? 0.5 : 0.7);
+      canvas.height = window.innerHeight * (window.innerWidth < 640 ? 0.7 : 0.8);
     };
-
 
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -102,56 +102,53 @@ const Welcome = () => {
   }, []);
 
   return (
-    <section className="welcome relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 text-white z-10">
+    <section id="welcome-section" className="welcome relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 text-white z-10">
       {/* Interactive particles background */}
       <canvas
         ref={particlesRef}
         className="absolute inset-0 w-full h-full opacity-60"
       />
 
-      {/* Decorative waves */}
-      <div className="absolute bottom-0 left-0 w-full">
+      {/* Decorative waves with improved responsiveness */}
+      <div className="absolute bottom-0 left-0 w-full overflow-hidden">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" className="w-full h-auto">
           <path fill="rgba(255,255,255,0.1)" fillOpacity="1" d="M0,64L48,80C96,96,192,128,288,122.7C384,117,480,75,576,74.7C672,75,768,117,864,144C960,171,1056,181,1152,165.3C1248,149,1344,107,1392,85.3L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
         </svg>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" className="w-full h-auto -mt-12">
-          <path fill="rgba(255,255,255,0.05)" fillOpacity="1" d="M0,192L48,208C96,224,192,256,288,240C384,224,480,160,576,165.3C672,171,768,245,864,272C960,299,1056,277,1152,250.7C1248,224,1344,192,1392,176L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-        </svg>
       </div>
 
-      {/* Content container */}
-      <div className="container mx-auto px-4 py-12 sm:py-16 md:py-24 lg:py-32 relative z-20">
+      {/* Content container with improved responsive padding */}
+      <div className="container mx-auto px-4 py-16 sm:py-20 md:py-24 lg:py-28 relative z-20">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
           className="text-center max-w-5xl mx-auto"
         >
-          {/* Logo icon */}
+          {/* Logo icon with improved responsive sizing */}
           <div className="mb-6 inline-block">
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center mx-auto shadow-lg border border-white border-opacity-20">
-              <span className="text-4xl md:text-5xl font-bold">W</span>
+            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center mx-auto shadow-lg border border-white border-opacity-20">
+              <span className="text-3xl sm:text-4xl md:text-5xl font-bold">W</span>
             </div>
           </div>
 
-          {/* Heading with animated gradient */}
+          {/* Heading with animated gradient and responsive sizing */}
           <motion.h1
             initial={{ scale: 0.9 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 md:mb-8 leading-tight"
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-4 sm:mb-6 md:mb-8 leading-tight"
           >
             <span className="inline-block bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-200 to-white animate-gradient-x">
               Welcome to Watan!
             </span>
           </motion.h1>
 
-          {/* Tagline with staggered animation */}
+          {/* Tagline with staggered animation and responsive text */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.6 }}
-            className="text-lg sm:text-xl md:text-2xl lg:text-3xl max-w-3xl mx-auto mb-8 md:mb-10 font-light leading-relaxed"
+            className="text-base sm:text-lg md:text-xl lg:text-2xl max-w-3xl mx-auto mb-6 sm:mb-8 md:mb-10 font-light leading-relaxed"
           >
             Empowering Underrepresented Youth Through
             <span className="block mt-2 font-medium bg-gradient-to-r from-pink-200 to-indigo-200 bg-clip-text text-transparent">
@@ -159,83 +156,71 @@ const Welcome = () => {
             </span>
           </motion.p>
 
-          {/* CTA Buttons */}
+          {/* CTA Buttons with responsive design and improved routing */}
           {!user && (
-            <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8 md:mt-12">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-6 py-3 sm:px-8 sm:py-3 md:px-10 md:py-4 bg-white text-indigo-700 font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                Get Started
-              </motion.button>
-            </div>)}
+            <div className="flex flex-col xs:flex-row justify-center gap-3 sm:gap-4 mt-6 sm:mt-8 md:mt-10">
+              <Link to="/signup" className="w-full xs:w-auto mb-3 xs:mb-0">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-full xs:w-auto px-6 py-3 sm:px-8 sm:py-3 md:px-10 md:py-4 bg-white text-indigo-700 font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
+                >
+                  <span>Get Started</span>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </motion.button>
+              </Link>
+              <Link to="/login" className="w-full xs:w-auto">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-full xs:w-auto px-6 py-3 sm:px-8 sm:py-3 md:px-10 md:py-4 bg-transparent border-2 border-white text-white font-bold rounded-full hover:bg-white hover:bg-opacity-10 transition-all duration-300 flex items-center justify-center"
+                >
+                  <LogIn className="mr-2 h-4 w-4" />
+                  <span>Sign In</span>
+                </motion.button>
+              </Link>
+            </div>
+          )}
 
-          {/* Decorative badge */}
+          {/* User greeting if logged in */}
+          {user && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="mt-8 p-4 bg-white bg-opacity-10 backdrop-blur-sm rounded-xl border border-white border-opacity-20 inline-block"
+            >
+              <p className="text-lg font-medium">Welcome back! Navigate to your dashboard to continue your journey.</p>
+              <Link to="/dashboard">
+                <button className="mt-4 px-6 py-2 bg-white text-indigo-700 font-bold rounded-full hover:shadow-lg transition-all duration-300 flex items-center mx-auto">
+                  <span>Dashboard</span>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </button>
+              </Link>
+            </motion.div>
+          )}
+
+          {/* Decorative elements - kept but with responsive adjustments */}
           <div className="hidden md:block absolute -right-12 top-8 rotate-12">
             <div className="bg-gradient-to-br from-pink-500 to-purple-500 text-white text-xs uppercase font-bold px-4 py-1 rounded-full shadow-lg">
               we are just getting started
             </div>
           </div>
-
-          {/* Floating shapes decoration */}
-          <div className="hidden lg:block absolute -left-16 bottom-20 opacity-50">
-            <div className="w-24 h-24 rounded-full border-4 border-white border-opacity-20 animate-float-slow"></div>
-          </div>
-          <div className="hidden lg:block absolute right-10 bottom-40 opacity-30">
-            <div className="w-16 h-16 rounded-lg border-4 border-white border-opacity-20 rotate-45 animate-float"></div>
-          </div>
         </motion.div>
       </div>
-      {/* Scroll Down Arrow */}
+
+      {/* Scroll Down Arrow with improved positioning */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
         <button
           onClick={() => {
-            const nextSection = document.getElementById('next-section');
-            if (nextSection) {
-              nextSection.scrollIntoView({ behavior: 'smooth' });
-            }
+            document.getElementById('blog-list')?.scrollIntoView({ behavior: 'smooth' });
           }}
           className="text-white opacity-70 hover:opacity-100 animate-bounce"
+          aria-label="Scroll down"
         >
-          <ChevronDown className="h-8 w-8 sm:h-10 sm:w-10" /> {/* 🔥 Responsive sizing */}
+          <ChevronDown className="h-8 w-8 sm:h-10 sm:w-10" />
         </button>
       </div>
-
-
-
-      {/* Stats section to be added in the future */}
-      {/* <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto px-4 pb-16">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-6 border border-white border-opacity-20"
-        >
-          <div className="text-4xl font-bold mb-2">500+</div>
-          <div className="text-sm uppercase tracking-wider">Mentors</div>
-        </motion.div>
-         */}
-      {/* <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.0 }}
-          className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-6 border border-white border-opacity-20"
-        >
-          <div className="text-4xl font-bold mb-2">5,000+</div>
-          <div className="text-sm uppercase tracking-wider">Youth Empowered</div>
-        </motion.div> */}
-
-      {/* <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2 }}
-          className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-6 border border-white border-opacity-20 sm:col-span-2 lg:col-span-1"
-        >
-          <div className="text-4xl font-bold mb-2">20+</div>
-          <div className="text-sm uppercase tracking-wider">Communities</div>
-        </motion.div>
-      </div> */}
 
       {/* Add custom animations */}
       <style>{`
@@ -251,10 +236,28 @@ const Welcome = () => {
           100% { transform: translateY(0px); }
         }
         
-        @keyframes gradient-x {
+        @keyframes animate-gradient-x {
           0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
+        }
+
+        /* Create custom breakpoint for extra small screens */
+        @media (min-width: 480px) {
+          .xs\\:w-auto {
+            width: auto;
+          }
+          .xs\\:flex-row {
+            flex-direction: row;
+          }
+          .xs\\:mb-0 {
+            margin-bottom: 0;
+          }
+        }
+        
+        .animate-gradient-x {
+          background-size: 200% 200%;
+          animation: animate-gradient-x 3s ease infinite;
         }
         
         .animate-float {
@@ -263,11 +266,6 @@ const Welcome = () => {
         
         .animate-float-slow {
           animation: float-slow 8s ease-in-out infinite;
-        }
-        
-        .animate-gradient-x {
-          background-size: 200% 200%;
-          animation: gradient-x 4s ease infinite;
         }
       `}</style>
     </section>

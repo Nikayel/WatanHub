@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from './supabase';
 import { ROLES, getUserRole, getStudentProfile, getMentorProfile } from './UserRoles';
-import { hasAcceptedTerms } from './UserTerms';
+import * as UserTerms from './UserTerms';
 
 const AuthContext = createContext();
 
@@ -113,7 +113,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Check if terms have been accepted
-      const termsAccepted = await hasAcceptedTerms(currentUser.id);
+      const termsAccepted = await UserTerms.hasAcceptedTerms(currentUser.id);
       setHasAcceptedTermsOfService(termsAccepted);
 
       // Determine if user is admin or mentor
@@ -324,19 +324,104 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     try {
+      console.log('Starting logout process');
       setLoading(true);
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      // Clear user state
+
+      // First clear all React state
+      setUser(null);
       setProfile(null);
       setUserRole(null);
       setIsAdmin(false);
       setIsMentor(false);
       setIsStudent(false);
+      setHasAcceptedTermsOfService(false);
+
+      // Get the current storage keys before logout
+      const storageKeys = Object.keys(localStorage);
+      console.log('Storage keys before logout:',
+        storageKeys.filter(key => key.startsWith('sb-') || key.includes('supabase'))
+      );
+
+      // 1. First attempt global sign out through Supabase
+      try {
+        console.log('Attempting Supabase global signOut');
+        const { error } = await supabase.auth.signOut({ scope: 'global' });
+        if (error) {
+          console.error('Error in Supabase signOut:', error);
+        }
+      } catch (signOutError) {
+        console.error("Error during Supabase signOut call:", signOutError);
+      }
+
+      // 2. Get and clear the Supabase URL from localStorage keys
+      const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || '';
+      const projectRef = supabaseUrl.match(/https:\/\/(.*?)\.supabase/)?.[1] || '';
+
+      if (projectRef) {
+        console.log('Removing Supabase storage for project ref:', projectRef);
+        // Find the specific Supabase auth key for this project
+        const sbKey = `sb-${projectRef}-auth-token`;
+        localStorage.removeItem(sbKey);
+      }
+
+      // 3. Clear all potential Supabase-related localStorage items
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+          key.startsWith('sb-') ||
+          key.includes('supabase') ||
+          key.includes('auth'))
+        ) {
+          console.log('Removing localStorage key:', key);
+          localStorage.removeItem(key);
+        }
+      }
+
+      // 4. Clear session cookies
+      document.cookie.split(";").forEach(function (c) {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+
+      console.log('All auth state cleared, redirecting to home page');
+
+      // 5. Force a hard redirect to the root page, no client-side routing
+      // This ensures the app completely reinitializes
+      window.location.replace('/');
+
+      return { success: true };
     } catch (err) {
+      console.error('Final error in logout process:', err);
       setError(err.message);
+
+      // Even if there's an error, force a logout by reloading
+      window.location.replace('/');
+
+      return { success: false, error: err.message };
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Function to update terms acceptance status
+  const updateTermsAcceptance = async (accepted = true) => {
+    if (!user) return false;
+
+    try {
+      // Update in database
+      const success = await UserTerms.updateTermsAcceptance(user.id, accepted);
+
+      if (success) {
+        // Update local state immediately to prevent flickering of terms dialog
+        setProfile(prev => ({
+          ...prev,
+          terms_accepted: accepted
+        }));
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Error updating terms acceptance:", err);
+      return false;
     }
   };
 
@@ -353,6 +438,7 @@ export const AuthProvider = ({ children }) => {
         profile,
         isProfileComplete,
         hasAcceptedTermsOfService,
+        updateTermsAcceptance,
         signUp,
         signIn,
         signInWithGoogle,

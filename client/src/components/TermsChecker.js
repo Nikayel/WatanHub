@@ -10,19 +10,24 @@ import TermsDialog from './TermsDialog';
  * after login.
  */
 const TermsChecker = () => {
-    const { user, hasAcceptedTermsOfService } = useAuth();
+    const { user, hasAcceptedTermsOfService, loading } = useAuth();
     const [showTerms, setShowTerms] = useState(false);
+    const [initialized, setInitialized] = useState(false);
 
     useEffect(() => {
-        // Only show terms dialog if user is logged in and hasn't accepted terms
-        if (user && hasAcceptedTermsOfService === false) {
-            console.log('User has not accepted terms, showing dialog');
-            setShowTerms(true);
-        } else if (hasAcceptedTermsOfService === true) {
-            // Make sure dialog is closed when terms are accepted
-            setShowTerms(false);
+        // Only run this effect after the auth state has been loaded
+        // and only show terms dialog if user is logged in and hasn't accepted terms
+        if (!loading) {
+            if (user && hasAcceptedTermsOfService === false) {
+                console.log('User has not accepted terms, showing dialog');
+                setShowTerms(true);
+            } else {
+                // Make sure dialog is closed when terms are accepted or user is not logged in
+                setShowTerms(false);
+            }
+            setInitialized(true);
         }
-    }, [user, hasAcceptedTermsOfService]);
+    }, [user, hasAcceptedTermsOfService, loading]);
 
     const handleCloseTerms = () => {
         // We'll allow closing only if terms have been accepted
@@ -32,7 +37,8 @@ const TermsChecker = () => {
     };
 
     // Only render if we have a logged-in user who hasn't accepted terms
-    if (!user || hasAcceptedTermsOfService !== false) {
+    // and we've finished the initial loading of auth state
+    if (!initialized || !user || hasAcceptedTermsOfService !== false) {
         return null;
     }
 

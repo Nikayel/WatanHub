@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../lib/AuthContext';
-import { updateTermsAcceptance } from '../lib/UserTerms';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import {
@@ -17,7 +16,7 @@ import { FileText, Check } from 'lucide-react';
  * and allows users to accept them.
  */
 const TermsDialog = ({ isOpen, onClose }) => {
-    const { user, handleUserProfile } = useAuth();
+    const { user, handleUserProfile, updateTermsAcceptance } = useAuth();
     const [loading, setLoading] = useState(false);
     const [accepted, setAccepted] = useState(false);
 
@@ -26,16 +25,9 @@ const TermsDialog = ({ isOpen, onClose }) => {
 
         setLoading(true);
         try {
-            const success = await updateTermsAcceptance(user.id, true);
+            const success = await updateTermsAcceptance(true);
             if (success) {
                 toast.success('Terms of Service accepted');
-
-                if (handleUserProfile) {
-                    await handleUserProfile(user);
-                } else {
-                    window.location.reload();
-                }
-
                 onClose();
             } else {
                 toast.error('Failed to update terms acceptance');
@@ -49,7 +41,9 @@ const TermsDialog = ({ isOpen, onClose }) => {
     };
 
     const handleClose = () => {
-        if (accepted && !loading) {
+        if (loading) return;
+
+        if (accepted) {
             onClose();
         } else {
             toast.info("Please accept the terms to continue using the platform");
@@ -57,7 +51,7 @@ const TermsDialog = ({ isOpen, onClose }) => {
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={handleClose}>
+        <Dialog open={isOpen} onOpenChange={handleClose} onEscapeKeyDown={(e) => !accepted && e.preventDefault()}>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center text-xl font-semibold">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useLocation, Link } from 'react-router-dom';
 import { FileText, ChevronRight, Eye, Clock, Bookmark } from 'lucide-react';
@@ -7,6 +7,7 @@ export default function EnhancedBlogList() {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const featuredRef = useRef(null);
+  const blogRefs = useRef(Array(10).fill().map(() => ({ current: null })));
   const location = useLocation();
 
   useEffect(() => {
@@ -29,19 +30,48 @@ export default function EnhancedBlogList() {
 
     fetchBlogs();
 
+    // Enhanced scroll effect that keeps content visible longer
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
-    
+      const windowHeight = window.innerHeight;
+
+      // Create parallax effect for featured blog
       if (featuredRef.current) {
-        const fadeStart = 500;
-        const fadeDistance = 800;
-        const opacity = Math.max(0, Math.min(1, 1 - (scrollPosition - fadeStart) / fadeDistance));
-        featuredRef.current.style.opacity = opacity;
+        const featuredRect = featuredRef.current.getBoundingClientRect();
+        const featuredVisibility = 1 - Math.max(0, Math.min(1, -featuredRect.top / (windowHeight * 0.8)));
+
+        featuredRef.current.style.opacity = featuredVisibility;
         featuredRef.current.style.transform = `translateY(${scrollPosition * 0.08}px)`;
       }
+
+      // Apply scroll effects to individual blog posts
+      blogRefs.current.forEach((ref, index) => {
+        if (ref.current) {
+          const rect = ref.current.getBoundingClientRect();
+          const distanceFromTop = rect.top;
+
+          // Calculate visibility - appears when entering viewport and stays visible until fully scrolled past
+          // Apple-style persistence where content fades in and stays visible until scrolled well past
+          const visibilityThreshold = windowHeight * 0.9;
+
+          // Item becomes visible when entering the viewport and stays fully visible until it's 20% out
+          const visibility = distanceFromTop <= visibilityThreshold ? 1 :
+            1 - Math.min(1, (distanceFromTop - visibilityThreshold) / (windowHeight * 0.2));
+
+          // Apply scale effect
+          const scale = 0.95 + (0.05 * Math.min(1, visibility));
+          const translateY = (1 - visibility) * 30;
+
+          ref.current.style.opacity = visibility;
+          ref.current.style.transform = `translateY(${translateY}px) scale(${scale})`;
+        }
+      });
     };
-    
+
     window.addEventListener('scroll', handleScroll);
+    // Trigger initial animation
+    setTimeout(handleScroll, 100);
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -80,7 +110,7 @@ export default function EnhancedBlogList() {
   }
 
   return (
-    <div id="next-section"  className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div id="next-section" className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {location.pathname.startsWith('/blogs') && location.pathname === '/blogs' && (
         <div className="max-w-7xl mx-auto px-4 py-6">
           <Link
@@ -92,11 +122,12 @@ export default function EnhancedBlogList() {
         </div>
       )}
 
-      {/* Featured Post - Full-width Hero */}
+      {/* Featured Post with enhanced animations */}
       {featuredBlog && (
         <div
           ref={featuredRef}
           className="relative overflow-hidden bg-gradient-to-r from-indigo-900 to-purple-900 text-white"
+          style={{ opacity: 0, transition: 'opacity 0.5s ease-out, transform 0.5s ease-out' }}
         >
           {/* Decorative elements */}
           <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
@@ -110,7 +141,7 @@ export default function EnhancedBlogList() {
               />
             )}
           </div>
-          
+
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-28 relative z-10">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
               <div className="w-full md:w-3/5">
@@ -124,15 +155,15 @@ export default function EnhancedBlogList() {
                     {calculateReadTime(featuredBlog.description)}
                   </span>
                 </div>
-                
+
                 <h1 className="text-3xl md:text-5xl font-bold leading-tight mb-6">{featuredBlog.title}</h1>
-                
+
                 <p className="text-indigo-100 mb-8 text-lg max-w-lg">
                   {featuredBlog.description
                     ? `${featuredBlog.description.substring(0, 140)}...`
                     : "Dive into our featured article with the latest insights, trends, and exclusive content."}
                 </p>
-                
+
                 <Link
                   to={`/blog/${featuredBlog.id}`}
                   className="group inline-flex items-center px-6 py-3 bg-white text-indigo-900 rounded-full font-medium transition-all duration-300 shadow-lg hover:shadow-xl hover:transform hover:scale-105"
@@ -141,7 +172,7 @@ export default function EnhancedBlogList() {
                   <ChevronRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </div>
-              
+
               <div className="hidden md:block w-2/5 relative">
                 <div className="absolute -top-12 -right-12 w-64 h-64 bg-indigo-600 rounded-full opacity-20 blur-3xl"></div>
                 <div className="absolute -bottom-20 -left-12 w-48 h-48 bg-purple-600 rounded-full opacity-20 blur-3xl"></div>
@@ -164,7 +195,13 @@ export default function EnhancedBlogList() {
               <Link
                 to={`/blog/${blog.id}`}
                 key={blog.id}
-                className="group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 flex flex-col transform hover:-translate-y-1"
+                ref={blogRefs.current[index]}
+                className="group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 flex flex-col transform"
+                style={{
+                  opacity: 0,
+                  transform: 'translateY(30px)',
+                  transition: 'opacity 0.5s ease-out, transform 0.5s ease-out'
+                }}
               >
                 <div className="relative h-48 overflow-hidden">
                   {blog.cover_image_url ? (
@@ -214,7 +251,7 @@ export default function EnhancedBlogList() {
         </div>
       )}
 
-      {/* Main Blog List */}
+      {/* Main Blog List with enhanced scroll animations */}
       <div className="max-w-7xl mx-auto px-4 pb-16">
         <div className="flex flex-col md:flex-row justify-between items-baseline mb-8">
           <div>
@@ -223,7 +260,7 @@ export default function EnhancedBlogList() {
             </h2>
             <p className="text-gray-500">Stay updated with our newest content</p>
           </div>
-          
+
           {/* Could add category filters here */}
         </div>
 
@@ -232,10 +269,12 @@ export default function EnhancedBlogList() {
             <Link
               to={`/blog/${blog.id}`}
               key={blog.id}
-              className="group flex flex-col rounded-lg overflow-hidden transform transition duration-500"
+              ref={blogRefs.current[index + trendingBlogs.length]}
+              className="group flex flex-col rounded-lg overflow-hidden transform"
               style={{
                 opacity: 0,
-                animation: `fadeIn 0.5s ease-out ${index * 0.1}s forwards`
+                transform: 'translateY(30px)',
+                transition: 'opacity 0.7s ease-out, transform 0.7s ease-out'
               }}
             >
               <div className="relative h-48 overflow-hidden rounded-lg shadow-md">
@@ -251,7 +290,7 @@ export default function EnhancedBlogList() {
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-0 group-hover:opacity-60 transition-opacity duration-300"></div>
-                
+
                 <div className="absolute bottom-3 left-3 transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
                   <span className="inline-flex items-center px-2 py-1 bg-white text-gray-800 text-xs font-medium rounded">
                     Read article
@@ -266,7 +305,7 @@ export default function EnhancedBlogList() {
                   <span className="mx-2">•</span>
                   <span>{formatMinutesAgo(blog.created_at)}</span>
                 </div>
-                
+
                 <h3 className="font-bold text-gray-800 mb-2 group-hover:text-indigo-600 transition-colors duration-300">
                   {blog.title}
                 </h3>
@@ -277,7 +316,7 @@ export default function EnhancedBlogList() {
                     : "Explore this article to learn more about the topic."}
                 </p>
               </div>
-              
+
               <div className="mt-auto pt-3 flex items-center justify-between text-gray-500 text-xs">
                 <div className="flex items-center gap-1">
                   <Eye size={14} />
@@ -295,10 +334,17 @@ export default function EnhancedBlogList() {
         )}
       </div>
 
+      {/* Add Apple-style persistent animation keyframes */}
       <style jsx>{`
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { 
+            opacity: 0; 
+            transform: translateY(30px);
+          }
+          to { 
+            opacity: 1; 
+            transform: translateY(0);
+          }
         }
       `}</style>
     </div>

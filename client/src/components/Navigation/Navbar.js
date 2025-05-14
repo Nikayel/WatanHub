@@ -6,12 +6,14 @@ import { cn } from "../../lib/utils";
 import { useAuth } from "../../lib/AuthContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
   const { user, signOut, isAdmin, isMentor, isStudent } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
+  const [loggingOut, setLoggingOut] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -55,8 +57,37 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
   };
 
   const doLogout = async () => {
-    await signOut();
+    // Immediately set loading state and close the menu
+    setLoggingOut(true);
     setMobileMenuOpen(false);
+
+    try {
+      toast.success('Logging you out...');
+
+      // Log current localStorage state for debugging
+      console.log('LocalStorage before logout:',
+        Object.keys(localStorage).filter(key =>
+          key.startsWith('sb-') || key.includes('supabase') || key.includes('auth')
+        )
+      );
+
+      const result = await signOut();
+
+      // If we actually get here (unlikely due to redirect), handle the result
+      if (!result.success) {
+        console.error('Logout unsuccessful, forcing page reload');
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast.error('Failed to log out. Forcing page reload...');
+
+      // If anything fails, force a page reload
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
+    }
+    // Don't reset loggingOut state as we'll be redirected
   };
 
   const getDashboardLink = () => {
@@ -165,8 +196,23 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
                     <Button variant="ghost">Profile</Button>
                   </Link>
                 )}
-                <Button onClick={doLogout} variant="destructive">
-                  Logout
+                <Button
+                  onClick={doLogout}
+                  disabled={loggingOut}
+                  variant="destructive"
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md shadow-sm hover:shadow"
+                >
+                  {loggingOut ? (
+                    <>
+                      <span className="animate-spin h-4 w-4 mr-2 border-2 border-b-0 border-r-0 border-white rounded-full"></span>
+                      <span>Logging out...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogOut size={16} />
+                      <span>Logout</span>
+                    </>
+                  )}
                 </Button>
               </>
             )}
@@ -233,8 +279,18 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
                           </Button>
                         </Link>
                       )}
-                      <Button variant="destructive" onClick={doLogout} className="w-full">
-                        Logout
+                      <Button variant="destructive" onClick={doLogout} disabled={loggingOut} className="w-full flex items-center justify-center gap-2">
+                        {loggingOut ? (
+                          <>
+                            <span className="animate-spin h-4 w-4 mr-2 border-2 border-b-0 border-r-0 border-white rounded-full"></span>
+                            <span>Logging out...</span>
+                          </>
+                        ) : (
+                          <>
+                            <LogOut size={16} />
+                            <span>Logout</span>
+                          </>
+                        )}
                       </Button>
                     </>
                   ) : (

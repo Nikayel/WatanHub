@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   Loader, Bell, MessageSquare, User, Calendar, ChevronRight, BookOpen, AlignLeft,
   CheckCircle, Clock, FileText, CheckSquare, AlertTriangle, Sparkles,
-  GraduationCap, Bookmark, Book, LineChart
+  GraduationCap, Bookmark, Book, LineChart, Quote, Target, Award, Zap
 } from 'lucide-react';
 import {
   Dialog,
@@ -17,6 +17,20 @@ import {
   DialogFooter,
   DialogClose,
 } from '../components/ui/dialog';
+
+// Inspirational quotes for students
+const MOTIVATIONAL_QUOTES = [
+  { text: "Education is not the filling of a pail, but the lighting of a fire.", author: "William Butler Yeats" },
+  { text: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
+  { text: "The more that you read, the more things you will know. The more that you learn, the more places you'll go.", author: "Dr. Seuss" },
+  { text: "Education is the passport to the future, for tomorrow belongs to those who prepare for it today.", author: "Malcolm X" },
+  { text: "The only person who is educated is the one who has learned how to learn and change.", author: "Carl Rogers" },
+  { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
+  { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+  { text: "Your education is a dress rehearsal for a life that is yours to lead.", author: "Nora Ephron" },
+  { text: "The expert in anything was once a beginner.", author: "Helen Hayes" },
+  { text: "Don't let what you cannot do interfere with what you can do.", author: "John Wooden" },
+];
 
 const Dashboard = () => {
   const { user, isMentor, isAdmin } = useAuth();
@@ -33,7 +47,15 @@ const Dashboard = () => {
   const [confirmingNote, setConfirmingNote] = useState(null);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [noteFilter, setNoteFilter] = useState('all');
+  const [motivationalQuote, setMotivationalQuote] = useState(MOTIVATIONAL_QUOTES[0]);
+  const [showConfetti, setShowConfetti] = useState(false);
   const navigate = useNavigate();
+
+  // Select a random motivational quote on initial load
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
+    setMotivationalQuote(MOTIVATIONAL_QUOTES[randomIndex]);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -240,7 +262,11 @@ const Dashboard = () => {
       // Update upcoming deadlines
       setUpcomingDeadlines(prev => prev.filter(note => note.id !== noteId));
 
+      // Show success message with confetti effect
       toast.success('Task marked as complete');
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2000);
+
       console.log("Note successfully acknowledged");
     } catch (error) {
       console.error('Error acknowledging note:', error.message);
@@ -436,7 +462,7 @@ const Dashboard = () => {
       <WelcomeDialog />
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-md p-6 sm:p-8 mb-8 text-white">
+      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 rounded-xl shadow-md p-6 sm:p-8 mb-8 text-white">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
           <div>
             <div className="mb-8">
@@ -465,7 +491,42 @@ const Dashboard = () => {
             <span>My Profile</span>
           </Link>
         </div>
+
+        {/* Motivational Quote Section */}
+        <div className="mt-6 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 border border-white border-opacity-20">
+          <div className="flex items-start">
+            <Quote className="h-6 w-6 text-indigo-200 mr-3 flex-shrink-0 mt-1" />
+            <div>
+              <p className="italic text-white">{motivationalQuote.text}</p>
+              <p className="text-indigo-200 text-sm mt-1">— {motivationalQuote.author}</p>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Confetti Effect for Task Completion */}
+      {showConfetti && (
+        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
+          <div className="absolute top-0 left-0 w-full h-full confetti-container">
+            {Array.from({ length: 100 }).map((_, i) => (
+              <div
+                key={i}
+                className="confetti"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `-5%`,
+                  backgroundColor: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                  width: `${Math.random() * 10 + 5}px`,
+                  height: `${Math.random() * 10 + 5}px`,
+                  transform: `rotate(${Math.random() * 360}deg)`,
+                  animationDelay: `${Math.random() * 2}s`,
+                  animationDuration: `${Math.random() * 3 + 2}s`
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
@@ -791,6 +852,45 @@ const Dashboard = () => {
               ))}
             </div>
           </div>
+
+          {/* New Achievement Section */}
+          {activeTab === 'overview' && acknowledgedNotes > 0 && (
+            <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl shadow-sm border border-amber-200 p-6">
+              <h2 className="text-lg font-semibold text-amber-800 mb-4 flex items-center">
+                <Award className="mr-2 h-5 w-5 text-amber-600" />
+                Your Achievements
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-amber-100 flex items-center">
+                  <div className="rounded-full bg-amber-100 p-2 mr-3">
+                    <CheckSquare className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold text-gray-800">{acknowledgedNotes}</div>
+                    <div className="text-sm text-gray-600">Tasks Completed</div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-amber-100 flex items-center">
+                  <div className="rounded-full bg-amber-100 p-2 mr-3">
+                    <Target className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold text-gray-800">{pendingNotes}</div>
+                    <div className="text-sm text-gray-600">Tasks In Progress</div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-amber-100 flex items-center">
+                  <div className="rounded-full bg-amber-100 p-2 mr-3">
+                    <Zap className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold text-gray-800">{Math.floor((acknowledgedNotes / (acknowledgedNotes + pendingNotes)) * 100)}%</div>
+                    <div className="text-sm text-gray-600">Completion Rate</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -1060,6 +1160,25 @@ const Dashboard = () => {
           )}
         </div>
       )}
+
+      {/* Add confetti animation styles */}
+      <style>{`
+        @keyframes confettiFall {
+          0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(100vh) rotate(720deg);
+            opacity: 0;
+          }
+        }
+        
+        .confetti {
+          position: absolute;
+          animation: confettiFall linear forwards;
+        }
+      `}</style>
     </div>
   );
 }

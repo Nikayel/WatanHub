@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, MapPin, Heart, ChevronRight, ChevronDown, Github, Linkedin, Instagram } from 'lucide-react';
 
-const Footer = ({onAboutClick}) => {
+const Footer = ({ onAboutClick, onContactClick }) => {
   const currentYear = new Date().getFullYear();
   const [isVisible, setIsVisible] = useState(false);
   const [expandedColumn, setExpandedColumn] = useState(null);
@@ -11,18 +11,18 @@ const Footer = ({onAboutClick}) => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY + window.innerHeight;
       const pageHeight = document.body.offsetHeight;
-      
+
       if (scrollPosition > pageHeight - 300) {
         setIsVisible(true);
       }
     };
-    
+
     window.addEventListener('scroll', handleScroll);
     handleScroll(); // Check on initial load
-    
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  
+
   // Toggle mobile accordions
   const toggleColumn = (column) => {
     setExpandedColumn(expandedColumn === column ? null : column);
@@ -35,7 +35,7 @@ const Footer = ({onAboutClick}) => {
       <div className="absolute top-0 right-0 w-16 h-16 rounded-full bg-pink-500 opacity-10 -translate-y-1/2"></div>
       <div className="absolute bottom-32 left-10 w-24 h-24 rounded-full bg-indigo-400 opacity-5"></div>
       <div className="absolute bottom-10 right-10 w-32 h-32 rounded-full bg-teal-400 opacity-5"></div>
-      
+
       <div className="container mx-auto px-6 relative z-10">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
@@ -46,10 +46,10 @@ const Footer = ({onAboutClick}) => {
               {expandedColumn === 'about' ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
             </div>
             <h3 className="hidden md:block text-xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-indigo-300">Watan</h3>
-            
+
             <div className={`transition-all duration-300 overflow-hidden ${expandedColumn === 'about' || window.innerWidth >= 768 ? 'max-h-96' : 'max-h-0 md:max-h-96'}`}>
               <p className="text-indigo-200 mb-4 max-w-md leading-relaxed">
-                Helping students navigate their educational journey with personalized mentorship 
+                Helping students navigate their educational journey with personalized mentorship
                 and support every step of the way.
               </p>
               <div className="flex space-x-4 mt-4">
@@ -73,41 +73,38 @@ const Footer = ({onAboutClick}) => {
               {expandedColumn === 'links' ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
             </div>
             <h3 className="hidden md:block text-xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 to-teal-300">Quick Links</h3>
-            
+
             <div className={`transition-all duration-300 overflow-hidden ${expandedColumn === 'links' || window.innerWidth >= 768 ? 'max-h-96' : 'max-h-0 md:max-h-96'}`}>
-            <div className={`transition-all duration-300 overflow-hidden ${expandedColumn === 'links' || window.innerWidth >= 768 ? 'max-h-96' : 'max-h-0 md:max-h-96'}`}>
-            <ul className="space-y-2">
-  {['About Us', 'Our Services', 'Success Stories', 'FAQ', 'Contact Us'].map((link, index) => {
-    const isAboutUs = link === 'About Us';
-
-    return (
-      <li key={index} className="transform transition-all duration-300 hover:translate-x-2">
-        {isAboutUs ? (
-          <button
-            onClick={onAboutClick}
-            className="text-indigo-200 hover:text-white transition-colors flex items-center group"
-          >
-            <ChevronRight size={16} className="mr-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <span className="group-hover:underline">{link}</span>
-          </button>
-        ) : (
-          <a
-            href={`#${link.toLowerCase().replace(/\s/g, '')}`} // TODO: Make sure your page has these ids if you want anchors
-            className="text-indigo-200 hover:text-white transition-colors flex items-center group"
-          >
-            <ChevronRight size={16} className="mr-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <span className="group-hover:underline">{link}</span>
-          </a>
-        )}
-      </li>
-    );
-  })}
-</ul>
-
-</div>
-
-</div>
-
+              <ul className="space-y-2">
+                {[
+                  { name: 'About Us', handler: onAboutClick },
+                  { name: 'Our Services', href: '#services' },
+                  { name: 'Success Stories', href: '#stories' },
+                  { name: 'FAQ', href: '#faq-section' },
+                  { name: 'Contact Us', handler: onContactClick }
+                ].map((link, index) => (
+                  <li key={index} className="transform transition-all duration-300 hover:translate-x-2">
+                    {link.handler ? (
+                      <button
+                        onClick={link.handler}
+                        className="text-indigo-200 hover:text-white transition-colors flex items-center group"
+                      >
+                        <ChevronRight size={16} className="mr-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span className="group-hover:underline">{link.name}</span>
+                      </button>
+                    ) : (
+                      <a
+                        href={link.href}
+                        className="text-indigo-200 hover:text-white transition-colors flex items-center group"
+                      >
+                        <ChevronRight size={16} className="mr-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span className="group-hover:underline">{link.name}</span>
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           {/* Column 3: Contact */}
@@ -117,7 +114,7 @@ const Footer = ({onAboutClick}) => {
               {expandedColumn === 'contact' ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
             </div>
             <h3 className="hidden md:block text-xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-teal-300 to-pink-400">Contact Us</h3>
-            
+
             <div className={`transition-all duration-300 overflow-hidden ${expandedColumn === 'contact' || window.innerWidth >= 768 ? 'max-h-96' : 'max-h-0 md:max-h-96'}`}>
               <ul className="space-y-3">
                 <li className="flex items-start hover:translate-x-1 transition-transform">
@@ -134,15 +131,15 @@ const Footer = ({onAboutClick}) => {
                 </li>
               </ul>
               <div className="mt-6">
-                <a 
-                  href="#newsletter" 
+                <button
+                  onClick={onContactClick}
                   className="relative inline-block overflow-hidden group"
                 >
                   <span className="absolute inset-0 bg-gradient-to-r from-pink-500 to-indigo-500 rounded-md"></span>
                   <span className="relative block bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-pink-500 hover:to-indigo-500 text-white py-2 px-4 rounded-md transition-all duration-300 transform group-hover:translate-y-[-2px] group-active:translate-y-[1px]">
-                    Subscribe to Newsletter
+                    Contact Us
                   </span>
-                </a>
+                </button>
               </div>
             </div>
           </div>
