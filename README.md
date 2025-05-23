@@ -30,6 +30,8 @@ WatanHub is a full-stack web application designed to connect students with mento
 
 - Mentor application & review system
 - Admin assignment of students to mentors
+- School choices management for students (target, safety, and stretch schools)
+- Mentor visibility of student school preferences
 
 ### 🧠 Blog System
 
@@ -106,7 +108,15 @@ cd client && npm install
 cd ../server && npm install
 ```
 
-### 2. Run Locally
+### 2. Database Migrations
+
+The `sql_commands.sql` file contains necessary database migrations for Supabase. Run these commands in your Supabase SQL editor to create:
+
+- Student school preferences table
+- Phone number field for user profiles
+- Appropriate security policies
+
+### 3. Run Locally
 
 ```bash
 # Client

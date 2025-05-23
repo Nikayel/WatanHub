@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import OutcomeTagging from '../../components/OutcomeTagging';
 import OutcomeModal from '../../components/OutcomeModal';
+import SchoolChoiceManager from '../../components/SchoolChoiceManager';
 
 // Components
 const MentorDashboard = () => {
@@ -1278,13 +1279,22 @@ const MentorDashboard = () => {
                                                 >
                                                     Employment
                                                 </button>
+                                                <button
+                                                    onClick={() => setOutcomeType('schools')}
+                                                    className={`py-2 px-4 text-center border-b-2 font-medium text-sm transition ${outcomeType === 'schools'
+                                                        ? 'border-indigo-500 text-indigo-600'
+                                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                                        }`}
+                                                >
+                                                    School Choices
+                                                </button>
                                             </div>
                                             <button
                                                 onClick={() => {
                                                     setEditingOutcome(null);
                                                     setOutcomeModalOpen(true);
                                                 }}
-                                                className="px-3 py-1 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition flex items-center"
+                                                className={`px-3 py-1 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition flex items-center ${outcomeType === 'schools' ? 'invisible' : ''}`}
                                             >
                                                 <span className="mr-1">+</span> Add New
                                             </button>
@@ -1493,6 +1503,17 @@ const MentorDashboard = () => {
                                                         ))}
                                                     </div>
                                                 )}
+                                            </div>
+                                        )}
+
+                                        {outcomeType === 'schools' && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold mb-4">Student School Choices</h3>
+                                                <p className="text-sm text-gray-600 mb-6">
+                                                    Review {selectedStudent.first_name}'s target, safety, and stretch school selections.
+                                                </p>
+
+                                                <SchoolChoiceManager studentId={selectedStudent.id} readOnly={true} />
                                             </div>
                                         )}
                                     </div>

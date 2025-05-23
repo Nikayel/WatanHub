@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   Loader, Bell, MessageSquare, User, Calendar, ChevronRight, BookOpen, AlignLeft,
   CheckCircle, Clock, FileText, CheckSquare, AlertTriangle, Sparkles,
-  GraduationCap, Bookmark, Book, LineChart, Quote, Target, Award, Zap
+  GraduationCap, Bookmark, Book, LineChart, Quote, Target, Award, Zap, School
 } from 'lucide-react';
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '../components/ui/dialog';
+import SchoolChoiceManager from '../components/SchoolChoiceManager';
 
 // Inspirational quotes for students
 const MOTIVATIONAL_QUOTES = [
@@ -693,6 +694,18 @@ const Dashboard = () => {
                 </div>
               </button>
               <button
+                onClick={() => setActiveTab('schools')}
+                className={`py-3 px-4 text-center font-medium text-sm whitespace-nowrap ${activeTab === 'schools'
+                  ? 'text-indigo-600 border-b-2 border-indigo-500'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+              >
+                <div className="flex items-center">
+                  <School className="h-4 w-4 mr-1.5" />
+                  <span>Schools</span>
+                </div>
+              </button>
+              <button
                 onClick={() => setActiveTab('announcements')}
                 className={`py-3 px-4 text-center font-medium text-sm whitespace-nowrap ${activeTab === 'announcements'
                   ? 'text-indigo-600 border-b-2 border-indigo-500'
@@ -746,6 +759,22 @@ const Dashboard = () => {
               "Our team is working on a comprehensive assignment system to help track your progress and achievements. Check back soon!",
               <Book className="h-8 w-8 text-indigo-600" />
             )
+          )}
+
+          {/* Add the Schools tab content */}
+          {activeTab === 'schools' && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                  <School size={18} className="mr-2 text-indigo-600" />
+                  My College Choices
+                </h2>
+              </div>
+              <p className="text-sm text-gray-600 mb-6">
+                Select your target, safety, and stretch schools to help your mentor guide your college application journey.
+              </p>
+              <SchoolChoiceManager />
+            </div>
           )}
 
           {activeTab === 'overview' && (
