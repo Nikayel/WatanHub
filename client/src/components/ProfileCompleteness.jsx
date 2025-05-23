@@ -13,21 +13,56 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
     const calculateCompletionPercentage = (profileData) => {
         if (!profileData) return 0;
 
-        // Define important fields - these should be present in a complete profile
+        // Define important fields with weighted importance
+        const criticalFields = [
+            'first_name', 'last_name', 'email'
+        ]; // These should always be present
+
+        const veryImportantFields = [
+            'date_of_birth', 'gender', 'phone_number',
+            'high_school', 'city', 'country'
+        ]; // These are important for basic identification
+
         const importantFields = [
-            'first_name', 'last_name', 'date_of_birth', 'gender',
-            'phone_number', 'city', 'country', 'high_school',
             'gpa', 'year_in_school', 'extracurricular_activities',
             'career_interests', 'preferred_universities'
-        ];
+        ]; // These add value but aren't strictly required
 
-        // Count how many important fields are filled
-        const filledFields = importantFields.filter(field => {
+        // Check how many fields in each category are filled
+        const criticalFilled = criticalFields.filter(field => {
             const value = profileData[field];
             return value !== null && value !== undefined && value !== '' && value !== '[]';
         }).length;
 
-        return Math.round((filledFields / importantFields.length) * 100);
+        const veryImportantFilled = veryImportantFields.filter(field => {
+            const value = profileData[field];
+            return value !== null && value !== undefined && value !== '' && value !== '[]';
+        }).length;
+
+        const importantFilled = importantFields.filter(field => {
+            const value = profileData[field];
+            return value !== null && value !== undefined && value !== '' && value !== '[]';
+        }).length;
+
+        // Weight the categories differently
+        const criticalWeight = 0.4;  // 40% weight for critical fields
+        const veryImportantWeight = 0.35;  // 35% weight for very important fields
+        const importantWeight = 0.25;  // 25% weight for important fields
+
+        // Calculate weighted percentages for each category
+        const criticalScore = (criticalFilled / criticalFields.length) * criticalWeight;
+        const veryImportantScore = (veryImportantFilled / veryImportantFields.length) * veryImportantWeight;
+        const importantScore = (importantFilled / importantFields.length) * importantWeight;
+
+        // Calculate final score as a percentage
+        const totalScore = (criticalScore + veryImportantScore + importantScore) * 100;
+
+        // Ensure all critical fields are present, boost score if they are
+        const allCriticalFieldsFilled = criticalFilled === criticalFields.length;
+        const boostFactor = allCriticalFieldsFilled ? 1.1 : 1.0;
+
+        // Apply a more generous curve to the final score
+        return Math.min(100, Math.round(totalScore * boostFactor));
     };
 
     const analyzeProfile = async () => {
@@ -71,19 +106,19 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
 
     const completionPercentage = calculateCompletionPercentage(profile);
 
-    if (dismissed || completionPercentage >= 90) {
+    if (dismissed || completionPercentage >= 80) {  // Lowered threshold to 80% to be more generous
         return null;
     }
 
     const getBackgroundColor = () => {
-        if (completionPercentage < 40) return 'bg-red-50 border-red-200';
-        if (completionPercentage < 70) return 'bg-yellow-50 border-yellow-200';
+        if (completionPercentage < 30) return 'bg-red-50 border-red-200';
+        if (completionPercentage < 60) return 'bg-yellow-50 border-yellow-200';
         return 'bg-green-50 border-green-200';
     };
 
     const getTextColor = () => {
-        if (completionPercentage < 40) return 'text-red-700';
-        if (completionPercentage < 70) return 'text-yellow-700';
+        if (completionPercentage < 30) return 'text-red-700';
+        if (completionPercentage < 60) return 'text-yellow-700';
         return 'text-green-700';
     };
 
@@ -99,8 +134,8 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
                         <div className="flex items-center mt-1">
                             <div className="w-full bg-gray-200 rounded-full h-2 max-w-[150px] mr-2">
                                 <div
-                                    className={`h-2 rounded-full ${completionPercentage < 40 ? 'bg-red-500' :
-                                        completionPercentage < 70 ? 'bg-yellow-500' :
+                                    className={`h-2 rounded-full ${completionPercentage < 30 ? 'bg-red-500' :
+                                        completionPercentage < 60 ? 'bg-yellow-500' :
                                             'bg-green-500'
                                         }`}
                                     style={{ width: `${completionPercentage}%` }}

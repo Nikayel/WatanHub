@@ -4,7 +4,7 @@ import { geminiService } from '../services/ApiService';
 import {
     School, GraduationCap, Building, ChevronDown, ChevronUp,
     CheckCircle, XCircle, ArrowRight, Clock, AlertCircle,
-    Globe, Loader, Info, HelpCircle, MessageSquare, X
+    Globe, Loader, Info, HelpCircle, MessageSquare, X, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -31,7 +31,11 @@ const translations = {
         chatPlaceholder: 'Ask about any college or university...',
         chatButton: 'Get Insights',
         chatIntro: 'Hello! I can provide insights about colleges or universities you\'re interested in. Just enter a school name below.',
-        aiTyping: 'AI is typing...'
+        aiTyping: 'AI is typing...',
+        hidePanel: 'Hide Guide',
+        showPanel: 'Show Guide',
+        aiGuide: 'AI College Guide',
+        welcomeToGuide: 'Welcome to your personal AI college application assistant! I can help you understand school choices, application strategies, and more.'
     },
     fa: {
         targetSchools: 'دانشگاه‌های هدف',
@@ -54,7 +58,11 @@ const translations = {
         chatPlaceholder: 'درباره هر کالج یا دانشگاهی بپرسید...',
         chatButton: 'دریافت اطلاعات',
         chatIntro: 'سلام! من می‌توانم اطلاعاتی درباره کالج‌ها یا دانشگاه‌هایی که به آنها علاقه دارید ارائه دهم. فقط نام دانشگاه را در زیر وارد کنید.',
-        aiTyping: 'هوش مصنوعی در حال تایپ...'
+        aiTyping: 'هوش مصنوعی در حال تایپ...',
+        hidePanel: 'پنهان کردن راهنما',
+        showPanel: 'نمایش راهنما',
+        aiGuide: 'راهنمای هوش مصنوعی کالج',
+        welcomeToGuide: 'به دستیار شخصی درخواست کالج هوش مصنوعی خود خوش آمدید! من می‌توانم به شما در درک انتخاب‌های مدرسه، استراتژی‌های درخواست و موارد دیگر کمک کنم.'
     }
 };
 
@@ -158,6 +166,9 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
     const [tutorialStep, setTutorialStep] = useState(0);
     const chatEndRef = useRef(null);
 
+    // New state for the collapsible right panel
+    const [showRightPanel, setShowRightPanel] = useState(true);
+
     const fetchSchoolChoices = useCallback(async () => {
         if (!studentId) return;
         setLoading(true);
@@ -207,6 +218,13 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
             ]);
         }
     }, [showChat, chatMessages.length, language]);
+
+    // Show the right panel by default for non-mentors (students)
+    useEffect(() => {
+        if (!forMentor) {
+            setShowRightPanel(true);
+        }
+    }, [forMentor]);
 
     const toggleCategory = (category) => {
         setExpandedCategories(prev => ({
@@ -480,8 +498,8 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                             >
                                 <div
                                     className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user'
-                                            ? 'bg-indigo-600 text-white'
-                                            : 'bg-white border border-gray-200 text-gray-800'
+                                        ? 'bg-indigo-600 text-white'
+                                        : 'bg-white border border-gray-200 text-gray-800'
                                         }`}
                                 >
                                     <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -535,6 +553,120 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
         </div>
     );
 
+    // Right panel with AI guidance content
+    const renderRightPanel = () => {
+        return (
+            <div className={`fixed top-16 bottom-8 right-0 w-72 bg-white border-l border-gray-200 shadow-lg transition-all duration-300 ease-in-out ${showRightPanel ? 'translate-x-0' : 'translate-x-full'} z-10`}>
+                {/* Panel toggle button */}
+                <button
+                    onClick={() => setShowRightPanel(!showRightPanel)}
+                    className="absolute left-0 top-1/2 transform -translate-x-full -translate-y-1/2 bg-indigo-600 text-white p-2 rounded-l-lg shadow"
+                >
+                    {showRightPanel ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                </button>
+
+                {/* Panel content */}
+                <div className="h-full flex flex-col overflow-hidden">
+                    <div className="bg-indigo-600 text-white p-3 flex items-center justify-between">
+                        <div className="flex items-center">
+                            <MessageSquare className="mr-2" size={18} />
+                            <h3 className="font-medium">{t.aiGuide}</h3>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 bg-indigo-50">
+                        {/* Welcome message */}
+                        <div className="mb-4">
+                            <div className="flex items-start">
+                                <div className="h-8 w-8 rounded-full bg-indigo-600 text-white flex items-center justify-center mr-3 flex-shrink-0">AI</div>
+                                <div className="bg-white p-3 rounded-lg shadow-sm">
+                                    <p className="text-sm">{t.welcomeToGuide}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* School type explanations */}
+                        <div className="space-y-4 mb-4">
+                            <div className="bg-white rounded-lg p-3 shadow-sm">
+                                <h4 className="font-medium text-indigo-700 mb-2">School Types Guide</h4>
+                                {Object.entries(PREFERENCE_TYPES).map(([key, type]) => (
+                                    <div key={key} className={`p-2 rounded-lg ${type.color} mb-2`}>
+                                        <div className="flex items-center">
+                                            <type.icon className={type.iconColor} size={16} />
+                                            <span className="ml-2 font-medium">{language === 'en' ? type.name : type.nameFa}</span>
+                                        </div>
+                                        <p className="text-xs mt-1 ml-6">
+                                            {language === 'en' ? type.description : type.descriptionFa}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Chat interface button */}
+                            <button
+                                onClick={() => setShowChat(true)}
+                                className="w-full bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-between"
+                            >
+                                <div className="flex items-center">
+                                    <div className="p-2 bg-green-100 rounded-full mr-2">
+                                        <MessageSquare className="text-green-600" size={16} />
+                                    </div>
+                                    <span className="text-sm font-medium">Chat with AI Advisor</span>
+                                </div>
+                                <ChevronRight size={16} />
+                            </button>
+
+                            {/* Tutorial button */}
+                            <button
+                                onClick={() => setShowTutorial(true)}
+                                className="w-full bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-between"
+                            >
+                                <div className="flex items-center">
+                                    <div className="p-2 bg-blue-100 rounded-full mr-2">
+                                        <HelpCircle className="text-blue-600" size={16} />
+                                    </div>
+                                    <span className="text-sm font-medium">{t.tutorial}</span>
+                                </div>
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
+
+                        {/* AI Feedback section */}
+                        {aiFeedback && (
+                            <div className="bg-white rounded-lg p-3 shadow-sm mb-4">
+                                <div className="flex items-center mb-2">
+                                    <div className="h-6 w-6 rounded-full bg-indigo-600 text-white flex items-center justify-center mr-2 flex-shrink-0">AI</div>
+                                    <h4 className="font-medium text-sm">{t.aiFeedback}</h4>
+                                </div>
+                                <div className="text-xs whitespace-pre-line ml-8">
+                                    {aiFeedback}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* AI Feedback Button */}
+                        {schoolChoices.length > 0 && (
+                            <button
+                                onClick={getGeminiAIFeedback}
+                                disabled={feedbackLoading}
+                                className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center transition-colors mb-4"
+                            >
+                                {feedbackLoading ? (
+                                    <>
+                                        <Loader size={16} className="mr-2 animate-spin" />
+                                        {t.generatingFeedback}
+                                    </>
+                                ) : (
+                                    <>{t.getFeedback}</>
+                                )}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-40">
@@ -548,221 +680,228 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
             <div className="p-4 bg-gray-50 rounded-lg text-center border border-gray-200">
                 <School className="mx-auto text-gray-400 mb-2" size={24} />
                 <p className="text-gray-600">{t.noSchoolChoices}</p>
+                {renderRightPanel()}
             </div>
         );
     }
 
     return (
-        <div className={`${language === 'fa' ? 'rtl' : 'ltr'}`}>
-            {/* Language toggle and tutorial buttons */}
-            <div className="flex flex-wrap justify-between items-center mb-4">
-                <div className="flex items-center space-x-2">
+        <div className={`${language === 'fa' ? 'rtl' : 'ltr'} relative`}>
+            {/* Main content with padding to accommodate right panel */}
+            <div className={`transition-all duration-300 ${showRightPanel ? 'pr-80' : ''}`}>
+                {/* Language toggle */}
+                <div className="flex flex-wrap justify-between items-center mb-4">
                     <button
-                        onClick={() => setShowTutorial(true)}
-                        className="flex items-center text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-md hover:bg-indigo-100 transition"
+                        onClick={toggleLanguage}
+                        className="flex items-center text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-200 transition"
                     >
-                        <HelpCircle size={14} className="mr-1" />
-                        <span>{translations[language].tutorial}</span>
+                        <Globe size={14} className="mr-1" />
+                        <span>{translations[language].language}</span>
                     </button>
 
                     <button
-                        onClick={() => setShowChat(true)}
-                        className="flex items-center text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-md hover:bg-green-100 transition"
+                        onClick={() => setShowRightPanel(!showRightPanel)}
+                        className="md:hidden flex items-center text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-md hover:bg-indigo-200 transition"
                     >
-                        <MessageSquare size={14} className="mr-1" />
-                        <span>{language === 'en' ? 'Ask AI School Advisor' : 'از مشاور هوش مصنوعی دانشگاه بپرسید'}</span>
+                        {showRightPanel ? (
+                            <>
+                                <ChevronRight size={14} className="mr-1" />
+                                <span>{t.hidePanel}</span>
+                            </>
+                        ) : (
+                            <>
+                                <ChevronLeft size={14} className="mr-1" />
+                                <span>{t.showPanel}</span>
+                            </>
+                        )}
                     </button>
                 </div>
 
-                <button
-                    onClick={toggleLanguage}
-                    className="flex items-center text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-200 transition"
-                >
-                    <Globe size={14} className="mr-1" />
-                    <span>{translations[language].language}</span>
-                </button>
-            </div>
+                {/* Overview stats */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                    {Object.entries(PREFERENCE_TYPES).map(([type, info]) => {
+                        const Icon = info.icon;
+                        const name = language === 'en' ? info.name : info.nameFa;
 
-            {/* Overview stats */}
-            <div className="grid grid-cols-3 gap-2 mb-4">
+                        return (
+                            <div
+                                key={type}
+                                className={`p-3 rounded-lg border transition-all hover:shadow-md cursor-pointer ${info.color}`}
+                                onClick={() => toggleCategory(type)}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                        <Icon className={info.iconColor} size={16} />
+                                        <div className="font-semibold text-sm ml-2">{counts[type]}</div>
+                                    </div>
+                                    <div className="text-xs">{name}</div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* School lists by category */}
                 {Object.entries(PREFERENCE_TYPES).map(([type, info]) => {
+                    const categorySchools = getCategorySchools(type);
+                    if (categorySchools.length === 0) return null;
+
                     const Icon = info.icon;
                     const name = language === 'en' ? info.name : info.nameFa;
 
                     return (
-                        <div
-                            key={type}
-                            className={`p-3 rounded-lg border transition-all hover:shadow-md cursor-pointer ${info.color}`}
-                            onClick={() => toggleCategory(type)}
-                        >
-                            <div className="flex items-center justify-between">
+                        <div key={type} className={`border rounded-lg overflow-hidden mb-3 transition-all ${expandedCategories[type] ? 'shadow-sm' : ''}`}>
+                            <div
+                                className={`${info.color} p-3 flex justify-between items-center cursor-pointer transition-colors hover:shadow-inner`}
+                                onClick={() => toggleCategory(type)}
+                            >
                                 <div className="flex items-center">
                                     <Icon className={info.iconColor} size={16} />
-                                    <div className="font-semibold text-sm ml-2">{counts[type]}</div>
+                                    <span className="ml-2 font-medium">{name}</span>
+                                    <span className="ml-2 text-xs opacity-75">({categorySchools.length})</span>
                                 </div>
-                                <div className="text-xs">{name}</div>
+                                {expandedCategories[type] ?
+                                    <ChevronUp size={16} /> :
+                                    <ChevronDown size={16} />
+                                }
                             </div>
+
+                            {expandedCategories[type] && (
+                                <div className="divide-y">
+                                    {categorySchools.map(school => {
+                                        const statusInfo = APPLICATION_STATUS_INFO[school.application_status] || APPLICATION_STATUS_INFO.planning;
+                                        const StatusIcon = statusInfo.icon;
+                                        const statusLabel = language === 'en' ? statusInfo.label : statusInfo.labelFa;
+                                        const notesLabel = t.notes;
+                                        const updatedLabel = t.updated;
+                                        const isExpanded = expandedSchools[school.id] === true;
+
+                                        return (
+                                            <div key={school.id} className="overflow-hidden transition-all duration-200">
+                                                <div
+                                                    className="p-3 bg-white hover:bg-gray-50 flex justify-between items-center cursor-pointer"
+                                                    onClick={() => toggleSchoolExpansion(school.id)}
+                                                >
+                                                    <div className="flex items-center">
+                                                        <StatusIcon size={14} className={`${statusInfo.color.split(' ')[1]} mr-2 p-0.5 rounded-full`} />
+                                                        <div>
+                                                            <h4 className="font-medium text-sm flex items-center">
+                                                                {school.school_name}
+                                                                {insightLoading[school.id] && (
+                                                                    <Loader size={12} className="ml-2 animate-spin text-indigo-600" />
+                                                                )}
+                                                            </h4>
+                                                            <p className="text-xs text-gray-500">{school.major_name}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center">
+                                                        <span className={`${statusInfo.color} px-2 py-0.5 rounded-md text-xs font-medium mr-2`}>
+                                                            {statusLabel}
+                                                        </span>
+                                                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                                    </div>
+                                                </div>
+
+                                                {isExpanded && (
+                                                    <div className="p-3 pt-0 bg-gray-50">
+                                                        {school.notes && (
+                                                            <div className="mt-2 text-xs bg-white p-2 rounded-md border border-gray-200">
+                                                                <span className="font-medium">{notesLabel}</span> {school.notes}
+                                                            </div>
+                                                        )}
+
+                                                        {/* AI Insight card - Chat-like style */}
+                                                        <div className="mt-2">
+                                                            {insightLoading[school.id] ? (
+                                                                <div className="flex items-center justify-center bg-indigo-50 border border-indigo-100 p-2 rounded-md h-16">
+                                                                    <Loader size={16} className="mr-2 animate-spin text-indigo-600" />
+                                                                    <span className="text-xs text-indigo-700">Loading insights...</span>
+                                                                </div>
+                                                            ) : schoolSpecificFeedback[school.id] ? (
+                                                                <div className="flex mt-3">
+                                                                    <div className="bg-white rounded-lg rounded-bl-none border border-indigo-100 p-3 max-w-[90%] shadow-sm">
+                                                                        <div className="flex items-center mb-1">
+                                                                            <div className="h-6 w-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs mr-2">AI</div>
+                                                                            <span className="text-xs font-medium text-indigo-700">School Insight</span>
+                                                                        </div>
+                                                                        <p className="text-xs text-gray-700 whitespace-pre-line">{schoolSpecificFeedback[school.id]}</p>
+                                                                    </div>
+                                                                </div>
+                                                            ) : forMentor && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        getSchoolSpecificFeedback(school);
+                                                                    }}
+                                                                    className="w-full text-xs text-indigo-600 hover:text-indigo-800 bg-indigo-50 border border-indigo-100 p-2 rounded-md text-center"
+                                                                >
+                                                                    Get AI insights for {school.school_name}
+                                                                </button>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="mt-2 text-xs text-gray-500 flex justify-between">
+                                                            <span>{updatedLabel} {new Date(school.updated_at).toLocaleDateString(language === 'en' ? 'en-US' : 'fa-IR')}</span>
+                                                            {forMentor && !schoolSpecificFeedback[school.id] && !insightLoading[school.id] && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        getSchoolSpecificFeedback(school);
+                                                                    }}
+                                                                    className="text-indigo-600 hover:text-indigo-800"
+                                                                >
+                                                                    Generate Insight
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     );
                 })}
-            </div>
 
-            {/* School lists by category */}
-            {Object.entries(PREFERENCE_TYPES).map(([type, info]) => {
-                const categorySchools = getCategorySchools(type);
-                if (categorySchools.length === 0) return null;
-
-                const Icon = info.icon;
-                const name = language === 'en' ? info.name : info.nameFa;
-
-                return (
-                    <div key={type} className={`border rounded-lg overflow-hidden mb-3 transition-all ${expandedCategories[type] ? 'shadow-sm' : ''
-                        }`}>
-                        <div
-                            className={`${info.color} p-3 flex justify-between items-center cursor-pointer transition-colors hover:shadow-inner`}
-                            onClick={() => toggleCategory(type)}
+                {/* AI Feedback Button - moved to right panel */}
+                {!showRightPanel && schoolChoices.length > 0 && (
+                    <div className="mt-4">
+                        <button
+                            onClick={getGeminiAIFeedback}
+                            disabled={feedbackLoading}
+                            className="mb-3 w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center transition-colors"
                         >
-                            <div className="flex items-center">
-                                <Icon className={info.iconColor} size={16} />
-                                <span className="ml-2 font-medium">{name}</span>
-                                <span className="ml-2 text-xs opacity-75">({categorySchools.length})</span>
-                            </div>
-                            {expandedCategories[type] ?
-                                <ChevronUp size={16} /> :
-                                <ChevronDown size={16} />
-                            }
-                        </div>
+                            {feedbackLoading ? (
+                                <>
+                                    <Loader size={16} className="mr-2 animate-spin" />
+                                    {t.generatingFeedback}
+                                </>
+                            ) : (
+                                <>{t.getFeedback}</>
+                            )}
+                        </button>
 
-                        {expandedCategories[type] && (
-                            <div className="divide-y">
-                                {categorySchools.map(school => {
-                                    const statusInfo = APPLICATION_STATUS_INFO[school.application_status] || APPLICATION_STATUS_INFO.planning;
-                                    const StatusIcon = statusInfo.icon;
-                                    const statusLabel = language === 'en' ? statusInfo.label : statusInfo.labelFa;
-                                    const notesLabel = t.notes;
-                                    const updatedLabel = t.updated;
-                                    const isExpanded = expandedSchools[school.id] === true;
-
-                                    return (
-                                        <div key={school.id} className="overflow-hidden transition-all duration-200">
-                                            <div
-                                                className="p-3 bg-white hover:bg-gray-50 flex justify-between items-center cursor-pointer"
-                                                onClick={() => toggleSchoolExpansion(school.id)}
-                                            >
-                                                <div className="flex items-center">
-                                                    <StatusIcon size={14} className={`${statusInfo.color.split(' ')[1]} mr-2 p-0.5 rounded-full`} />
-                                                    <div>
-                                                        <h4 className="font-medium text-sm flex items-center">
-                                                            {school.school_name}
-                                                            {insightLoading[school.id] && (
-                                                                <Loader size={12} className="ml-2 animate-spin text-indigo-600" />
-                                                            )}
-                                                        </h4>
-                                                        <p className="text-xs text-gray-500">{school.major_name}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center">
-                                                    <span className={`${statusInfo.color} px-2 py-0.5 rounded-md text-xs font-medium mr-2`}>
-                                                        {statusLabel}
-                                                    </span>
-                                                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                                </div>
-                                            </div>
-
-                                            {isExpanded && (
-                                                <div className="p-3 pt-0 bg-gray-50">
-                                                    {school.notes && (
-                                                        <div className="mt-2 text-xs bg-white p-2 rounded-md border border-gray-200">
-                                                            <span className="font-medium">{notesLabel}</span> {school.notes}
-                                                        </div>
-                                                    )}
-
-                                                    {/* AI Insight card - Chat-like style */}
-                                                    <div className="mt-2">
-                                                        {insightLoading[school.id] ? (
-                                                            <div className="flex items-center justify-center bg-indigo-50 border border-indigo-100 p-2 rounded-md h-16">
-                                                                <Loader size={16} className="mr-2 animate-spin text-indigo-600" />
-                                                                <span className="text-xs text-indigo-700">Loading insights...</span>
-                                                            </div>
-                                                        ) : schoolSpecificFeedback[school.id] ? (
-                                                            <div className="flex mt-3">
-                                                                <div className="bg-white rounded-lg rounded-bl-none border border-indigo-100 p-3 max-w-[90%] shadow-sm">
-                                                                    <div className="flex items-center mb-1">
-                                                                        <div className="h-6 w-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs mr-2">AI</div>
-                                                                        <span className="text-xs font-medium text-indigo-700">School Insight</span>
-                                                                    </div>
-                                                                    <p className="text-xs text-gray-700 whitespace-pre-line">{schoolSpecificFeedback[school.id]}</p>
-                                                                </div>
-                                                            </div>
-                                                        ) : forMentor && (
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    getSchoolSpecificFeedback(school);
-                                                                }}
-                                                                className="w-full text-xs text-indigo-600 hover:text-indigo-800 bg-indigo-50 border border-indigo-100 p-2 rounded-md text-center"
-                                                            >
-                                                                Get AI insights for {school.school_name}
-                                                            </button>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="mt-2 text-xs text-gray-500 flex justify-between">
-                                                        <span>{updatedLabel} {new Date(school.updated_at).toLocaleDateString(language === 'en' ? 'en-US' : 'fa-IR')}</span>
-                                                        {forMentor && !schoolSpecificFeedback[school.id] && !insightLoading[school.id] && (
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    getSchoolSpecificFeedback(school);
-                                                                }}
-                                                                className="text-indigo-600 hover:text-indigo-800"
-                                                            >
-                                                                Generate Insight
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
+                        {aiFeedback && (
+                            <div className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition">
+                                <div className="flex items-start mb-3">
+                                    <div className="h-8 w-8 rounded-full bg-indigo-600 text-white flex items-center justify-center mr-3 flex-shrink-0">AI</div>
+                                    <div>
+                                        <h3 className="font-medium">{t.aiFeedback}</h3>
+                                        <div className="text-sm whitespace-pre-line mt-2">
+                                            {aiFeedback}
                                         </div>
-                                    );
-                                })}
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
-                );
-            })}
-
-            {/* AI Feedback Button */}
-            <div className="mt-4">
-                <button
-                    onClick={getGeminiAIFeedback}
-                    disabled={feedbackLoading || !schoolChoices.length}
-                    className="mb-3 w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center transition-colors"
-                >
-                    {feedbackLoading ? (
-                        <>
-                            <Loader size={16} className="mr-2 animate-spin" />
-                            {t.generatingFeedback}
-                        </>
-                    ) : (
-                        <>{t.getFeedback}</>
-                    )}
-                </button>
-
-                {aiFeedback && (
-                    <div className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition">
-                        <div className="flex items-start mb-3">
-                            <div className="h-8 w-8 rounded-full bg-indigo-600 text-white flex items-center justify-center mr-3 flex-shrink-0">AI</div>
-                            <div>
-                                <h3 className="font-medium">{t.aiFeedback}</h3>
-                                <div className="text-sm whitespace-pre-line mt-2">
-                                    {aiFeedback}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 )}
             </div>
+
+            {/* Render the right panel */}
+            {renderRightPanel()}
 
             {/* Render tutorial and chat modals */}
             {showTutorial && renderTutorial()}
