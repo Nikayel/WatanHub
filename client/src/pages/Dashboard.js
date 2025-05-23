@@ -955,9 +955,8 @@ const Dashboard = () => {
                 </button>
               </div>
 
-              {/* Keep the existing notes display, it's already well structured */}
+              {/* Display filtered notes */}
               {mentorNotes.length === 0 ? (
-                // ... existing empty state
                 <div className="py-10 px-4 text-center bg-gray-50 rounded-lg border border-dashed">
                   <AlignLeft size={40} className="mx-auto text-gray-300 mb-3" />
                   <p className="text-gray-500 font-medium">No notes from your mentor yet.</p>
@@ -967,8 +966,135 @@ const Dashboard = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Keep existing note listing */}
-                  {/* ... existing code ... */}
+                  {/* Display filtered notes */}
+                  {mentorNotes
+                    .filter(note => {
+                      if (noteFilter === 'all') return true;
+                      if (noteFilter === 'pending') return !note.acknowledged;
+                      if (noteFilter === 'acknowledged') return note.acknowledged;
+                      return true;
+                    })
+                    .map(note => {
+                      const isExpanded = expandedNotes[note.id] === true;
+                      const daysRemaining = note.deadline ? getDaysRemaining(note.deadline) : null;
+
+                      return (
+                        <div
+                          key={note.id}
+                          className={`bg-white p-5 rounded-lg border shadow-sm transition-all ${note.acknowledged
+                            ? 'border-l-4 border-l-green-500 border-t border-r border-b border-gray-100'
+                            : 'border-l-4 border-l-amber-500 border-t border-r border-b border-gray-100'
+                            }`}
+                        >
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="flex-1">
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <h3 className="text-base sm:text-lg font-semibold text-gray-800">{note.task}</h3>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${note.acknowledged
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                  {note.acknowledged ? 'Completed' : 'Pending'}
+                                </span>
+                                {!note.acknowledged && note.deadline && daysRemaining <= 3 && (
+                                  <span className={`text-xs px-2 py-0.5 rounded-full flex items-center ${getStatusBadgeColor(daysRemaining)}`}>
+                                    <AlertTriangle size={10} className="mr-1" />
+                                    {daysRemaining <= 0 ? 'Due Today!' : `${daysRemaining} days left`}
+                                  </span>
+                                )}
+                              </div>
+
+                              <h4 className="font-medium text-sm sm:text-base text-gray-700 mb-2">{note.description}</h4>
+
+                              {/* Display truncated or full content based on expanded state */}
+                              <div className={`mb-3 text-sm text-gray-600 whitespace-pre-wrap transition-all duration-200 ${isExpanded ? '' : 'line-clamp-2'
+                                }`}>
+                                {note.content}
+                              </div>
+
+                              {/* Show expand/collapse button if content is long */}
+                              {note.content && note.content.length > 100 && (
+                                <button
+                                  onClick={() => toggleNoteExpansion(note.id)}
+                                  className="text-indigo-600 hover:text-indigo-800 text-xs sm:text-sm font-medium mb-2 flex items-center"
+                                >
+                                  {isExpanded ? (
+                                    <>
+                                      <span>Show less</span>
+                                      <svg className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                      </svg>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>Read more</span>
+                                      <svg className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                      </svg>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+
+                              <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-3">
+                                <span className="px-2 py-1 bg-gray-100 rounded-md">
+                                  <span className="font-medium">Start:</span> {formatDate(note.start_date)}
+                                </span>
+                                {note.deadline && (
+                                  <span className="px-2 py-1 bg-gray-100 rounded-md">
+                                    <span className="font-medium">Deadline:</span> {formatDate(note.deadline)}
+                                  </span>
+                                )}
+                                <span className="px-2 py-1 bg-gray-100 rounded-md">
+                                  <span className="font-medium">Created:</span> {formatDate(note.created_at)}
+                                </span>
+                                {note.acknowledged && (
+                                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-md">
+                                    <span className="font-medium">Completed on:</span> {formatDate(note.updated_at)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {!note.acknowledged && (
+                              <div className="flex flex-col items-end justify-start">
+                                {confirmingNote === note.id ? (
+                                  <div className="flex flex-col space-y-2">
+                                    <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm text-amber-800 mb-2 max-w-xs">
+                                      <p className="font-medium mb-1">Please confirm:</p>
+                                      <p className="text-xs">I have completed this task and understand this will be marked as acknowledged.</p>
+                                    </div>
+                                    <div className="flex space-x-2">
+                                      <button
+                                        onClick={() => acknowledgeNote(note.id)}
+                                        className="flex items-center px-3 py-1.5 bg-green-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-green-700 transition"
+                                      >
+                                        <CheckCircle size={14} className="mr-1" />
+                                        Confirm
+                                      </button>
+                                      <button
+                                        onClick={cancelAcknowledgment}
+                                        className="flex items-center px-3 py-1.5 bg-gray-200 text-gray-700 text-xs sm:text-sm font-medium rounded-lg hover:bg-gray-300 transition"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => acknowledgeNote(note.id)}
+                                    className="flex items-center px-3 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition shadow-sm"
+                                  >
+                                    <CheckCircle size={16} className="mr-2" />
+                                    Mark as Complete
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </div>

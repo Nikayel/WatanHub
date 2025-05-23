@@ -900,9 +900,9 @@ const MentorDashboard = () => {
                 </div>
 
                 {activeTab === 'notes' ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         {/* Assigned Students List */}
-                        <div className="bg-white rounded-xl shadow-md p-6">
+                        <div className="lg:col-span-3 bg-white rounded-xl shadow-md p-6">
                             <h2 className="text-xl font-bold mb-4">Your Students</h2>
 
                             {assignedStudents.length === 0 ? (
@@ -947,10 +947,10 @@ const MentorDashboard = () => {
                             )}
                         </div>
 
-                        {/* Student Details and Notes */}
-                        <div className="lg:col-span-2">
-                            {selectedStudent ? (
-                                <div className="bg-white rounded-xl shadow-md">
+                        {/* Student Details */}
+                        {selectedStudent ? (
+                            <>
+                                <div className="lg:col-span-5 bg-white rounded-xl shadow-md">
                                     {/* Student profile header */}
                                     <div className="p-6 border-b border-gray-200">
                                         <div className="flex items-center space-x-4">
@@ -964,7 +964,7 @@ const MentorDashboard = () => {
                                             </div>
                                             <button
                                                 onClick={() => scheduleMeeting(selectedStudent.id)}
-                                                className="ml-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                                                className="ml-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
                                             >
                                                 Schedule Meeting
                                             </button>
@@ -1022,155 +1022,105 @@ const MentorDashboard = () => {
                                         </div>
                                     </div>
 
-                                    {/* Notes Section */}
-                                    <div className="p-6">
-                                        <div className="mt-6">
-                                            <div className="mb-4 flex justify-between items-center">
-                                                <h3 className="text-lg font-semibold">Mentorship Notes</h3>
-                                                <div className="flex items-center space-x-2">
-                                                    <select
-                                                        value={noteFilter}
-                                                        onChange={(e) => setNoteFilter(e.target.value)}
-                                                        className="p-1 text-sm border rounded"
-                                                    >
-                                                        <option value="all">All Notes</option>
-                                                        <option value="pending">Pending</option>
-                                                        <option value="acknowledged">Acknowledged</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            {studentNotes.length === 0 ? (
-                                                <div className="py-8 px-4 text-center bg-gray-50 rounded-lg border border-dashed">
-                                                    <p className="text-gray-500">No notes available for this student.</p>
-                                                    <button
-                                                        onClick={() => document.getElementById('add-note-form').scrollIntoView({ behavior: 'smooth' })}
-                                                        className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
-                                                    >
-                                                        Create your first note
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-4">
-                                                    {studentNotes
-                                                        .filter(note => {
-                                                            if (noteFilter === 'all') return true;
-                                                            if (noteFilter === 'pending') return !note.acknowledged;
-                                                            if (noteFilter === 'acknowledged') return note.acknowledged;
-                                                            return true;
-                                                        })
-                                                        .map(note => {
-                                                            const isExpanded = expandedNotes[note.id] === true;
-
-                                                            return (
-                                                                <div
-                                                                    key={note.id}
-                                                                    className={`bg-white p-4 rounded-lg border shadow-sm transition-all ${note.acknowledged
-                                                                        ? 'border-green-200'
-                                                                        : 'border-yellow-200'
-                                                                        }`}
-                                                                >
-                                                                    <div className="flex justify-between items-start mb-2">
-                                                                        <div>
-                                                                            <h4 className="font-semibold text-gray-800">{note.description}</h4>
-                                                                            <p className="text-sm text-gray-500">
-                                                                                Task: {note.task}
-                                                                            </p>
-                                                                        </div>
-                                                                        <div className="flex flex-col items-end">
-                                                                            <span className={`px-2 py-1 text-xs rounded-full ${note.acknowledged
-                                                                                ? 'bg-green-100 text-green-800'
-                                                                                : 'bg-yellow-100 text-yellow-800'
-                                                                                }`}>
-                                                                                {note.acknowledged ? 'Acknowledged' : 'Pending'}
-                                                                            </span>
-                                                                            <span className="text-xs text-gray-500 mt-1">
-                                                                                {note.created_at_formatted}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="mt-2 mb-3 text-sm whitespace-pre-wrap">
-                                                                        {isExpanded ? note.content : (
-                                                                            note.content.length > 100 ?
-                                                                                note.content.substring(0, 100) + '...' :
-                                                                                note.content
-                                                                        )}
-                                                                    </div>
-
-                                                                    {/* Show expand/collapse button if content is long */}
-                                                                    {note.content.length > 100 && (
-                                                                        <button
-                                                                            onClick={() => toggleNoteExpansion(note.id)}
-                                                                            className="text-indigo-600 hover:text-indigo-800 text-xs font-medium mb-2 flex items-center"
-                                                                        >
-                                                                            {isExpanded ? (
-                                                                                <>
-                                                                                    <span>Show less</span>
-                                                                                    <svg className="ml-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                                                                    </svg>
-                                                                                </>
-                                                                            ) : (
-                                                                                <>
-                                                                                    <span>Read more</span>
-                                                                                    <svg className="ml-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                                                    </svg>
-                                                                                </>
-                                                                            )}
-                                                                        </button>
-                                                                    )}
-
-                                                                    <div className="flex justify-between items-center mt-3 text-xs text-gray-500 border-t pt-2">
-                                                                        <div className="flex space-x-3">
-                                                                            <span>Start: {note.start_date_formatted || 'N/A'}</span>
-                                                                            {note.deadline && <span>Due: {note.deadline_formatted}</span>}
-                                                                        </div>
-
-                                                                        {!note.acknowledged && (
-                                                                            <button
-                                                                                onClick={async () => {
-                                                                                    try {
-                                                                                        const { error } = await supabase
-                                                                                            .from('mentor_notes')
-                                                                                            .update({ acknowledged: true })
-                                                                                            .eq('id', note.id);
-
-                                                                                        if (error) throw error;
-                                                                                        toast.success('Note marked as acknowledged');
-                                                                                    } catch (err) {
-                                                                                        console.error('Error updating note:', err);
-                                                                                        toast.error('Failed to update note status');
-                                                                                    }
-                                                                                }}
-                                                                                className="text-indigo-600 hover:text-indigo-800 px-2 py-1 text-xs rounded hover:bg-indigo-50 transition-colors"
-                                                                            >
-                                                                                Mark as acknowledged
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            )
-                                                        })}
-                                                </div>
-                                            )}
-
-                                            {/* Add Note Form */}
-                                            {renderNoteEditorForm()}
-                                        </div>
+                                    {/* Note Editor Form */}
+                                    <div className="p-6" id="add-note-form">
+                                        <h3 className="text-lg font-semibold mb-4">Create a New Note</h3>
+                                        {renderNoteEditorForm()}
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="bg-white rounded-xl shadow-md p-10 flex flex-col items-center justify-center text-center">
-                                    <div className="text-7xl mb-4">👈</div>
-                                    <h3 className="text-xl font-medium mb-2">Select a Student</h3>
-                                    <p className="text-gray-500">
-                                        Choose a student from the list to view details and manage your mentorship.
+
+                                {/* Notes Section - Moved to right side */}
+                                <div className="lg:col-span-4 bg-white rounded-xl shadow-md p-6 h-fit max-h-[800px] overflow-y-auto">
+                                    <div className="flex justify-between items-center sticky top-0 bg-white pt-1 pb-4 z-10">
+                                        <h3 className="text-lg font-semibold">Mentorship Notes</h3>
+                                        <div className="flex items-center space-x-2">
+                                            <select
+                                                value={noteFilter}
+                                                onChange={(e) => setNoteFilter(e.target.value)}
+                                                className="p-1 text-sm border rounded"
+                                            >
+                                                <option value="all">All Notes</option>
+                                                <option value="pending">Pending</option>
+                                                <option value="acknowledged">Acknowledged</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {studentNotes.length === 0 ? (
+                                        <div className="py-8 px-4 text-center bg-gray-50 rounded-lg border border-dashed">
+                                            <p className="text-gray-500">No notes available for this student.</p>
+                                            <button
+                                                onClick={() => document.getElementById('add-note-form').scrollIntoView({ behavior: 'smooth' })}
+                                                className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
+                                            >
+                                                Create your first note
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {getFilteredNotes().map(note => (
+                                                <div
+                                                    key={note.id}
+                                                    className={`p-4 rounded-lg border ${note.acknowledged
+                                                        ? 'border-l-4 border-l-green-500 border-t border-r border-b border-gray-200'
+                                                        : 'border-l-4 border-l-yellow-500 border-t border-r border-b border-gray-200'
+                                                        }`}
+                                                >
+                                                    <div className="flex justify-between">
+                                                        <h4 className="font-semibold text-gray-800">{note.task}</h4>
+                                                        <span className={`text-xs px-2 py-0.5 rounded-full ${note.acknowledged
+                                                            ? 'bg-green-100 text-green-800'
+                                                            : 'bg-yellow-100 text-yellow-800'
+                                                            }`}>
+                                                            {note.acknowledged ? 'Completed' : 'Pending'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-gray-600 mt-1">{note.description}</p>
+                                                    <div className={`mt-2 text-sm text-gray-500 whitespace-pre-wrap ${expandedNotes[note.id] ? '' : 'line-clamp-2'}`}>
+                                                        {note.content}
+                                                    </div>
+                                                    {note.content && note.content.length > 100 && (
+                                                        <button
+                                                            onClick={() => toggleNoteExpansion(note.id)}
+                                                            className="mt-1 text-xs text-indigo-600 hover:text-indigo-800"
+                                                        >
+                                                            {expandedNotes[note.id] ? 'Show less' : 'Show more'}
+                                                        </button>
+                                                    )}
+                                                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                                        {note.deadline && (
+                                                            <span className="px-2 py-0.5 bg-gray-100 rounded">
+                                                                Deadline: {new Date(note.deadline).toLocaleDateString()}
+                                                            </span>
+                                                        )}
+                                                        <span className="px-2 py-0.5 bg-gray-100 rounded">
+                                                            Created: {new Date(note.created_at).toLocaleDateString()}
+                                                        </span>
+                                                        {note.acknowledged && (
+                                                            <span className="px-2 py-0.5 bg-green-100 rounded">
+                                                                Completed: {new Date(note.updated_at).toLocaleDateString()}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <div className="lg:col-span-9 bg-white rounded-xl shadow-md p-8 flex flex-col items-center justify-center min-h-[300px]">
+                                <div className="text-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-indigo-200 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                    </svg>
+                                    <h3 className="text-xl font-medium text-gray-800 mb-2">Select a Student</h3>
+                                    <p className="text-gray-500 max-w-md">
+                                        Choose a student from the list to view their details, create notes, and schedule meetings.
                                     </p>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
                     </div>
                 ) : activeTab === 'outcomes' ? (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -91,6 +91,8 @@ const translations = {
             // nonBinary: "Non-binary",
             preferNotToSay: "Prefer not to say"
         },
+        phoneNumber: "Phone Number",
+        phoneNumberDesc: "(including country code)",
         placeOfBirth: "Place of Birth",
         placeOfResidence: "Place of Residence",
         religion: "Religion (optional)",
@@ -168,6 +170,8 @@ const translations = {
             // nonBinary: "غیر دوگانه",
             preferNotToSay: "ترجیح می‌دهم نگویم"
         },
+        phoneNumber: "شماره تلفن",
+        phoneNumberDesc: "(با کد کشور)",
         placeOfBirth: "محل تولد",
         placeOfResidence: "محل سکونت",
         religion: "دین (اختیاری)",
@@ -245,6 +249,8 @@ const translations = {
             // nonBinary: "غیر دوه ګونی",
             preferNotToSay: "غوره ګڼم چې ونه وایم"
         },
+        phoneNumber: "د تلیفون شمیره",
+        phoneNumberDesc: "(د هیواد کوډ په شمول)",
         placeOfBirth: "د زیږیدنې ځای",
         placeOfResidence: "د اوسیدو ځای",
         religion: "دین (اختیاري)",
@@ -338,7 +344,8 @@ const ProfileTutorial = () => {
         school_type: '',
         household_income_band: '',
         parental_education: '',
-        internet_speed: ''
+        internet_speed: '',
+        phone_number: '', // Add phone_number field
     });
 
     useEffect(() => {
@@ -384,7 +391,8 @@ const ProfileTutorial = () => {
                 school_type: profile.school_type || '',
                 household_income_band: profile.household_income_band || '',
                 parental_education: profile.parental_education || '',
-                internet_speed: profile.internet_speed || ''
+                internet_speed: profile.internet_speed || '',
+                phone_number: profile.phone_number || '', // Add phone_number field
             });
 
             // Show the tutorial
@@ -490,7 +498,8 @@ const ProfileTutorial = () => {
                 school_type: formData.school_type,
                 household_income_band: formData.household_income_band,
                 parental_education: formData.parental_education,
-                internet_speed: formData.internet_speed
+                internet_speed: formData.internet_speed,
+                phone_number: formData.phone_number, // Add phone_number field
             };
 
             console.log("Saving profile data:", formattedData);
@@ -634,6 +643,19 @@ const ProfileTutorial = () => {
                                     <option value="non-binary">{t('genderOptions').nonBinary}</option>
                                     <option value="prefer-not-to-say">{t('genderOptions').preferNotToSay}</option>
                                 </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1">{t('phoneNumber')} * <span className="text-xs text-gray-500">{t('phoneNumberDesc')}</span></label>
+                                <input
+                                    type="tel"
+                                    name="phone_number"
+                                    value={formData.phone_number}
+                                    onChange={handleChange}
+                                    className="w-full p-2 border rounded-md"
+                                    placeholder="+93 7XX XXXXXX"
+                                    required
+                                />
                             </div>
 
                             <div>
