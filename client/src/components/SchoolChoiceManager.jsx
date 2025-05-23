@@ -171,14 +171,25 @@ const SchoolChoiceManager = ({ studentId, readOnly = false }) => {
                 <div className="flex gap-2 justify-end">
                     <button
                         className="px-2 py-1 bg-gray-200 rounded text-sm"
-                        onClick={() => toast.dismiss(t.id)}
+                        onClick={() => {
+                            if (t && t.id) {
+                                toast.dismiss(t.id);
+                            } else {
+                                toast.dismiss();
+                            }
+                        }}
                     >
                         Cancel
                     </button>
                     <button
                         className="px-2 py-1 bg-red-500 text-white rounded text-sm"
                         onClick={async () => {
-                            toast.dismiss(t.id);
+                            if (t && t.id) {
+                                toast.dismiss(t.id);
+                            } else {
+                                toast.dismiss();
+                            }
+
                             setLoading(true);
                             try {
                                 const { error } = await supabase

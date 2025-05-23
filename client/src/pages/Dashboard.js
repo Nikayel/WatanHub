@@ -18,6 +18,8 @@ import {
   DialogClose,
 } from '../components/ui/dialog';
 import SchoolChoiceManager from '../components/SchoolChoiceManager';
+import StudentSchoolChoicesViewer from '../components/StudentSchoolChoicesViewer';
+import ProfileCompleteness from '../components/ProfileCompleteness';
 
 // Inspirational quotes for students
 const MOTIVATIONAL_QUOTES = [
@@ -334,13 +336,25 @@ const Dashboard = () => {
     if (!user) return;
 
     const isNewSignup = localStorage.getItem('newSignup') === 'true';
-    if (isNewSignup) {
+    // Force show welcome popup for testing
+    const forceWelcome = localStorage.getItem('forceWelcome') === 'true';
+
+    // Either show it because it's a new signup or manual override
+    if (isNewSignup || forceWelcome) {
+      console.log("Showing welcome popup for new user");
       // Show welcome popup
       setShowWelcomePopup(true);
       // Clear the flag once used
       localStorage.removeItem('newSignup');
+      localStorage.removeItem('forceWelcome');
     }
   }, [user]);
+
+  // Function to force show welcome popup (for testing)
+  const forceShowWelcomePopup = () => {
+    localStorage.setItem('forceWelcome', 'true');
+    window.location.reload();
+  };
 
   const closeWelcomePopup = () => {
     setShowWelcomePopup(false);
@@ -461,6 +475,16 @@ const Dashboard = () => {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
       {/* Welcome Dialog */}
       <WelcomeDialog />
+
+      {/* Hidden button to force show welcome popup (only visible in development) */}
+      {process.env.NODE_ENV === 'development' && (
+        <button
+          onClick={forceShowWelcomePopup}
+          className="fixed bottom-4 right-4 bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-md hover:bg-gray-300 z-50"
+        >
+          Test Welcome
+        </button>
+      )}
 
       {/* Header - Improved mobile layout with better spacing */}
       <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 rounded-xl shadow-md p-5 sm:p-8 mb-6">
@@ -744,6 +768,14 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {/* Profile Completeness Check */}
+          {activeTab === 'overview' && profileData && (
+            <ProfileCompleteness
+              profile={profileData}
+              onComplete={() => toast.success('Dismissed profile analysis')}
+            />
+          )}
+
           {/* Keep the rest of the content for each tab */}
           {activeTab === 'courses' && (
             renderComingSoon(
@@ -761,19 +793,42 @@ const Dashboard = () => {
             )
           )}
 
-          {/* Add the Schools tab content */}
+          {/* Tab 4: School Choices */}
           {activeTab === 'schools' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="flex justify-between items-center mb-5">
-                <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                  <School size={18} className="mr-2 text-indigo-600" />
-                  My College Choices
+            <div className="animate-fadeIn">
+              <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm mb-4">
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <GraduationCap size={20} className="mr-2 text-indigo-600" />
+                  School Choices
                 </h2>
+                <p className="text-gray-600 text-sm mb-6">
+                  Add the schools you're interested in applying to, categorized by preference type. Your mentor will be able to see your choices and provide guidance.
+                </p>
+
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm mb-4">
+                    <div className="flex items-start">
+                      <AlertTriangle size={18} className="text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-blue-800 mb-1">School Selection Guidance</p>
+                        <ul className="list-disc pl-5 space-y-1 text-blue-700">
+                          <li>Add up to 5 target schools that match your academic profile</li>
+                          <li>Add up to 5 safety schools where you have higher chances of acceptance</li>
+                          <li>Add 1 stretch (dream) school that may be challenging but possible</li>
+                          <li>Discuss your choices with your mentor for personalized feedback</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <StudentSchoolChoicesViewer studentId={user?.id} forMentor={false} />
+
+                  <div className="mt-6 border-t pt-6">
+                    <h3 className="font-semibold mb-4">Edit Your School Choices</h3>
+                    <SchoolChoiceManager />
+                  </div>
+                </div>
               </div>
-              <p className="text-sm text-gray-600 mb-6">
-                Select your target, safety, and stretch schools to help your mentor guide your college application journey.
-              </p>
-              <SchoolChoiceManager />
             </div>
           )}
 

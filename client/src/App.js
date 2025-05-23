@@ -5,7 +5,7 @@ import { Analytics } from "@vercel/analytics/react"
 // VERCEL EXTRAS
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 // React and Routing
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import './App.css';
 
 // Context and Protection
@@ -52,90 +52,88 @@ import Privacy from './pages/Privacy';
 function App() {
   return (
     <>
-      <Router>
-        <Toaster position="top-center" richColors /> {/* <- here */}
-        <ProfileTutorial />
-        <TermsChecker />
-        <Routes>
+      <Toaster position="top-center" richColors /> {/* <- here */}
+      <ProfileTutorial />
+      <TermsChecker />
+      <Routes>
 
-          {/* Public Routes */}
-          <Route path="/mentors" element={<MentorsPage />} />
-          <Route path="/" element={<HomePage />} />
-          <Route path="/timeline" element={<TimelineDemo />} />
-          <Route path="/blogs" element={<BlogList />} />
-          <Route path="/blog/:id" element={<BlogDetail />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/mentor-application" element={<MentorApplicationPage />} />
-          <Route path="/admin/announcements/send" element={
-            <AdminRoute>
-              <AdminAnnouncementSend />
-            </AdminRoute>
-          } />
-          <Route path="/signup" element={<SignUp isOpen={true} onClose={() => { }} />} />
+        {/* Public Routes */}
+        <Route path="/mentors" element={<MentorsPage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/timeline" element={<TimelineDemo />} />
+        <Route path="/blogs" element={<BlogList />} />
+        <Route path="/blog/:id" element={<BlogDetail />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/mentor-application" element={<MentorApplicationPage />} />
+        <Route path="/admin/announcements/send" element={
+          <AdminRoute>
+            <AdminAnnouncementSend />
+          </AdminRoute>
+        } />
+        <Route path="/signup" element={<SignUp isOpen={true} onClose={() => { }} />} />
 
-          {/* Protected Routes (Logged-in Users Only) */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
+        {/* Protected Routes (Logged-in Users Only) */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
 
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } />
 
-          <Route path="/onboarding-survey" element={
-            <ProtectedRoute>
-              <OnboardingSurvey />
-            </ProtectedRoute>
-          } />
+        <Route path="/onboarding-survey" element={
+          <ProtectedRoute>
+            <OnboardingSurvey />
+          </ProtectedRoute>
+        } />
 
-          {/* Mentor Routes */}
-          <Route path="/mentor/dashboard" element={
-            <MentorRoute>
-              <MentorDashboard />
-            </MentorRoute>
-          } />
+        {/* Mentor Routes */}
+        <Route path="/mentor/dashboard" element={
+          <MentorRoute>
+            <MentorDashboard />
+          </MentorRoute>
+        } />
 
-          {/* Admin Routes (Admins Only) */}
-          <Route path="/admin/dashboard" element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          } />
+        {/* Admin Routes (Admins Only) */}
+        <Route path="/admin/dashboard" element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        } />
 
-          <Route path="/admin/blogs/manage" element={
-            <AdminRoute>
-              <AdminBlogManage />
-            </AdminRoute>
-          } />
+        <Route path="/admin/blogs/manage" element={
+          <AdminRoute>
+            <AdminBlogManage />
+          </AdminRoute>
+        } />
 
-          <Route path="/admin/blogs/create" element={
-            <AdminRoute>
-              <AdminBlogCreate />
-            </AdminRoute>
-          } />
+        <Route path="/admin/blogs/create" element={
+          <AdminRoute>
+            <AdminBlogCreate />
+          </AdminRoute>
+        } />
 
-          <Route path="/admin/blogs/edit/:id" element={
-            <AdminRoute>
-              <AdminBlogEdit />
-            </AdminRoute>
-          } />
+        <Route path="/admin/blogs/edit/:id" element={
+          <AdminRoute>
+            <AdminBlogEdit />
+          </AdminRoute>
+        } />
 
-          {/* New Migration Tool Route */}
-          <Route path="/admin/migration" element={
-            <AdminRoute>
-              <MigrationTool />
-            </AdminRoute>
-          } />
+        {/* New Migration Tool Route */}
+        <Route path="/admin/migration" element={
+          <AdminRoute>
+            <MigrationTool />
+          </AdminRoute>
+        } />
 
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
 
-        </Routes>
-      </Router>
+      </Routes>
       <Analytics />
     </>
   );

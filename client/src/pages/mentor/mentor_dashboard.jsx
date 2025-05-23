@@ -8,22 +8,47 @@ import {
 } from 'recharts';
 import OutcomeTagging from '../../components/OutcomeTagging';
 import OutcomeModal from '../../components/OutcomeModal';
+// eslint-disable-next-line no-unused-vars
 import SchoolChoiceManager from '../../components/SchoolChoiceManager';
+import StudentSchoolChoicesViewer from '../../components/StudentSchoolChoicesViewer';
 
 // Components
 const MentorDashboard = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
+    const [students, setStudents] = useState([]);
+    // eslint-disable-next-line no-unused-vars
     const [mentorProfile, setMentorProfile] = useState(null);
+    // eslint-disable-next-line no-unused-vars
     const [mentorId, setMentorId] = useState(null);
-    const [assignedStudents, setAssignedStudents] = useState([]);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [studentNotes, setStudentNotes] = useState([]);
-    const [studentNoteCounts, setStudentNoteCounts] = useState({});
-    const [noteFilter, setNoteFilter] = useState('all'); // 'all', 'pending', 'acknowledged'
-    const [activeTab, setActiveTab] = useState('notes');
+    const [noteFilter, setNoteFilter] = useState('all');
+    const [expandedNotes, setExpandedNotes] = useState({});
     const [notesChannel, setNotesChannel] = useState(null);
+    const [activeTab, setActiveTab] = useState('schools'); // Default to schools tab
+    const [outcomeTab, setOutcomeTab] = useState('tracker');
+    const [showModal, setShowModal] = useState(false);
+    const [outcomeType, setOutcomeType] = useState('');
+    const [collegeAdmissions, setCollegeAdmissions] = useState([]);
+    const [scholarships, setScholarships] = useState([]);
+    const [employments, setEmployments] = useState([]);
+    const [showMeetingDialog, setShowMeetingDialog] = useState(false);
+    const [meetingData, setMeetingData] = useState({
+        student_id: '',
+        meeting_link: '',
+        meeting_date: '',
+        meeting_time: '',
+        notes: ''
+    });
+    const [stats, setStats] = useState({
+        totalNotes: 0,
+        totalMeetings: 0,
+        meetingsThisMonth: 0,
+        notesMade: 0,
+        notesAcknowledged: 0
+    });
     const [newNote, setNewNote] = useState({
         description: '',
         task: '',
@@ -36,26 +61,16 @@ const MentorDashboard = () => {
         gender: [],
         religion: []
     });
-    const [stats, setStats] = useState({
-        totalStudents: 0,
-        meetingsScheduled: 0,
-        notesMade: 0,
-        notesAcknowledged: 0
-    });
-    const [collegeAdmissions, setCollegeAdmissions] = useState([]);
-    const [scholarships, setScholarships] = useState([]);
-    const [employments, setEmployments] = useState([]);
     const [outcomeModalOpen, setOutcomeModalOpen] = useState(false);
-    const [outcomeType, setOutcomeType] = useState(null); // 'admission', 'scholarship', 'employment'
     const [editingOutcome, setEditingOutcome] = useState(null);
-    const [expandedNotes, setExpandedNotes] = useState({});
 
     // Colors for charts
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
     useEffect(() => {
         if (!user) {
-            navigate('/login');
+            // If we're not in a proper router context or user is not available, 
+            // don't try to navigate programmatically
             return;
         }
 
@@ -108,8 +123,8 @@ const MentorDashboard = () => {
             if (error) throw error;
 
             const students = data.map(item => item.profiles);
-            setAssignedStudents(students);
-            setStats(prev => ({ ...prev, totalStudents: students.length }));
+            setStudents(students);
+            setStats(prev => ({ ...prev, totalNotes: students.length }));
 
             // Fetch note counts for each student - use auth.uid for mentor_id
             await fetchStudentNoteCounts(mentorId, students);
@@ -142,7 +157,7 @@ const MentorDashboard = () => {
                 }
             }
 
-            setStudentNoteCounts(counts);
+            setStats(prev => ({ ...prev, totalNotes: Object.values(counts).reduce((a, b) => a + b, 0) }));
         } catch (error) {
             console.error('Error fetching student note counts:', error.message);
         }
@@ -245,8 +260,9 @@ const MentorDashboard = () => {
             if (ackNotesError) throw ackNotesError;
 
             const newStats = {
-                totalStudents: assignedStudents.length,
-                meetingsScheduled: meetingsData[0]?.count || 0,
+                totalNotes: students.length,
+                totalMeetings: meetingsData[0]?.count || 0,
+                meetingsThisMonth: 0, // This needs to be calculated based on the current month
                 notesMade: notesData[0]?.count || 0,
                 notesAcknowledged: ackNotesData[0]?.count || 0
             };
@@ -513,9 +529,9 @@ const MentorDashboard = () => {
             });
 
             // Update the note counts
-            setStudentNoteCounts(prev => ({
+            setStats(prev => ({
                 ...prev,
-                [selectedStudent.id]: (prev[selectedStudent.id] || 0) + 1
+                notesMade: prev.notesMade + 1
             }));
 
             // Refresh notes immediately rather than waiting for subscription
@@ -607,9 +623,9 @@ const MentorDashboard = () => {
                             .eq('mentor_id', user.id);
 
                         if (!error) {
-                            setStudentNoteCounts(prev => ({
+                            setStats(prev => ({
                                 ...prev,
-                                [selectedStudent.id]: count || 0
+                                notesMade: prev.notesMade + 1
                             }));
                         }
                     }
@@ -848,20 +864,20 @@ const MentorDashboard = () => {
                 {/* Stats Overview */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-                        <div className="text-4xl font-bold text-indigo-600 mb-2">{stats.totalStudents}</div>
+                        <div className="text-4xl font-bold text-indigo-600 mb-2">{stats.totalNotes}</div>
                         <div className="text-gray-500 text-sm">Assigned Students</div>
                     </div>
                     <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-                        <div className="text-4xl font-bold text-green-600 mb-2">{stats.meetingsScheduled}</div>
+                        <div className="text-4xl font-bold text-green-600 mb-2">{stats.totalMeetings}</div>
                         <div className="text-gray-500 text-sm">Meetings Scheduled</div>
                     </div>
                     <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-                        <div className="text-4xl font-bold text-purple-600 mb-2">{stats.notesMade}</div>
-                        <div className="text-gray-500 text-sm">Notes Made</div>
+                        <div className="text-4xl font-bold text-purple-600 mb-2">{stats.meetingsThisMonth}</div>
+                        <div className="text-gray-500 text-sm">Meetings This Month</div>
                     </div>
                     <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-                        <div className="text-4xl font-bold text-blue-600 mb-2">{stats.notesAcknowledged}</div>
-                        <div className="text-gray-500 text-sm">Notes Acknowledged</div>
+                        <div className="text-4xl font-bold text-blue-600 mb-2">{stats.notesMade}</div>
+                        <div className="text-gray-500 text-sm">Notes Made</div>
                     </div>
                 </div>
 
@@ -906,13 +922,13 @@ const MentorDashboard = () => {
                         <div className="lg:col-span-3 bg-white rounded-xl shadow-md p-6">
                             <h2 className="text-xl font-bold mb-4">Your Students</h2>
 
-                            {assignedStudents.length === 0 ? (
+                            {students.length === 0 ? (
                                 <div className="text-center p-6 bg-gray-50 rounded-lg">
                                     <p className="text-gray-500">No students assigned yet</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {assignedStudents.map((student) => (
+                                    {students.map((student) => (
                                         <div
                                             key={student.id}
                                             onClick={() => handleStudentSelect(student)}
@@ -934,10 +950,10 @@ const MentorDashboard = () => {
                                                         <p className="text-xs text-indigo-600">{student.student_id ? `Student ID: ${student.student_id}` : 'No Student ID'}</p>
                                                     </div>
                                                 </div>
-                                                {studentNoteCounts[student.id] > 0 && (
+                                                {stats.notesMade > 0 && (
                                                     <div className="flex flex-col items-end">
                                                         <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full">
-                                                            {studentNoteCounts[student.id]} notes
+                                                            {stats.notesMade} notes
                                                         </span>
                                                     </div>
                                                 )}
@@ -971,62 +987,158 @@ const MentorDashboard = () => {
                                             </button>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-                                            <div className="bg-white p-3 rounded-lg shadow-sm">
-                                                <span className="text-sm font-medium text-gray-600 block mb-1">Education Level</span>
-                                                <span>{selectedStudent.education_level || 'Not specified'}</span>
-                                            </div>
-                                            <div className="bg-white p-3 rounded-lg shadow-sm">
-                                                <span className="text-sm font-medium text-gray-600 block mb-1">English Level</span>
-                                                <span>{selectedStudent.english_level || 'Not specified'}</span>
-                                            </div>
-                                            <div className="bg-white p-3 rounded-lg shadow-sm">
-                                                <span className="text-sm font-medium text-gray-600 block mb-1">TOEFL Score</span>
-                                                <span>{selectedStudent.toefl_score || 'Not available'}</span>
-                                            </div>
-                                            <div className="bg-white p-3 rounded-lg shadow-sm">
-                                                <span className="text-sm font-medium text-gray-600 block mb-1">Interests</span>
-                                                <span>{selectedStudent.interests || 'Not specified'}</span>
-                                            </div>
+                                        {/* Tabs for student details */}
+                                        <div className="flex border-b">
+                                            <button
+                                                onClick={() => setActiveTab('schools')}
+                                                className={`px-4 py-3 text-sm font-medium ${activeTab === 'schools'
+                                                    ? 'border-b-2 border-indigo-600 text-indigo-600'
+                                                    : 'text-gray-600 hover:text-gray-900'}`}
+                                            >
+                                                School Choices
+                                            </button>
 
-                                            {/* Socioeconomic fields - only show if available */}
-                                            {selectedStudent.province && (
-                                                <div className="bg-white p-3 rounded-lg shadow-sm">
-                                                    <span className="text-sm font-medium text-gray-600 block mb-1">Province</span>
-                                                    <span>{selectedStudent.province}</span>
-                                                </div>
-                                            )}
-                                            {selectedStudent.school_type && (
-                                                <div className="bg-white p-3 rounded-lg shadow-sm">
-                                                    <span className="text-sm font-medium text-gray-600 block mb-1">School Type</span>
-                                                    <span>{selectedStudent.school_type}</span>
-                                                </div>
-                                            )}
-                                            {selectedStudent.household_income_band && (
-                                                <div className="bg-white p-3 rounded-lg shadow-sm">
-                                                    <span className="text-sm font-medium text-gray-600 block mb-1">Household Income</span>
-                                                    <span>{selectedStudent.household_income_band}</span>
-                                                </div>
-                                            )}
-                                            {selectedStudent.parental_education && (
-                                                <div className="bg-white p-3 rounded-lg shadow-sm">
-                                                    <span className="text-sm font-medium text-gray-600 block mb-1">Parental Education</span>
-                                                    <span>{selectedStudent.parental_education}</span>
-                                                </div>
-                                            )}
-                                            {selectedStudent.internet_speed && (
-                                                <div className="bg-white p-3 rounded-lg shadow-sm">
-                                                    <span className="text-sm font-medium text-gray-600 block mb-1">Internet Access</span>
-                                                    <span>{selectedStudent.internet_speed}</span>
-                                                </div>
-                                            )}
+                                            <button
+                                                onClick={() => setActiveTab('notes')}
+                                                className={`px-4 py-3 text-sm font-medium ${activeTab === 'notes'
+                                                    ? 'border-b-2 border-indigo-600 text-indigo-600'
+                                                    : 'text-gray-600 hover:text-gray-900'}`}
+                                            >
+                                                Notes & Tasks
+                                            </button>
+
+                                            <button
+                                                onClick={() => setActiveTab('outcomes')}
+                                                className={`px-4 py-3 text-sm font-medium ${activeTab === 'outcomes'
+                                                    ? 'border-b-2 border-indigo-600 text-indigo-600'
+                                                    : 'text-gray-600 hover:text-gray-900'}`}
+                                            >
+                                                Outcomes
+                                            </button>
                                         </div>
                                     </div>
 
-                                    {/* Note Editor Form */}
-                                    <div className="p-6" id="add-note-form">
-                                        <h3 className="text-lg font-semibold mb-4">Create a New Note</h3>
-                                        {renderNoteEditorForm()}
+                                    {/* Content based on active tab */}
+                                    <div className="p-4">
+                                        {activeTab === 'schools' && (
+                                            <div>
+                                                <div className="mb-4">
+                                                    <h3 className="text-lg font-medium mb-2">School Choices</h3>
+                                                    <p className="text-sm text-gray-600 mb-4">
+                                                        Review this student's selected schools and provide feedback to help guide their application process.
+                                                    </p>
+                                                </div>
+                                                <StudentSchoolChoicesViewer studentId={selectedStudent.id} forMentor={true} />
+                                            </div>
+                                        )}
+
+                                        {activeTab === 'notes' && (
+                                            <div>
+                                                {/* Notes filter and controls */}
+                                                <div className="mb-4 flex flex-wrap gap-2 items-center justify-between">
+                                                    <div className="flex space-x-2">
+                                                        <button
+                                                            onClick={() => setNoteFilter('all')}
+                                                            className={`px-3 py-1 text-xs rounded-full ${noteFilter === 'all'
+                                                                ? 'bg-indigo-100 text-indigo-700'
+                                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                                }`}
+                                                        >
+                                                            All
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setNoteFilter('pending')}
+                                                            className={`px-3 py-1 text-xs rounded-full ${noteFilter === 'pending'
+                                                                ? 'bg-yellow-100 text-yellow-700'
+                                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                                }`}
+                                                        >
+                                                            Pending
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setNoteFilter('completed')}
+                                                            className={`px-3 py-1 text-xs rounded-full ${noteFilter === 'completed'
+                                                                ? 'bg-green-100 text-green-700'
+                                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                                }`}
+                                                        >
+                                                            Completed
+                                                        </button>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            setNewNote({
+                                                                student_id: selectedStudent.id,
+                                                                content: '',
+                                                                is_task: false,
+                                                                status: 'pending'
+                                                            });
+                                                            // Scroll to the note editor form
+                                                            document.getElementById('add-note-form')?.scrollIntoView({ behavior: 'smooth' });
+                                                        }}
+                                                        className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:bg-indigo-700"
+                                                    >
+                                                        Add Note
+                                                    </button>
+                                                </div>
+
+                                                {/* Notes list */}
+                                                {getFilteredNotes().length === 0 ? (
+                                                    <div className="bg-gray-50 rounded-lg p-6 text-center border border-dashed">
+                                                        <p className="text-gray-500">No notes yet. Add your first note to this student.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-4">
+                                                        {getFilteredNotes().map(note => (
+                                                            <div
+                                                                key={note.id}
+                                                                className={`p-4 rounded-lg border ${note.acknowledged
+                                                                    ? 'border-l-4 border-l-green-500 border-t border-r border-b border-gray-200'
+                                                                    : 'border-l-4 border-l-yellow-500 border-t border-r border-b border-gray-200'
+                                                                    }`}
+                                                            >
+                                                                <div className="flex justify-between">
+                                                                    <h4 className="font-semibold text-gray-800">{note.task}</h4>
+                                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${note.acknowledged
+                                                                        ? 'bg-green-100 text-green-800'
+                                                                        : 'bg-yellow-100 text-yellow-800'
+                                                                        }`}>
+                                                                        {note.acknowledged ? 'Completed' : 'Pending'}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-sm text-gray-600 mt-1">{note.description}</p>
+                                                                <div className={`mt-2 text-sm text-gray-500 whitespace-pre-wrap ${expandedNotes[note.id] ? '' : 'line-clamp-2'}`}>
+                                                                    {note.content}
+                                                                </div>
+                                                                {note.content && note.content.length > 100 && (
+                                                                    <button
+                                                                        onClick={() => toggleNoteExpansion(note.id)}
+                                                                        className="mt-1 text-xs text-indigo-600 hover:text-indigo-800"
+                                                                    >
+                                                                        {expandedNotes[note.id] ? 'Show less' : 'Show more'}
+                                                                    </button>
+                                                                )}
+                                                                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                                                    {note.deadline && (
+                                                                        <span className="px-2 py-0.5 bg-gray-100 rounded">
+                                                                            Deadline: {new Date(note.deadline).toLocaleDateString()}
+                                                                        </span>
+                                                                    )}
+                                                                    <span className="px-2 py-0.5 bg-gray-100 rounded">
+                                                                        Created: {new Date(note.created_at).toLocaleDateString()}
+                                                                    </span>
+                                                                    {note.acknowledged && (
+                                                                        <span className="px-2 py-0.5 bg-green-100 rounded">
+                                                                            Completed: {new Date(note.updated_at).toLocaleDateString()}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -1129,13 +1241,13 @@ const MentorDashboard = () => {
                         <div className="bg-white rounded-xl shadow-md p-6">
                             <h2 className="text-xl font-bold mb-4">Your Students</h2>
 
-                            {assignedStudents.length === 0 ? (
+                            {students.length === 0 ? (
                                 <div className="text-center p-6 bg-gray-50 rounded-lg">
                                     <p className="text-gray-500">No students assigned yet</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {assignedStudents.map((student) => (
+                                    {students.map((student) => (
                                         <div
                                             key={student.id}
                                             onClick={() => handleStudentSelect(student)}
@@ -1513,7 +1625,7 @@ const MentorDashboard = () => {
                                                     Review {selectedStudent.first_name}'s target, safety, and stretch school selections.
                                                 </p>
 
-                                                <SchoolChoiceManager studentId={selectedStudent.id} readOnly={true} />
+                                                <StudentSchoolChoicesViewer studentId={selectedStudent.id} />
                                             </div>
                                         )}
                                     </div>

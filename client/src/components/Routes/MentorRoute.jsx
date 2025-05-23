@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthContext';
 
@@ -49,6 +49,7 @@ function MentorRoute({ children }) {
         return <Navigate to="/" />;
     }
 
+    // Return the children as is to preserve the router context
     return children;
 }
 
