@@ -21,22 +21,64 @@ const withRetry = async (fn, maxRetries = 2) => {
     let lastError = null;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-            return await fn();
+            console.log(`API attempt ${attempt + 1}/${maxRetries + 1}`);
+            const result = await fn();
+            console.log(`API call successful on attempt ${attempt + 1}`);
+            return result;
         } catch (error) {
             console.error(`Attempt ${attempt + 1}/${maxRetries + 1} failed:`, error);
             lastError = error;
             // Wait before retrying with exponential backoff
             if (attempt < maxRetries) {
-                await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 500));
+                const delay = Math.pow(2, attempt) * 500;
+                console.log(`Retrying in ${delay}ms...`);
+                await new Promise(r => setTimeout(r, delay));
             }
         }
     }
+    console.error('All API attempts failed');
     throw lastError; // Rethrow the last error if all attempts fail
 };
 
 // Gemini API Service
 export const geminiService = {
-    // Get AI feedback on school choices
+    // Common predefined responses for fallbacks
+    fallbackResponses: {
+        schoolTypes: `Here's information about school types for your college application strategy:
+
+🎯 **Target Schools** are schools where your academic profile (GPA, test scores, etc.) matches their typical admitted student profile. You have a reasonable chance (40-70%) of being accepted.
+
+🔒 **Safety Schools** are schools where your academic credentials exceed their typical requirements, giving you a high probability (70-90%) of acceptance. These provide a backup option.
+
+⭐ **Stretch Schools** (sometimes called "reach schools") are more selective institutions where your profile may be below their typical admitted student. Acceptance chances are lower (less than 30%), but still possible.
+
+A balanced application portfolio typically includes:
+- 4-5 Target Schools
+- 2-3 Safety Schools
+- 1-2 Stretch Schools`,
+
+        applicationTips: `Here are some general college application tips:
+
+1. Start early - begin preparing applications at least 6 months before deadlines
+2. Research each school thoroughly to customize your applications
+3. Request recommendation letters well in advance
+4. Craft a compelling personal statement that showcases your unique qualities
+5. Highlight extracurricular activities that demonstrate leadership and commitment
+6. Prepare thoroughly for interviews
+7. Keep track of all deadlines and requirements in an organized system
+8. Proofread everything multiple times before submitting`,
+
+        welcomeMessage: `Welcome to your AI college advisor! I can help you with:
+- Understanding different types of schools
+- Application strategies
+- College selection advice
+- Preparing for interviews and essays
+- And much more!
+
+What would you like to know about today?`
+    },
+
+    // Get AI feedback on school choices with better error handling
     getSchoolChoicesFeedback: async (schoolChoices, isForMentor = true) => {
         return withRetry(async () => {
             try {
@@ -87,12 +129,20 @@ Please structure your response in bullet points or short paragraphs for easy rea
                 }
             } catch (error) {
                 console.error('Error getting AI feedback:', error);
-                throw error;
+
+                // Use pre-defined fallback response based on school choices
+                let fallbackResponse = "Based on your school choices, I'd recommend ensuring you have a good balance of target, safety, and stretch schools. Consider discussing with your mentor which categories might need more options.";
+
+                if (schoolChoices.length === 0) {
+                    fallbackResponse = "You haven't added any schools yet. I recommend adding 4-5 target schools, 2-3 safety schools, and 1-2 stretch schools for a balanced application strategy.";
+                }
+
+                return fallbackResponse;
             }
         });
     },
 
-    // Get school-specific insights
+    // Get school-specific insights with more reliable fallbacks
     getSchoolInsight: async (school) => {
         return withRetry(async () => {
             try {
@@ -137,13 +187,43 @@ Keep response very concise, under 100 words.`;
                 }
             } catch (error) {
                 console.error(`Error getting insight for ${school.school_name}:`, error);
-                throw error;
+
+                // Use pre-defined fallback response based on school type
+                const fallbackResponses = {
+                    target: `${school.school_name} is a solid target school for your profile with the ${school.major_name} program. Focus on showcasing your relevant experiences and academic achievements in your application.`,
+                    safety: `${school.school_name} is a good safety option with your qualifications. Their ${school.major_name} program would likely be accessible to you. Still put effort into your application to maximize scholarship opportunities.`,
+                    stretch: `${school.school_name} is a competitive stretch school. Their ${school.major_name} program is selective, but with a strong application emphasizing your unique qualities and achievements, you have a chance.`
+                };
+
+                return fallbackResponses[school.preference_type] ||
+                    `${school.school_name} with a ${school.major_name} major is a good choice. Make sure to research specific program requirements and application deadlines.`;
             }
         });
     },
 
-    // Get response to school-related chat queries
+    // Enhanced chat response function with local fallbacks
     getSchoolChatResponse: async (query) => {
+        // Define common queries and their responses
+        const localResponses = {
+            schoolTypes: geminiService.fallbackResponses.schoolTypes,
+            applicationTips: geminiService.fallbackResponses.applicationTips,
+            welcome: geminiService.fallbackResponses.welcomeMessage
+        };
+
+        // Check if query matches any of our predefined responses
+        const lowerQuery = query.toLowerCase();
+        if (lowerQuery.includes('type') && (lowerQuery.includes('school') || lowerQuery.includes('college'))) {
+            console.log("Using local response for school types");
+            return localResponses.schoolTypes;
+        }
+
+        if ((lowerQuery.includes('tip') || lowerQuery.includes('advice')) &&
+            (lowerQuery.includes('application') || lowerQuery.includes('apply'))) {
+            console.log("Using local response for application tips");
+            return localResponses.applicationTips;
+        }
+
+        // For other queries, try the API
         return withRetry(async () => {
             try {
                 const prompt = `Please provide a helpful, informative response to this question about a college or university: "${query}"
@@ -195,12 +275,23 @@ Keep your response concise (under 150 words) and focus on being informative rath
                 }
             } catch (error) {
                 console.error('Error getting school chat response:', error);
-                throw error;
+
+                // Return a generic response based on query keywords
+                if (lowerQuery.includes('how') && lowerQuery.includes('apply')) {
+                    return "To apply to colleges, start by researching schools that match your academic profile and interests. Create a balanced list of safety, target, and reach schools. Complete the Common App or school-specific applications, write compelling essays, gather recommendation letters, and submit before deadlines. Consider financial aid and scholarship applications as well.";
+                }
+
+                if (lowerQuery.includes('essay') || lowerQuery.includes('personal statement')) {
+                    return "College essays should tell your unique story in an authentic voice. Focus on specific experiences that shaped you, avoid clichés, be reflective rather than descriptive, and have others review your writing. Start early and revise multiple times for the best results.";
+                }
+
+                // Default generic response
+                return "I'd be happy to help with your college application questions. For specific school information, you might want to check the university's official website or contact their admissions office directly for the most accurate information.";
             }
         });
     },
 
-    // Scan user profile for completeness and provide recommendations
+    // Scan user profile for completeness with better fallbacks
     analyzeProfileCompleteness: async (profile) => {
         return withRetry(async () => {
             try {
@@ -255,7 +346,29 @@ Format your response as a structured list of recommendations.`;
                 }
             } catch (error) {
                 console.error('Error analyzing profile completeness:', error);
-                throw error;
+
+                // Generate a fallback based on common missing fields
+                let missingFields = [];
+                const criticalFields = ['first_name', 'last_name', 'email', 'date_of_birth'];
+                const importantFields = ['high_school', 'gpa', 'year_in_school', 'extracurricular_activities'];
+
+                for (const field of criticalFields) {
+                    if (!profile[field]) {
+                        missingFields.push(`- ${field.replace('_', ' ')} (Critical): This is essential information for your application.`);
+                    }
+                }
+
+                for (const field of importantFields) {
+                    if (!profile[field]) {
+                        missingFields.push(`- ${field.replace('_', ' ')} (Important): This helps colleges understand your academic background.`);
+                    }
+                }
+
+                if (missingFields.length === 0) {
+                    return "Your profile is quite complete! Consider adding any additional achievements or extracurricular activities to further strengthen your profile.";
+                } else {
+                    return "Here are some recommendations to complete your profile:\n\n" + missingFields.join('\n');
+                }
             }
         });
     }

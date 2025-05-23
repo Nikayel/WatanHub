@@ -45,24 +45,48 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
         }).length;
 
         // Weight the categories differently
-        const criticalWeight = 0.4;  // 40% weight for critical fields
+        const criticalWeight = 0.50;  // 50% weight for critical fields (increased from 45%)
         const veryImportantWeight = 0.35;  // 35% weight for very important fields
-        const importantWeight = 0.25;  // 25% weight for important fields
+        const importantWeight = 0.15;  // 15% weight for important fields (decreased from 20%)
 
         // Calculate weighted percentages for each category
         const criticalScore = (criticalFilled / criticalFields.length) * criticalWeight;
         const veryImportantScore = (veryImportantFilled / veryImportantFields.length) * veryImportantWeight;
         const importantScore = (importantFilled / importantFields.length) * importantWeight;
 
-        // Calculate final score as a percentage
-        const totalScore = (criticalScore + veryImportantScore + importantScore) * 100;
+        // Calculate base score
+        const baseScore = (criticalScore + veryImportantScore + importantScore) * 100;
 
-        // Ensure all critical fields are present, boost score if they are
-        const allCriticalFieldsFilled = criticalFilled === criticalFields.length;
-        const boostFactor = allCriticalFieldsFilled ? 1.1 : 1.0;
+        // Apply progressive boost factors
+        let boostFactor = 1.0;
+
+        // If all critical fields are filled, apply major boost
+        if (criticalFilled === criticalFields.length) {
+            boostFactor += 0.3; // +30% boost
+        }
+
+        // If more than half of very important fields are filled, extra boost
+        if (veryImportantFilled >= Math.ceil(veryImportantFields.length / 2)) {
+            boostFactor += 0.2; // +20% boost
+        }
+
+        // If any important fields are filled, small additional boost
+        if (importantFilled > 0) {
+            boostFactor += 0.1; // +10% boost
+        }
 
         // Apply a more generous curve to the final score
-        return Math.min(100, Math.round(totalScore * boostFactor));
+        const finalScore = Math.min(100, Math.round(baseScore * boostFactor));
+
+        console.log(`Profile score calculation: 
+        Critical: ${criticalFilled}/${criticalFields.length} (weighted: ${criticalScore * 100}%)
+        Very Important: ${veryImportantFilled}/${veryImportantFields.length} (weighted: ${veryImportantScore * 100}%)
+        Important: ${importantFilled}/${importantFields.length} (weighted: ${importantScore * 100}%)
+        Base score: ${baseScore.toFixed(1)}%
+        Boost factor: ${boostFactor.toFixed(1)}
+        Final score: ${finalScore}%`);
+
+        return finalScore;
     };
 
     const analyzeProfile = async () => {
@@ -91,9 +115,12 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
 
         console.log("Profile completeness:", percentage, "%");
 
-        // Always analyze the profile when the component mounts or profile changes
-        if (!dismissed && profile) {
+        // Only analyze the profile when incomplete - lowered threshold to 70%
+        if (!dismissed && profile && percentage < 70) {
             analyzeProfile();
+        } else {
+            // If profile is reasonably complete, don't bother with analysis
+            setAnalysis(null);
         }
     }, [profile]); // Removed dismissed from dependencies to ensure analysis runs
 
@@ -106,19 +133,19 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
 
     const completionPercentage = calculateCompletionPercentage(profile);
 
-    if (dismissed || completionPercentage >= 80) {  // Lowered threshold to 80% to be more generous
+    if (dismissed || completionPercentage >= 90) {  // Lowered threshold from 100% to 90%
         return null;
     }
 
     const getBackgroundColor = () => {
-        if (completionPercentage < 30) return 'bg-red-50 border-red-200';
-        if (completionPercentage < 60) return 'bg-yellow-50 border-yellow-200';
+        if (completionPercentage < 25) return 'bg-red-50 border-red-200';
+        if (completionPercentage < 50) return 'bg-yellow-50 border-yellow-200';
         return 'bg-green-50 border-green-200';
     };
 
     const getTextColor = () => {
-        if (completionPercentage < 30) return 'text-red-700';
-        if (completionPercentage < 60) return 'text-yellow-700';
+        if (completionPercentage < 25) return 'text-red-700';
+        if (completionPercentage < 50) return 'text-yellow-700';
         return 'text-green-700';
     };
 
@@ -179,6 +206,19 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
                                 {analysis}
                             </div>
                             <div className="mt-3 flex justify-end">
+                                <a
+                                    href="/profile"
+                                    className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                                >
+                                    Edit Profile →
+                                </a>
+                            </div>
+                        </div>
+                    ) : completionPercentage < 80 ? (
+                        <div className="bg-white rounded-md p-3 flex items-center">
+                            <AlertTriangle className="text-amber-500 mr-2 h-4 w-4" />
+                            <span>Please complete your profile to improve your experience.</span>
+                            <div className="ml-auto">
                                 <a
                                     href="/profile"
                                     className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"

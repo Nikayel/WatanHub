@@ -4,7 +4,8 @@ import { geminiService } from '../services/ApiService';
 import {
     School, GraduationCap, Building, ChevronDown, ChevronUp,
     CheckCircle, XCircle, ArrowRight, Clock, AlertCircle,
-    Globe, Loader, Info, HelpCircle, MessageSquare, X, ChevronLeft, ChevronRight
+    Globe, Loader, Info, HelpCircle, MessageSquare, X, ChevronLeft, ChevronRight,
+    FileText, Edit, Users
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -28,10 +29,10 @@ const translations = {
         tutorialDesc: 'Learn about the different types of school choices',
         closeChat: 'Close Chat',
         chatTitle: 'AI School Advisor',
-        chatPlaceholder: 'Ask about any college or university...',
+        chatPlaceholder: 'Choose a topic below...',
         chatButton: 'Get Insights',
-        chatIntro: 'Hello! I can provide insights about colleges or universities you\'re interested in. Just enter a school name below.',
-        aiTyping: 'AI is typing...',
+        chatIntro: 'Hello! I can provide insights about colleges or universities you\'re interested in. Please select one of the topics below.',
+        aiTyping: 'AI is thinking...',
         hidePanel: 'Hide Guide',
         showPanel: 'Show Guide',
         aiGuide: 'AI College Guide',
@@ -49,20 +50,47 @@ const translations = {
         aiFeedback: 'بازخورد هوش مصنوعی',
         notes: 'یادداشت‌ها:',
         updated: 'بروزرسانی:',
-        language: 'English',
-        changeTo: 'تغییر به انگلیسی',
+        language: 'English/دری',
+        changeTo: 'تغییر به انگلیسی/دری',
         tutorial: 'راهنمای انتخاب دانشگاه',
         tutorialDesc: 'درباره انواع مختلف انتخاب‌های دانشگاه بیاموزید',
         closeChat: 'بستن گفتگو',
         chatTitle: 'مشاور هوش مصنوعی دانشگاه',
-        chatPlaceholder: 'درباره هر کالج یا دانشگاهی بپرسید...',
+        chatPlaceholder: 'موضوعی را انتخاب کنید...',
         chatButton: 'دریافت اطلاعات',
-        chatIntro: 'سلام! من می‌توانم اطلاعاتی درباره کالج‌ها یا دانشگاه‌هایی که به آنها علاقه دارید ارائه دهم. فقط نام دانشگاه را در زیر وارد کنید.',
+        chatIntro: 'سلام! من می‌توانم اطلاعاتی درباره کالج‌ها یا دانشگاه‌هایی که به آنها علاقه دارید ارائه دهم. لطفاً یکی از موضوعات زیر را انتخاب کنید.',
         aiTyping: 'هوش مصنوعی در حال تایپ...',
         hidePanel: 'پنهان کردن راهنما',
         showPanel: 'نمایش راهنما',
         aiGuide: 'راهنمای هوش مصنوعی کالج',
         welcomeToGuide: 'به دستیار شخصی درخواست کالج هوش مصنوعی خود خوش آمدید! من می‌توانم به شما در درک انتخاب‌های مدرسه، استراتژی‌های درخواست و موارد دیگر کمک کنم.'
+    },
+    dr: {
+        targetSchools: 'پوهنتون‌های هدف',
+        safetySchools: 'پوهنتون‌های مطمئن',
+        stretchSchool: 'پوهنتون آرزویی',
+        schools: 'پوهنتون‌ها',
+        school: 'پوهنتون',
+        noSchoolChoices: 'این شاگرد هنوز پوهنتونی انتخاب نکرده است.',
+        getFeedback: 'دریافت نظر هوش مصنوعی',
+        generatingFeedback: 'در حال تولید نظر...',
+        aiFeedback: 'نظر هوش مصنوعی',
+        notes: 'یادداشت‌ها:',
+        updated: 'تجدید:',
+        language: 'فارسی/English',
+        changeTo: 'تبدیل به فارسی/انگلیسی',
+        tutorial: 'رهنمای انتخاب پوهنتون',
+        tutorialDesc: 'در مورد انواع مختلف انتخاب‌های پوهنتون بیاموزید',
+        closeChat: 'بستن گفتگو',
+        chatTitle: 'مشاور هوش مصنوعی پوهنتون',
+        chatPlaceholder: 'یک موضوع را انتخاب کنید...',
+        chatButton: 'دریافت معلومات',
+        chatIntro: 'سلام! من می‌توانم معلوماتی در مورد کالج‌ها یا پوهنتون‌هایی که به آنها علاقه دارید ارائه دهم. لطفاً یکی از موضوعات زیر را انتخاب کنید.',
+        aiTyping: 'هوش مصنوعی در حال نوشتن...',
+        hidePanel: 'پنهان کردن رهنما',
+        showPanel: 'نمایش رهنما',
+        aiGuide: 'رهنمای هوش مصنوعی پوهنتون',
+        welcomeToGuide: 'به دستیار شخصی درخواست پوهنتون هوش مصنوعی خود خوش آمدید! من می‌توانم به شما در درک انتخاب‌های پوهنتون، استراتژی‌های درخواست و موارد دیگر کمک کنم.'
     }
 };
 
@@ -142,6 +170,191 @@ const APPLICATION_STATUS_INFO = {
     }
 };
 
+// Define the standard chat topics for guided chat
+const chatTopics = {
+    en: [
+        {
+            id: 'school_types',
+            title: 'School Types',
+            description: 'Learn about target, safety, and stretch schools',
+            icon: School
+        },
+        {
+            id: 'application_tips',
+            title: 'Application Tips',
+            description: 'General advice for college applications',
+            icon: FileText
+        },
+        {
+            id: 'school_selection',
+            title: 'School Selection',
+            description: 'How to choose the right schools for you',
+            icon: CheckCircle
+        },
+        {
+            id: 'essays',
+            title: 'Essay Writing',
+            description: 'Tips for writing compelling essays',
+            icon: Edit
+        },
+        {
+            id: 'interviews',
+            title: 'Interview Preparation',
+            description: 'How to prepare for college interviews',
+            icon: Users
+        }
+    ],
+    fa: [
+        {
+            id: 'school_types',
+            title: 'انواع دانشگاه‌ها',
+            description: 'آشنایی با دانشگاه‌های هدف، امن و آرزویی',
+            icon: School
+        },
+        {
+            id: 'application_tips',
+            title: 'نکات درخواست',
+            description: 'توصیه‌های کلی برای درخواست‌های دانشگاهی',
+            icon: FileText
+        },
+        {
+            id: 'school_selection',
+            title: 'انتخاب دانشگاه',
+            description: 'چگونگی انتخاب دانشگاه‌های مناسب برای شما',
+            icon: CheckCircle
+        },
+        {
+            id: 'essays',
+            title: 'نوشتن مقاله',
+            description: 'نکاتی برای نوشتن مقالات متقاعدکننده',
+            icon: Edit
+        },
+        {
+            id: 'interviews',
+            title: 'آمادگی مصاحبه',
+            description: 'نحوه آمادگی برای مصاحبه‌های دانشگاهی',
+            icon: Users
+        }
+    ],
+    dr: [
+        {
+            id: 'school_types',
+            title: 'انواع پوهنتون‌ها',
+            description: 'آشنایی با پوهنتون‌های هدف، مطمئن و آرزویی',
+            icon: School
+        },
+        {
+            id: 'application_tips',
+            title: 'نکات درخواست',
+            description: 'توصیه‌های کلی برای درخواست‌های پوهنتونی',
+            icon: FileText
+        },
+        {
+            id: 'school_selection',
+            title: 'انتخاب پوهنتون',
+            description: 'چگونگی انتخاب پوهنتون‌های مناسب برای شما',
+            icon: CheckCircle
+        },
+        {
+            id: 'essays',
+            title: 'نوشتن مقاله',
+            description: 'نکاتی برای نوشتن مقالات متقاعدکننده',
+            icon: Edit
+        },
+        {
+            id: 'interviews',
+            title: 'آمادگی مصاحبه',
+            description: 'نحوه آمادگی برای مصاحبه‌های پوهنتونی',
+            icon: Users
+        }
+    ]
+};
+
+// Add followup questions for each topic
+const followupQuestions = {
+    en: {
+        'school_types': [
+            'What GPA do I need for target schools?',
+            'How many safety schools should I apply to?',
+            'Examples of good stretch schools'
+        ],
+        'application_tips': [
+            'When should I start my applications?',
+            'How important are extracurriculars?',
+            'Tips for recommendation letters'
+        ],
+        'school_selection': [
+            'Factors to consider in school selection',
+            'How to research colleges effectively',
+            'Balancing location and program quality'
+        ],
+        'essays': [
+            'Common essay mistakes to avoid',
+            'How to choose an essay topic',
+            'Tips for personal statement structure'
+        ],
+        'interviews': [
+            'Common interview questions',
+            'What to wear to college interviews',
+            'How to follow up after interviews'
+        ]
+    },
+    fa: {
+        'school_types': [
+            'برای دانشگاه‌های هدف به چه معدلی نیاز دارم؟',
+            'به چه تعداد دانشگاه امن باید درخواست دهم؟',
+            'نمونه‌هایی از دانشگاه‌های آرزویی مناسب'
+        ],
+        'application_tips': [
+            'چه زمانی باید درخواست‌هایم را شروع کنم؟',
+            'فعالیت‌های فوق برنامه چقدر اهمیت دارند؟',
+            'نکاتی برای توصیه‌نامه‌ها'
+        ],
+        'school_selection': [
+            'عوامل مهم در انتخاب دانشگاه',
+            'چگونه درباره دانشگاه‌ها تحقیق کنیم',
+            'تعادل بین مکان و کیفیت برنامه'
+        ],
+        'essays': [
+            'اشتباهات رایج مقاله که باید از آنها اجتناب کرد',
+            'چگونه یک موضوع مقاله انتخاب کنیم',
+            'نکاتی برای ساختار بیانیه شخصی'
+        ],
+        'interviews': [
+            'سوالات رایج مصاحبه',
+            'چه لباسی برای مصاحبه‌های دانشگاه بپوشیم',
+            'چگونه پس از مصاحبه پیگیری کنیم'
+        ]
+    },
+    dr: {
+        'school_types': [
+            'برای پوهنتون‌های هدف به چه نمراتی نیاز دارم؟',
+            'به چه تعداد پوهنتون مطمئن باید درخواست دهم؟',
+            'نمونه‌هایی از پوهنتون‌های آرزویی مناسب'
+        ],
+        'application_tips': [
+            'چه زمانی باید درخواست‌هایم را شروع کنم؟',
+            'فعالیت‌های فوق برنامه چقدر مهم هستند؟',
+            'نکاتی برای توصیه‌نامه‌ها'
+        ],
+        'school_selection': [
+            'عوامل مهم در انتخاب پوهنتون',
+            'چگونه درباره پوهنتون‌ها تحقیق کنیم',
+            'تعادل بین مکان و کیفیت برنامه'
+        ],
+        'essays': [
+            'اشتباهات رایج مقاله که باید از آنها پرهیز کرد',
+            'چگونه یک موضوع مقاله انتخاب کنیم',
+            'نکاتی برای ساختار بیانیه شخصی'
+        ],
+        'interviews': [
+            'سوالات رایج مصاحبه',
+            'چه لباسی برای مصاحبه‌های پوهنتون بپوشیم',
+            'چگونه پس از مصاحبه پیگیری کنیم'
+        ]
+    }
+};
+
 const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
     const [schoolChoices, setSchoolChoices] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -160,11 +373,14 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
     // New state for tutorial and chat functionality
     const [showTutorial, setShowTutorial] = useState(false);
     const [showChat, setShowChat] = useState(false);
-    const [chatInput, setChatInput] = useState('');
+    const [selectedTopic, setSelectedTopic] = useState(null);
     const [chatMessages, setChatMessages] = useState([]);
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [tutorialStep, setTutorialStep] = useState(0);
     const chatEndRef = useRef(null);
+
+    // State to track selected followup question
+    const [selectedFollowup, setSelectedFollowup] = useState(null);
 
     // New state for the collapsible right panel
     const [showRightPanel, setShowRightPanel] = useState(true);
@@ -207,13 +423,13 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
         }
     }, [chatMessages]);
 
-    // Initialize chat with welcome message
+    // Initialize chat with welcome message and guidance information
     useEffect(() => {
         if (showChat && chatMessages.length === 0) {
             setChatMessages([
                 {
                     role: 'ai',
-                    content: translations[language].chatIntro
+                    content: `${translations[language].chatIntro}\n\nI can help with:\n1. Information about specific colleges or universities\n2. Understanding target, safety, and stretch schools\n3. Application strategies for different types of schools\n4. Evaluating school fit for your profile`
                 }
             ]);
         }
@@ -241,7 +457,11 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
     };
 
     const toggleLanguage = () => {
-        setLanguage(prev => prev === 'en' ? 'fa' : 'en');
+        setLanguage(prev => {
+            if (prev === 'en') return 'fa';
+            if (prev === 'fa') return 'dr';
+            return 'en';
+        });
     };
 
     const getSchoolSpecificFeedback = async (school) => {
@@ -281,43 +501,6 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
             toast.error('Failed to generate AI feedback');
         } finally {
             setFeedbackLoading(false);
-        }
-    };
-
-    const sendChatMessage = async () => {
-        if (!chatInput.trim()) return;
-
-        const userMessage = chatInput.trim();
-        setChatInput('');
-
-        // Add user message to chat
-        setChatMessages(prev => [...prev, {
-            role: 'user',
-            content: userMessage
-        }]);
-
-        // Show loading indicator
-        setIsChatLoading(true);
-
-        try {
-            // Get AI response
-            const response = await geminiService.getSchoolChatResponse(userMessage);
-
-            // Add AI response to chat
-            setChatMessages(prev => [...prev, {
-                role: 'ai',
-                content: response
-            }]);
-        } catch (error) {
-            console.error('Error getting AI response:', error);
-
-            // Add error message to chat
-            setChatMessages(prev => [...prev, {
-                role: 'ai',
-                content: 'Sorry, I encountered an error while processing your request. Please try again.'
-            }]);
-        } finally {
-            setIsChatLoading(false);
         }
     };
 
@@ -482,7 +665,13 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                         </h3>
                     </div>
                     <button
-                        onClick={() => setShowChat(false)}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            console.log("Closing chat interface");
+                            setSelectedTopic(null);
+                            setSelectedFollowup(null);
+                            setShowChat(false);
+                        }}
                         className="text-gray-400 hover:text-gray-600"
                     >
                         <X size={20} />
@@ -491,6 +680,14 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
 
                 <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
                     <div className="space-y-4">
+                        {/* AI welcome message */}
+                        <div className="flex justify-start">
+                            <div className="max-w-[80%] rounded-lg p-3 bg-white border border-gray-200 text-gray-800">
+                                <p>{translations[language].chatIntro}</p>
+                            </div>
+                        </div>
+
+                        {/* Display chat message history */}
                         {chatMessages.map((msg, index) => (
                             <div
                                 key={index}
@@ -506,6 +703,8 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                                 </div>
                             </div>
                         ))}
+
+                        {/* Show AI is thinking indicator */}
                         {isChatLoading && (
                             <div className="flex justify-start">
                                 <div className="max-w-[80%] rounded-lg p-3 bg-white border border-gray-200">
@@ -520,34 +719,157 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                     </div>
                 </div>
 
-                <div className="p-4 border-t border-gray-200">
-                    <form
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            sendChatMessage();
-                        }}
-                        className="flex gap-2"
-                    >
-                        <input
-                            type="text"
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            placeholder={translations[language].chatPlaceholder}
-                            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            disabled={isChatLoading}
-                        />
-                        <button
-                            type="submit"
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
-                            disabled={!chatInput.trim() || isChatLoading}
-                        >
-                            {isChatLoading ? (
-                                <Loader className="h-5 w-5 animate-spin" />
-                            ) : (
-                                translations[language].chatButton
-                            )}
-                        </button>
-                    </form>
+                <div className="p-4 border-t border-gray-200 bg-white">
+                    {/* Show topic selection if no topic selected */}
+                    {!selectedTopic && (
+                        <div className="grid grid-cols-1 gap-2">
+                            <p className="text-sm text-gray-500 mb-2">{translations[language].chatPlaceholder}</p>
+                            {chatTopics[language].map((topic) => (
+                                <button
+                                    key={topic.id}
+                                    onClick={() => {
+                                        console.log("Selected topic:", topic.id);
+                                        setSelectedTopic(topic.id);
+                                        const userMessage = topic.title;
+
+                                        // Add user message
+                                        setChatMessages(prev => [...prev, {
+                                            role: 'user',
+                                            content: userMessage
+                                        }]);
+
+                                        // Show loading indicator
+                                        setIsChatLoading(true);
+
+                                        // Get AI response based on topic
+                                        setTimeout(() => {
+                                            let aiResponse;
+                                            // Use the predefined responses from API service
+                                            if (topic.id === 'school_types') {
+                                                aiResponse = geminiService.fallbackResponses.schoolTypes;
+                                            } else if (topic.id === 'application_tips') {
+                                                aiResponse = geminiService.fallbackResponses.applicationTips;
+                                            } else {
+                                                // For other topics, we'll use the API service
+                                                geminiService.getSchoolChatResponse(userMessage)
+                                                    .then(response => {
+                                                        setChatMessages(prev => [...prev, {
+                                                            role: 'ai',
+                                                            content: response
+                                                        }]);
+                                                        setIsChatLoading(false);
+                                                    })
+                                                    .catch(error => {
+                                                        console.error("Error getting response:", error);
+                                                        setChatMessages(prev => [...prev, {
+                                                            role: 'ai',
+                                                            content: "I'm sorry, I couldn't retrieve information about this topic. Please try again later."
+                                                        }]);
+                                                        setIsChatLoading(false);
+                                                    });
+                                                return; // Exit early for API calls
+                                            }
+
+                                            // Add AI response for predefined topics
+                                            setChatMessages(prev => [...prev, {
+                                                role: 'ai',
+                                                content: aiResponse
+                                            }]);
+                                            setIsChatLoading(false);
+                                        }, 1000);
+                                    }}
+                                    className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition"
+                                >
+                                    <div className="p-2 rounded-full bg-indigo-100 mr-3">
+                                        <topic.icon className="h-5 w-5 text-indigo-600" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="font-medium text-gray-800">{topic.title}</p>
+                                        <p className="text-xs text-gray-500">{topic.description}</p>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Show followup questions if a topic is selected */}
+                    {selectedTopic && !selectedFollowup && (
+                        <div className="grid grid-cols-1 gap-2">
+                            <div className="flex justify-between items-center mb-2">
+                                <p className="text-sm text-gray-500">Follow-up questions</p>
+                                <button
+                                    onClick={() => setSelectedTopic(null)}
+                                    className="text-xs text-indigo-600 hover:underline"
+                                >
+                                    Back to topics
+                                </button>
+                            </div>
+
+                            {followupQuestions[language][selectedTopic].map((question, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => {
+                                        console.log("Selected followup question:", question);
+                                        setSelectedFollowup(question);
+
+                                        // Add user message
+                                        setChatMessages(prev => [...prev, {
+                                            role: 'user',
+                                            content: question
+                                        }]);
+
+                                        // Show loading indicator
+                                        setIsChatLoading(true);
+
+                                        // Use API to get answer
+                                        geminiService.getSchoolChatResponse(question)
+                                            .then(response => {
+                                                setChatMessages(prev => [...prev, {
+                                                    role: 'ai',
+                                                    content: response
+                                                }]);
+                                                setIsChatLoading(false);
+                                            })
+                                            .catch(error => {
+                                                console.error("Error getting response:", error);
+                                                setChatMessages(prev => [...prev, {
+                                                    role: 'ai',
+                                                    content: "I'm sorry, I couldn't retrieve information about this question. Please try again later."
+                                                }]);
+                                                setIsChatLoading(false);
+                                            });
+                                    }}
+                                    className="text-left p-3 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition"
+                                >
+                                    <p className="text-gray-800">{question}</p>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Show reset button if we're in a followup */}
+                    {selectedFollowup && (
+                        <div className="flex justify-between">
+                            <button
+                                onClick={() => {
+                                    setSelectedFollowup(null);
+                                }}
+                                className="px-4 py-2 text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition"
+                            >
+                                More questions
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    setSelectedTopic(null);
+                                    setSelectedFollowup(null);
+                                }}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                            >
+                                New topic
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -585,87 +907,313 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                             </div>
                         </div>
 
-                        {/* School type explanations */}
+                        {/* Main Options - Simplified */}
                         <div className="space-y-4 mb-4">
-                            <div className="bg-white rounded-lg p-3 shadow-sm">
-                                <h4 className="font-medium text-indigo-700 mb-2">School Types Guide</h4>
-                                {Object.entries(PREFERENCE_TYPES).map(([key, type]) => (
-                                    <div key={key} className={`p-2 rounded-lg ${type.color} mb-2`}>
-                                        <div className="flex items-center">
-                                            <type.icon className={type.iconColor} size={16} />
-                                            <span className="ml-2 font-medium">{language === 'en' ? type.name : type.nameFa}</span>
-                                        </div>
-                                        <p className="text-xs mt-1 ml-6">
-                                            {language === 'en' ? type.description : type.descriptionFa}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Chat interface button */}
+                            {/* Chat interface button - Fixed with direct function */}
                             <button
-                                onClick={() => setShowChat(true)}
-                                className="w-full bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-between"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    console.log("Chat button clicked");
+
+                                    // Force the chat to open
+                                    setShowChat(true);
+
+                                    // Prepare default messages if needed
+                                    if (chatMessages.length <= 1) {
+                                        console.log("Setting up initial chat messages");
+                                        const schoolTypesInfo = `Here's a brief overview of school types:
+
+🎯 **Target Schools** are schools where your academic profile (GPA, test scores, etc.) matches their typical admitted student profile. You have a reasonable chance (40-70%) of being accepted.
+
+🔒 **Safety Schools** are schools where your academic credentials exceed their typical requirements, giving you a high probability (70-90%) of acceptance. These provide a backup option.
+
+⭐ **Stretch Schools** (sometimes called "reach schools") are more selective institutions where your profile may be below their typical admitted student. Acceptance chances are lower (less than 30%), but still possible.
+
+A balanced application portfolio typically includes:
+- 4-5 Target Schools
+- 2-3 Safety Schools
+- 1-2 Stretch Schools
+
+Would you like specific advice about any of these categories?`;
+
+                                        setChatMessages([
+                                            {
+                                                role: 'ai',
+                                                content: `${translations[language].chatIntro}\n\nI can help with:\n1. Information about specific colleges or universities\n2. Understanding target, safety, and stretch schools\n3. Application strategies for different types of schools\n4. Evaluating school fit for your profile`
+                                            },
+                                            {
+                                                role: 'user',
+                                                content: 'Tell me about different types of schools'
+                                            },
+                                            {
+                                                role: 'ai',
+                                                content: schoolTypesInfo
+                                            }
+                                        ]);
+                                    }
+
+                                    // Use toast to confirm click for debugging
+                                    toast.success("Opening chat interface");
+                                }}
+                                className="w-full bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-between"
                             >
                                 <div className="flex items-center">
-                                    <div className="p-2 bg-green-100 rounded-full mr-2">
-                                        <MessageSquare className="text-green-600" size={16} />
+                                    <div className="p-2 bg-green-100 rounded-full mr-3">
+                                        <MessageSquare className="text-green-600" size={20} />
                                     </div>
-                                    <span className="text-sm font-medium">Chat with AI Advisor</span>
+                                    <span className="text-base font-medium">Chat with AI Advisor</span>
                                 </div>
                                 <ChevronRight size={16} />
                             </button>
 
                             {/* Tutorial button */}
                             <button
-                                onClick={() => setShowTutorial(true)}
-                                className="w-full bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-between"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    console.log("Tutorial button clicked");
+                                    setShowTutorial(true);
+                                    toast.success("Opening tutorial");
+                                }}
+                                className="w-full bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-between"
                             >
                                 <div className="flex items-center">
-                                    <div className="p-2 bg-blue-100 rounded-full mr-2">
-                                        <HelpCircle className="text-blue-600" size={16} />
+                                    <div className="p-2 bg-blue-100 rounded-full mr-3">
+                                        <HelpCircle className="text-blue-600" size={20} />
                                     </div>
-                                    <span className="text-sm font-medium">{t.tutorial}</span>
+                                    <span className="text-base font-medium">{t.tutorial}</span>
                                 </div>
                                 <ChevronRight size={16} />
                             </button>
                         </div>
 
-                        {/* AI Feedback section */}
+                        {/* AI Feedback section - Keep this but remove the button since feedback is available when schools are expanded */}
                         {aiFeedback && (
-                            <div className="bg-white rounded-lg p-3 shadow-sm mb-4">
-                                <div className="flex items-center mb-2">
+                            <div className="bg-white rounded-lg p-4 shadow-sm mb-4">
+                                <div className="flex items-center mb-3">
                                     <div className="h-6 w-6 rounded-full bg-indigo-600 text-white flex items-center justify-center mr-2 flex-shrink-0">AI</div>
-                                    <h4 className="font-medium text-sm">{t.aiFeedback}</h4>
+                                    <h4 className="font-medium">{t.aiFeedback}</h4>
                                 </div>
-                                <div className="text-xs whitespace-pre-line ml-8">
+                                <div className="text-sm whitespace-pre-line">
                                     {aiFeedback}
                                 </div>
                             </div>
-                        )}
-
-                        {/* AI Feedback Button */}
-                        {schoolChoices.length > 0 && (
-                            <button
-                                onClick={getGeminiAIFeedback}
-                                disabled={feedbackLoading}
-                                className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center transition-colors mb-4"
-                            >
-                                {feedbackLoading ? (
-                                    <>
-                                        <Loader size={16} className="mr-2 animate-spin" />
-                                        {t.generatingFeedback}
-                                    </>
-                                ) : (
-                                    <>{t.getFeedback}</>
-                                )}
-                            </button>
                         )}
                     </div>
                 </div>
             </div>
         );
     };
+
+    // Fix the "Show AI Panel" button when panel is hidden
+    const renderShowAIPanelButton = () => {
+        if (!showRightPanel) {
+            return (
+                <div className="mt-4">
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            console.log("Show AI Panel button clicked");
+                            setShowRightPanel(true);
+                            toast.success("Opening AI Advisor panel");
+                        }}
+                        className="mb-3 w-full py-3 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center transition-colors"
+                    >
+                        <MessageSquare size={18} className="mr-2" />
+                        Show AI Advisor
+                    </button>
+                </div>
+            );
+        }
+        return null;
+    };
+
+    // Add a more explicit showRightPanel button when panel is collapsed
+    const renderMainContent = () => (
+        <div className={`transition-all duration-300 ${showRightPanel ? 'pr-80' : ''}`}>
+            {/* Language toggle */}
+            <div className="flex flex-wrap justify-between items-center mb-4">
+                <button
+                    onClick={toggleLanguage}
+                    className="flex items-center text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-200 transition"
+                >
+                    <Globe size={14} className="mr-1" />
+                    <span>{translations[language].language}</span>
+                </button>
+
+                <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        console.log("Toggle right panel button clicked");
+                        setShowRightPanel(!showRightPanel);
+                    }}
+                    className="flex items-center text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-md hover:bg-indigo-200 transition"
+                >
+                    {showRightPanel ? (
+                        <>
+                            <ChevronRight size={14} className="mr-1" />
+                            <span>{t.hidePanel}</span>
+                        </>
+                    ) : (
+                        <>
+                            <ChevronLeft size={14} className="mr-1" />
+                            <span>{t.showPanel}</span>
+                        </>
+                    )}
+                </button>
+            </div>
+
+            {/* Overview stats */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+                {Object.entries(PREFERENCE_TYPES).map(([type, info]) => {
+                    const Icon = info.icon;
+                    const name = language === 'en' ? info.name : info.nameFa;
+
+                    return (
+                        <div
+                            key={type}
+                            className={`p-3 rounded-lg border transition-all hover:shadow-md cursor-pointer ${info.color}`}
+                            onClick={() => toggleCategory(type)}
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                    <Icon className={info.iconColor} size={16} />
+                                    <div className="font-semibold text-sm ml-2">{counts[type]}</div>
+                                </div>
+                                <div className="text-xs">{name}</div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* School lists by category */}
+            {Object.entries(PREFERENCE_TYPES).map(([type, info]) => {
+                const categorySchools = getCategorySchools(type);
+                if (categorySchools.length === 0) return null;
+
+                const Icon = info.icon;
+                const name = language === 'en' ? info.name : info.nameFa;
+
+                return (
+                    <div key={type} className={`border rounded-lg overflow-hidden mb-3 transition-all ${expandedCategories[type] ? 'shadow-sm' : ''}`}>
+                        <div
+                            className={`${info.color} p-3 flex justify-between items-center cursor-pointer transition-colors hover:shadow-inner`}
+                            onClick={() => toggleCategory(type)}
+                        >
+                            <div className="flex items-center">
+                                <Icon className={info.iconColor} size={16} />
+                                <span className="ml-2 font-medium">{name}</span>
+                                <span className="ml-2 text-xs opacity-75">({categorySchools.length})</span>
+                            </div>
+                            {expandedCategories[type] ?
+                                <ChevronUp size={16} /> :
+                                <ChevronDown size={16} />
+                            }
+                        </div>
+
+                        {expandedCategories[type] && (
+                            <div className="divide-y">
+                                {categorySchools.map(school => {
+                                    const statusInfo = APPLICATION_STATUS_INFO[school.application_status] || APPLICATION_STATUS_INFO.planning;
+                                    const StatusIcon = statusInfo.icon;
+                                    const statusLabel = language === 'en' ? statusInfo.label : statusInfo.labelFa;
+                                    const notesLabel = t.notes;
+                                    const updatedLabel = t.updated;
+                                    const isExpanded = expandedSchools[school.id] === true;
+
+                                    return (
+                                        <div key={school.id} className="overflow-hidden transition-all duration-200">
+                                            <div
+                                                className="p-3 bg-white hover:bg-gray-50 flex justify-between items-center cursor-pointer"
+                                                onClick={() => toggleSchoolExpansion(school.id)}
+                                            >
+                                                <div className="flex items-center">
+                                                    <StatusIcon size={14} className={`${statusInfo.color.split(' ')[1]} mr-2 p-0.5 rounded-full`} />
+                                                    <div>
+                                                        <h4 className="font-medium text-sm flex items-center">
+                                                            {school.school_name}
+                                                            {insightLoading[school.id] && (
+                                                                <Loader size={12} className="ml-2 animate-spin text-indigo-600" />
+                                                            )}
+                                                        </h4>
+                                                        <p className="text-xs text-gray-500">{school.major_name}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <span className={`${statusInfo.color} px-2 py-0.5 rounded-md text-xs font-medium mr-2`}>
+                                                        {statusLabel}
+                                                    </span>
+                                                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                                </div>
+                                            </div>
+
+                                            {isExpanded && (
+                                                <div className="p-3 pt-0 bg-gray-50">
+                                                    {school.notes && (
+                                                        <div className="mt-2 text-xs bg-white p-2 rounded-md border border-gray-200">
+                                                            <span className="font-medium">{notesLabel}</span> {school.notes}
+                                                        </div>
+                                                    )}
+
+                                                    {/* AI Insight card - Chat-like style */}
+                                                    <div className="mt-2">
+                                                        {insightLoading[school.id] ? (
+                                                            <div className="flex items-center justify-center bg-indigo-50 border border-indigo-100 p-2 rounded-md h-16">
+                                                                <Loader size={16} className="mr-2 animate-spin text-indigo-600" />
+                                                                <span className="text-xs text-indigo-700">Loading insights...</span>
+                                                            </div>
+                                                        ) : schoolSpecificFeedback[school.id] ? (
+                                                            <div className="flex mt-3">
+                                                                <div className="bg-white rounded-lg rounded-bl-none border border-indigo-100 p-3 max-w-[90%] shadow-sm">
+                                                                    <div className="flex items-center mb-1">
+                                                                        <div className="h-6 w-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs mr-2">AI</div>
+                                                                        <span className="text-xs font-medium text-indigo-700">School Insight</span>
+                                                                    </div>
+                                                                    <p className="text-xs text-gray-700 whitespace-pre-line">{schoolSpecificFeedback[school.id]}</p>
+                                                                </div>
+                                                            </div>
+                                                        ) : forMentor && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    getSchoolSpecificFeedback(school);
+                                                                }}
+                                                                className="w-full text-xs text-indigo-600 hover:text-indigo-800 bg-indigo-50 border border-indigo-100 p-2 rounded-md text-center"
+                                                            >
+                                                                Get AI insights for {school.school_name}
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="mt-2 text-xs text-gray-500 flex justify-between">
+                                                        <span>{updatedLabel} {new Date(school.updated_at).toLocaleDateString(language === 'en' ? 'en-US' : 'fa-IR')}</span>
+                                                        {forMentor && !schoolSpecificFeedback[school.id] && !insightLoading[school.id] && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    getSchoolSpecificFeedback(school);
+                                                                }}
+                                                                className="text-indigo-600 hover:text-indigo-800"
+                                                            >
+                                                                Generate Insight
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+
+            {/* Show AI Panel button if needed */}
+            {renderShowAIPanelButton()}
+        </div>
+    );
 
     if (loading) {
         return (
@@ -687,218 +1235,7 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
 
     return (
         <div className={`${language === 'fa' ? 'rtl' : 'ltr'} relative`}>
-            {/* Main content with padding to accommodate right panel */}
-            <div className={`transition-all duration-300 ${showRightPanel ? 'pr-80' : ''}`}>
-                {/* Language toggle */}
-                <div className="flex flex-wrap justify-between items-center mb-4">
-                    <button
-                        onClick={toggleLanguage}
-                        className="flex items-center text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-200 transition"
-                    >
-                        <Globe size={14} className="mr-1" />
-                        <span>{translations[language].language}</span>
-                    </button>
-
-                    <button
-                        onClick={() => setShowRightPanel(!showRightPanel)}
-                        className="md:hidden flex items-center text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-md hover:bg-indigo-200 transition"
-                    >
-                        {showRightPanel ? (
-                            <>
-                                <ChevronRight size={14} className="mr-1" />
-                                <span>{t.hidePanel}</span>
-                            </>
-                        ) : (
-                            <>
-                                <ChevronLeft size={14} className="mr-1" />
-                                <span>{t.showPanel}</span>
-                            </>
-                        )}
-                    </button>
-                </div>
-
-                {/* Overview stats */}
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                    {Object.entries(PREFERENCE_TYPES).map(([type, info]) => {
-                        const Icon = info.icon;
-                        const name = language === 'en' ? info.name : info.nameFa;
-
-                        return (
-                            <div
-                                key={type}
-                                className={`p-3 rounded-lg border transition-all hover:shadow-md cursor-pointer ${info.color}`}
-                                onClick={() => toggleCategory(type)}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center">
-                                        <Icon className={info.iconColor} size={16} />
-                                        <div className="font-semibold text-sm ml-2">{counts[type]}</div>
-                                    </div>
-                                    <div className="text-xs">{name}</div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/* School lists by category */}
-                {Object.entries(PREFERENCE_TYPES).map(([type, info]) => {
-                    const categorySchools = getCategorySchools(type);
-                    if (categorySchools.length === 0) return null;
-
-                    const Icon = info.icon;
-                    const name = language === 'en' ? info.name : info.nameFa;
-
-                    return (
-                        <div key={type} className={`border rounded-lg overflow-hidden mb-3 transition-all ${expandedCategories[type] ? 'shadow-sm' : ''}`}>
-                            <div
-                                className={`${info.color} p-3 flex justify-between items-center cursor-pointer transition-colors hover:shadow-inner`}
-                                onClick={() => toggleCategory(type)}
-                            >
-                                <div className="flex items-center">
-                                    <Icon className={info.iconColor} size={16} />
-                                    <span className="ml-2 font-medium">{name}</span>
-                                    <span className="ml-2 text-xs opacity-75">({categorySchools.length})</span>
-                                </div>
-                                {expandedCategories[type] ?
-                                    <ChevronUp size={16} /> :
-                                    <ChevronDown size={16} />
-                                }
-                            </div>
-
-                            {expandedCategories[type] && (
-                                <div className="divide-y">
-                                    {categorySchools.map(school => {
-                                        const statusInfo = APPLICATION_STATUS_INFO[school.application_status] || APPLICATION_STATUS_INFO.planning;
-                                        const StatusIcon = statusInfo.icon;
-                                        const statusLabel = language === 'en' ? statusInfo.label : statusInfo.labelFa;
-                                        const notesLabel = t.notes;
-                                        const updatedLabel = t.updated;
-                                        const isExpanded = expandedSchools[school.id] === true;
-
-                                        return (
-                                            <div key={school.id} className="overflow-hidden transition-all duration-200">
-                                                <div
-                                                    className="p-3 bg-white hover:bg-gray-50 flex justify-between items-center cursor-pointer"
-                                                    onClick={() => toggleSchoolExpansion(school.id)}
-                                                >
-                                                    <div className="flex items-center">
-                                                        <StatusIcon size={14} className={`${statusInfo.color.split(' ')[1]} mr-2 p-0.5 rounded-full`} />
-                                                        <div>
-                                                            <h4 className="font-medium text-sm flex items-center">
-                                                                {school.school_name}
-                                                                {insightLoading[school.id] && (
-                                                                    <Loader size={12} className="ml-2 animate-spin text-indigo-600" />
-                                                                )}
-                                                            </h4>
-                                                            <p className="text-xs text-gray-500">{school.major_name}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center">
-                                                        <span className={`${statusInfo.color} px-2 py-0.5 rounded-md text-xs font-medium mr-2`}>
-                                                            {statusLabel}
-                                                        </span>
-                                                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                                    </div>
-                                                </div>
-
-                                                {isExpanded && (
-                                                    <div className="p-3 pt-0 bg-gray-50">
-                                                        {school.notes && (
-                                                            <div className="mt-2 text-xs bg-white p-2 rounded-md border border-gray-200">
-                                                                <span className="font-medium">{notesLabel}</span> {school.notes}
-                                                            </div>
-                                                        )}
-
-                                                        {/* AI Insight card - Chat-like style */}
-                                                        <div className="mt-2">
-                                                            {insightLoading[school.id] ? (
-                                                                <div className="flex items-center justify-center bg-indigo-50 border border-indigo-100 p-2 rounded-md h-16">
-                                                                    <Loader size={16} className="mr-2 animate-spin text-indigo-600" />
-                                                                    <span className="text-xs text-indigo-700">Loading insights...</span>
-                                                                </div>
-                                                            ) : schoolSpecificFeedback[school.id] ? (
-                                                                <div className="flex mt-3">
-                                                                    <div className="bg-white rounded-lg rounded-bl-none border border-indigo-100 p-3 max-w-[90%] shadow-sm">
-                                                                        <div className="flex items-center mb-1">
-                                                                            <div className="h-6 w-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs mr-2">AI</div>
-                                                                            <span className="text-xs font-medium text-indigo-700">School Insight</span>
-                                                                        </div>
-                                                                        <p className="text-xs text-gray-700 whitespace-pre-line">{schoolSpecificFeedback[school.id]}</p>
-                                                                    </div>
-                                                                </div>
-                                                            ) : forMentor && (
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        getSchoolSpecificFeedback(school);
-                                                                    }}
-                                                                    className="w-full text-xs text-indigo-600 hover:text-indigo-800 bg-indigo-50 border border-indigo-100 p-2 rounded-md text-center"
-                                                                >
-                                                                    Get AI insights for {school.school_name}
-                                                                </button>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="mt-2 text-xs text-gray-500 flex justify-between">
-                                                            <span>{updatedLabel} {new Date(school.updated_at).toLocaleDateString(language === 'en' ? 'en-US' : 'fa-IR')}</span>
-                                                            {forMentor && !schoolSpecificFeedback[school.id] && !insightLoading[school.id] && (
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        getSchoolSpecificFeedback(school);
-                                                                    }}
-                                                                    className="text-indigo-600 hover:text-indigo-800"
-                                                                >
-                                                                    Generate Insight
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-
-                {/* AI Feedback Button - moved to right panel */}
-                {!showRightPanel && schoolChoices.length > 0 && (
-                    <div className="mt-4">
-                        <button
-                            onClick={getGeminiAIFeedback}
-                            disabled={feedbackLoading}
-                            className="mb-3 w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center transition-colors"
-                        >
-                            {feedbackLoading ? (
-                                <>
-                                    <Loader size={16} className="mr-2 animate-spin" />
-                                    {t.generatingFeedback}
-                                </>
-                            ) : (
-                                <>{t.getFeedback}</>
-                            )}
-                        </button>
-
-                        {aiFeedback && (
-                            <div className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition">
-                                <div className="flex items-start mb-3">
-                                    <div className="h-8 w-8 rounded-full bg-indigo-600 text-white flex items-center justify-center mr-3 flex-shrink-0">AI</div>
-                                    <div>
-                                        <h3 className="font-medium">{t.aiFeedback}</h3>
-                                        <div className="text-sm whitespace-pre-line mt-2">
-                                            {aiFeedback}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
+            {renderMainContent()}
 
             {/* Render the right panel */}
             {renderRightPanel()}
