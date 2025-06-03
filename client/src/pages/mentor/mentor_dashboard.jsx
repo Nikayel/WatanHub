@@ -235,25 +235,25 @@ const MentorDashboard = () => {
             console.log('Fetching statistics for mentor:', mentorId);
 
             // Get meeting count
-            const { data: meetingsData, error: meetingsError } = await supabase
+            const { count: meetingsCount, error: meetingsError } = await supabase
                 .from('mentor_meetings')
-                .select('count')
+                .select('id', { count: 'exact', head: true })
                 .eq('mentor_id', mentorId);
 
             if (meetingsError) throw meetingsError;
 
             // Get notes count
-            const { data: notesData, error: notesError } = await supabase
+            const { count: notesCount, error: notesError } = await supabase
                 .from('mentor_notes')
-                .select('count')
+                .select('id', { count: 'exact', head: true })
                 .eq('mentor_id', mentorId);
 
             if (notesError) throw notesError;
 
             // Get acknowledged notes count
-            const { data: ackNotesData, error: ackNotesError } = await supabase
+            const { count: ackNotesCount, error: ackNotesError } = await supabase
                 .from('mentor_notes')
-                .select('count')
+                .select('id', { count: 'exact', head: true })
                 .eq('mentor_id', mentorId)
                 .eq('acknowledged', true);
 
@@ -261,10 +261,10 @@ const MentorDashboard = () => {
 
             const newStats = {
                 totalNotes: students.length,
-                totalMeetings: meetingsData[0]?.count || 0,
+                totalMeetings: meetingsCount || 0,
                 meetingsThisMonth: 0, // This needs to be calculated based on the current month
-                notesMade: notesData[0]?.count || 0,
-                notesAcknowledged: ackNotesData[0]?.count || 0
+                notesMade: notesCount || 0,
+                notesAcknowledged: ackNotesCount || 0
             };
 
             console.log('Updated statistics:', newStats);
