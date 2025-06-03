@@ -88,3 +88,17 @@ export const sendStudentAssignedEmail = async ({ studentEmail, mentorName }) => 
     return { status: 500, body: { error: 'Failed to notify student.' } };
   }
 };
+
+import jwt from 'jsonwebtoken';
+
+export const generateToken = (userId) => {
+  const secret = process.env.JWT_SECRET || 'change-me';
+  return jwt.sign({ userId }, secret, { expiresIn: '1h' });
+};
+
+export const verifyToken = (token) => {
+  const secret = process.env.JWT_SECRET || 'change-me';
+  return jwt.verify(token, secret);
+};
+
+export { resend };
