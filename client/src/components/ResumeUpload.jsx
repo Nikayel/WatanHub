@@ -87,9 +87,9 @@ const ResumeUpload = ({ studentId = null, showTitle = true, compact = false }) =
         setUploading(true);
 
         try {
-            // Create unique filename
+            // Create unique filename with folder structure
             const fileExt = file.name.split('.').pop();
-            const fileName = `resume-${targetStudentId}-${Date.now()}.${fileExt}`;
+            const fileName = `${targetStudentId}/resume-${Date.now()}.${fileExt}`;
 
             // Upload to Supabase storage
             const { data: uploadData, error: uploadError } = await supabase.storage
@@ -140,8 +140,9 @@ const ResumeUpload = ({ studentId = null, showTitle = true, compact = false }) =
             setResume(data);
             toast.success('Resume uploaded successfully!');
         } catch (error) {
-            console.error('Error uploading resume:', error);
-            toast.error('Failed to upload resume');
+            console.error('Error uploading resume:', error.message || error);
+            console.error('Full error object:', error);
+            toast.error(`Failed to upload resume: ${error.message || 'Unknown error'}`);
         } finally {
             setUploading(false);
         }

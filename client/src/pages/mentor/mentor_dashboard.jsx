@@ -5,19 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthContext';
 import { toast } from 'sonner';
-import {
-    PieChart,
-    Pie,
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
-    ResponsiveContainer,
-    Cell
-} from 'recharts';
+// Charts removed to simplify dashboard
 import OutcomeTagging from '../../components/OutcomeTagging';
 import OutcomeModal from '../../components/OutcomeModal';
 import StudentSchoolChoicesViewer from '../../components/StudentSchoolChoicesViewer';
@@ -95,7 +83,8 @@ const MentorDashboard = () => {
     const [studentDetailModalOpen, setStudentDetailModalOpen] = useState(false);
     const [detailModalStudent, setDetailModalStudent] = useState(null);
 
-    // Chart colors
+    // Chart colors - kept for future analytics features
+    // eslint-disable-next-line no-unused-vars
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
     // ─── Fetch mentor profile on mount ─────────────────────────────────────────────
@@ -134,38 +123,73 @@ const MentorDashboard = () => {
         }
     };
 
-    const fetchAssignedStudents = async (mentorId) => {
+    const fetchAssignedStudents = async (mentorUserId) => {
         try {
+            console.log('🔍 DEBUG: Starting fetchAssignedStudents with mentorUserId:', mentorUserId);
+
+            // First get the mentor table ID from the mentor user_id
+            const { data: mentorData, error: mentorError } = await supabase
+                .from('mentors')
+                .select('id')
+                .eq('user_id', mentorUserId)
+                .single();
+
+            console.log('🔍 DEBUG: Mentor lookup result:', { mentorData, mentorError });
+
+            if (mentorError || !mentorData) {
+                console.error('Mentor not found:', mentorError);
+                return;
+            }
+
+            // Now get students assigned to this mentor using mentor.id
             const { data, error } = await supabase
                 .from('mentor_student')
-                .select('profiles(*)')
-                .eq('mentor_id', mentorId);
+                .select(`
+                    students:student_id (
+                        *,
+                        users:user_id (
+                            email
+                        )
+                    )
+                `)
+                .eq('mentor_id', mentorData.id);
+
+            console.log('🔍 DEBUG: Mentor-student lookup result:', { data, error });
 
             if (error) throw error;
 
-            const loadedStudents = data.map((item) => item.profiles);
+            const loadedStudents = data.map((item) => ({
+                ...item.students,
+                email: item.students.users?.email,
+                // Use user_id for compatibility with other components
+                id: item.students.user_id,
+                user_id: item.students.user_id
+            }));
+
+            console.log('🔍 DEBUG: Processed students:', loadedStudents);
             setStudents(loadedStudents);
 
             // Initialize stats.totalNotes to number of students for placeholder
             setStats((prev) => ({ ...prev, totalNotes: loadedStudents.length }));
 
-            await fetchStudentNoteCounts(mentorId, loadedStudents);
-            await fetchStatistics(mentorId);
+            await fetchStudentNoteCounts(mentorUserId, loadedStudents);
+            await fetchStatistics(mentorUserId);
             await fetchDemographicData(loadedStudents);
         } catch (error) {
             console.error('Error fetching assigned students:', error.message);
+            console.error('Full error:', error);
         }
     };
 
-    const fetchStudentNoteCounts = async (mentorId, students) => {
+    const fetchStudentNoteCounts = async (mentorUserId, students) => {
         try {
             let counts = {};
             for (const student of students) {
                 const { count, error } = await supabase
                     .from('mentor_notes')
                     .select('id', { count: 'exact', head: true })
-                    .eq('student_id', student.id)
-                    .eq('mentor_id', mentorId);
+                    .eq('student_id', student.user_id) // Use student user_id for notes
+                    .eq('mentor_id', mentorUserId); // Use mentor user_id for notes
                 if (!error) {
                     counts[student.id] = count || 0;
                 }
@@ -228,27 +252,27 @@ const MentorDashboard = () => {
         }
     };
 
-    const fetchStatistics = async (mentorId) => {
+    const fetchStatistics = async (mentorUserId) => {
         try {
             // Meetings count
             const { data: meetingsData, error: meetingsError } = await supabase
                 .from('mentor_meetings')
                 .select('count')
-                .eq('mentor_id', mentorId);
+                .eq('mentor_id', mentorUserId);
             if (meetingsError) throw meetingsError;
 
             // Notes made
             const { data: notesData, error: notesError } = await supabase
                 .from('mentor_notes')
                 .select('count')
-                .eq('mentor_id', mentorId);
+                .eq('mentor_id', mentorUserId);
             if (notesError) throw notesError;
 
             // Acknowledged notes
             const { data: ackNotesData, error: ackNotesError } = await supabase
                 .from('mentor_notes')
                 .select('count')
-                .eq('mentor_id', mentorId)
+                .eq('mentor_id', mentorUserId)
                 .eq('acknowledged', true);
             if (ackNotesError) throw ackNotesError;
 
@@ -273,16 +297,16 @@ const MentorDashboard = () => {
             setNotesChannel(null);
         }
 
-        // Immediately fetch notes and outcomes for that student
-        await fetchStudentNotes(student.id);
-        await fetchStudentOutcomes(student.id);
+        // Immediately fetch notes and outcomes for that student (using user_id)
+        await fetchStudentNotes(student.user_id);
+        await fetchStudentOutcomes(student.user_id);
 
         // Reset inner detail tab to 'notes' by default
         setDetailTab('notes');
         setOutcomeType('');
     };
 
-    const fetchStudentNotes = async (studentId) => {
+    const fetchStudentNotes = async (studentUserId) => {
         try {
             setStudentNotes([]);
             if (!user?.id) {
@@ -294,8 +318,8 @@ const MentorDashboard = () => {
             const { data, error } = await supabase
                 .from('mentor_notes')
                 .select('*')
-                .eq('student_id', studentId)
-                .eq('mentor_id', user.id)
+                .eq('student_id', studentUserId) // Use student user_id
+                .eq('mentor_id', user.id) // Use mentor user_id
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -311,14 +335,14 @@ const MentorDashboard = () => {
 
             // Subscribe to real‐time changes for this student's notes
             const channel = supabase
-                .channel(`student-notes-${studentId}`)
+                .channel(`student-notes-${studentUserId}`)
                 .on(
                     'postgres_changes',
                     {
                         event: '*',
                         schema: 'public',
                         table: 'mentor_notes',
-                        filter: `student_id=eq.${studentId}`
+                        filter: `student_id=eq.${studentUserId}`
                     },
                     async (payload) => {
                         // INSERT
@@ -365,7 +389,7 @@ const MentorDashboard = () => {
                         const { data: refreshedData, error: refreshError } = await supabase
                             .from('mentor_notes')
                             .select('*')
-                            .eq('student_id', studentId)
+                            .eq('student_id', studentUserId)
                             .eq('mentor_id', user.id)
                             .order('created_at', { ascending: false });
 
@@ -384,7 +408,7 @@ const MentorDashboard = () => {
                 )
                 .subscribe((status) => {
                     if (status === 'SUBSCRIBED') {
-                        console.log(`Listening for real-time notes changes for student ${studentId}`);
+                        console.log(`Listening for real-time notes changes for student ${studentUserId}`);
                     }
                 });
 
@@ -395,7 +419,7 @@ const MentorDashboard = () => {
         }
     };
 
-    const fetchStudentOutcomes = async (studentId) => {
+    const fetchStudentOutcomes = async (studentUserId) => {
         try {
             setCollegeAdmissions([]);
             setScholarships([]);
@@ -404,21 +428,21 @@ const MentorDashboard = () => {
             const { data: admissionsData, error: admissionsError } = await supabase
                 .from('college_admissions')
                 .select('*')
-                .eq('student_id', studentId)
+                .eq('student_id', studentUserId)
                 .order('admission_date', { ascending: false });
             if (!admissionsError && admissionsData) setCollegeAdmissions(admissionsData);
 
             const { data: scholarshipsData, error: scholarshipsError } = await supabase
                 .from('scholarship_awards')
                 .select('*')
-                .eq('student_id', studentId)
+                .eq('student_id', studentUserId)
                 .order('award_date', { ascending: false });
             if (!scholarshipsError && scholarshipsData) setScholarships(scholarshipsData);
 
             const { data: employmentData, error: employmentError } = await supabase
                 .from('student_employment')
                 .select('*')
-                .eq('student_id', studentId)
+                .eq('student_id', studentUserId)
                 .order('start_date', { ascending: false });
             if (!employmentError && employmentData) setEmployments(employmentData);
         } catch (error) {
@@ -442,16 +466,16 @@ const MentorDashboard = () => {
                 toast.error('Please fill in all required fields');
                 return;
             }
-            if (!user?.id || !selectedStudent?.id) {
+            if (!user?.id || !selectedStudent?.user_id) {
                 toast.error('Missing mentor or student info');
-                console.error('Missing IDs:', { mentorId: user?.id, studentId: selectedStudent?.id });
+                console.error('Missing IDs:', { mentorId: user?.id, studentUserId: selectedStudent?.user_id });
                 return;
             }
             setLoading(true);
 
             const formatted = {
                 mentor_id: user.id,
-                student_id: selectedStudent.id,
+                student_id: selectedStudent.user_id, // Use student user_id for notes
                 description: newNote.description.trim(),
                 task: newNote.task.trim(),
                 content: newNote.content.trim(),
@@ -474,7 +498,7 @@ const MentorDashboard = () => {
             });
 
             setStats((prev) => ({ ...prev, notesMade: prev.notesMade + 1 }));
-            await fetchStudentNotes(selectedStudent.id);
+            await fetchStudentNotes(selectedStudent.user_id);
             toast.success('Note added successfully!');
         } catch (error) {
             console.error('Error adding note:', error);
@@ -804,7 +828,7 @@ const MentorDashboard = () => {
                                                                             <h3 className="font-medium">
                                                                                 {student.first_name} {student.last_name}
                                                                             </h3>
-                                                                            <p className="text-sm text-gray-500">{student.email}</p>
+                                                                            <p className="text-sm text-gray-500">{student.education_level || 'Student'}</p>
                                                                             <p className="text-xs text-indigo-600">
                                                                                 {student.student_id
                                                                                     ? `Student ID: ${student.student_id}`
@@ -842,10 +866,10 @@ const MentorDashboard = () => {
                                                             <h2 className="text-2xl font-bold">
                                                                 {selectedStudent.first_name} {selectedStudent.last_name}
                                                             </h2>
-                                                            <p className="text-gray-600">{selectedStudent.email}</p>
+                                                            <p className="text-gray-600">Student ID: {selectedStudent.student_id}</p>
                                                         </div>
                                                         <button
-                                                            onClick={() => scheduleMeeting(selectedStudent.id)}
+                                                            onClick={() => scheduleMeeting(selectedStudent.user_id)}
                                                             className="ml-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
                                                         >
                                                             Schedule Meeting
@@ -998,7 +1022,7 @@ const MentorDashboard = () => {
                                                                     <h3 className="font-medium">
                                                                         {student.first_name} {student.last_name}
                                                                     </h3>
-                                                                    <p className="text-sm text-gray-500">{student.email}</p>
+                                                                    <p className="text-sm text-gray-500">{student.education_level || 'Student'}</p>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1024,7 +1048,7 @@ const MentorDashboard = () => {
                                                         </div>
                                                     </div>
                                                     <StudentSchoolChoicesViewer
-                                                        studentId={selectedStudent.id}
+                                                        studentId={selectedStudent.user_id}
                                                         forMentor={true}
                                                     />
                                                 </div>
@@ -1071,7 +1095,7 @@ const MentorDashboard = () => {
                                                                 </div>
                                                                 <div>
                                                                     <h3 className="font-medium">{student.first_name} {student.last_name}</h3>
-                                                                    <p className="text-sm text-gray-500">{student.email}</p>
+                                                                    <p className="text-sm text-gray-500">{student.education_level || 'Student'}</p>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1095,7 +1119,7 @@ const MentorDashboard = () => {
                                                                 <h2 className="text-2xl font-bold">
                                                                     {selectedStudent.first_name} {selectedStudent.last_name}
                                                                 </h2>
-                                                                <p className="text-gray-600">{selectedStudent.email}</p>
+                                                                <p className="text-gray-600">Student ID: {selectedStudent.student_id}</p>
                                                             </div>
                                                         </div>
                                                     </div>

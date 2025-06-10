@@ -18,28 +18,41 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
     }, [student, isOpen]);
 
     const fetchStudentDetails = async () => {
-        if (!student?.user_id) return;
+        if (!student?.user_id && !student?.id) return;
 
         setLoading(true);
         try {
-            // Fetch complete student profile
+            // Get the student user_id - could be passed as user_id or id depending on source
+            const userId = student.user_id || student.id;
+
+            // Fetch complete student profile with email from users table
             const { data: profileData, error: profileError } = await supabase
                 .from('students')
-                .select('*')
-                .eq('user_id', student.user_id)
+                .select(`
+                    *,
+                    users:user_id (
+                        email
+                    )
+                `)
+                .eq('user_id', userId)
                 .single();
 
             if (profileError) {
                 console.error('Error fetching student profile:', profileError);
             } else {
-                setStudentProfile(profileData);
+                // Merge student data with email
+                const completeProfile = {
+                    ...profileData,
+                    email: profileData.users?.email || student.email
+                };
+                setStudentProfile(completeProfile);
             }
 
             // Fetch student resume
             const { data: resumeData, error: resumeError } = await supabase
                 .from('student_resumes')
                 .select('*')
-                .eq('student_id', student.user_id)
+                .eq('student_id', userId)
                 .single();
 
             if (resumeError && resumeError.code !== 'PGRST116') {
@@ -114,8 +127,8 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
                     <button
                         onClick={() => setActiveTab('profile')}
                         className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'profile'
-                                ? 'border-indigo-600 text-indigo-600 bg-white'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                            ? 'border-indigo-600 text-indigo-600 bg-white'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
                     >
                         Profile Details
@@ -123,8 +136,8 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
                     <button
                         onClick={() => setActiveTab('academic')}
                         className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'academic'
-                                ? 'border-indigo-600 text-indigo-600 bg-white'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                            ? 'border-indigo-600 text-indigo-600 bg-white'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
                     >
                         Academic Info
@@ -132,8 +145,8 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
                     <button
                         onClick={() => setActiveTab('resume')}
                         className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'resume'
-                                ? 'border-indigo-600 text-indigo-600 bg-white'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                            ? 'border-indigo-600 text-indigo-600 bg-white'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
                     >
                         Resume & Documents

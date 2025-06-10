@@ -62,6 +62,8 @@ const Dashboard = () => {
         if (!user?.id) return;
 
         try {
+            console.log('🔍 DEBUG: Starting fetchMentor with user.id:', user.id);
+
             // First get the student ID from the students table using user_id
             const { data: studentData, error: studentError } = await supabase
                 .from('students')
@@ -69,30 +71,33 @@ const Dashboard = () => {
                 .eq('user_id', user.id)
                 .single();
 
+            console.log('🔍 DEBUG: Student lookup result:', { studentData, studentError });
+
             if (studentError || !studentData) {
                 console.log('Student record not found:', studentError);
                 return;
             }
 
-            // Now get the mentor connection using the student ID
+            // Now get the mentor connection using the student's table ID
             const { data: mentorConnection, error } = await supabase
                 .from('mentor_student')
                 .select(`
-                    *,
                     mentors:mentor_id (
                         id, 
                         full_name,
                         bio,
                         languages,
                         available_hours_per_week,
+                        user_id,
                         users:user_id (
                             email
                         )
                     )
                 `)
                 .eq('student_id', studentData.id)
-                .limit(1)
                 .single();
+
+            console.log('🔍 DEBUG: Mentor connection lookup result:', { mentorConnection, error });
 
             if (error) {
                 console.log('No mentor assigned yet:', error);
@@ -100,8 +105,10 @@ const Dashboard = () => {
             }
 
             if (mentorConnection && mentorConnection.mentors) {
+                console.log('🔍 DEBUG: Setting mentor:', mentorConnection.mentors);
                 setAssignedMentor(mentorConnection.mentors);
-                await fetchMentorNotes(mentorConnection.mentor_id, user.id);
+                // Use the mentor's user_id for notes (mentor_notes uses auth user IDs)
+                await fetchMentorNotes(mentorConnection.mentors.user_id, user.id);
             }
         } catch (error) {
             console.error('Error fetching mentor:', error);

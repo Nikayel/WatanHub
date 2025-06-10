@@ -167,7 +167,7 @@ const Welcome = () => {
             transition={{ duration: 0.8, delay: 0.8 }}
             className="text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-6 sm:mb-8 font-light leading-relaxed text-white text-opacity-90 drop-shadow-lg"
           >
-            Empowering underrepresented youth through community and mentorship
+            {/* Empowering underrepresented youth through community and mentorship */}
           </motion.p>
 
           {/* CTA Buttons with responsive design and improved routing */}
