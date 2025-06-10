@@ -275,7 +275,10 @@ function AdminDashboard() {
       console.log('Fetching students assigned to mentor_id:', mentor.user_id);
       const { data, error } = await supabase
         .from('mentor_student')
-        .select('profiles(*)')
+        .select(`
+          student_id,
+          profiles!mentor_student_student_id_fkey(*)
+        `)
         .eq('mentor_id', mentor.user_id);
 
       if (error) {
@@ -773,7 +776,7 @@ Bio: ${student.bio || 'N/A'}
         return;
       }
 
-      // First check if assignment already exists to avoid duplicate entries
+      // Check if assignment already exists to avoid duplicate entries
       const { data: existingAssignment, error: checkError } = await supabase
         .from('mentor_student')
         .select('*')
@@ -793,7 +796,7 @@ Bio: ${student.bio || 'N/A'}
         return;
       }
 
-      // Create the assignment
+      // Create the assignment using profile IDs directly
       const { data, error } = await supabase
         .from('mentor_student')
         .insert([{ mentor_id: mentorId, student_id: studentId }])
@@ -807,7 +810,7 @@ Bio: ${student.bio || 'N/A'}
 
       console.log('Assignment successful:', data);
 
-      // Update the student's assigned status
+      // Update the student's assigned status in profiles table
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ is_assigned: true })
@@ -885,7 +888,7 @@ Bio: ${student.bio || 'N/A'}
         return;
       }
 
-      // Update student record to mark as unassigned
+      // Update student record to mark as unassigned in profiles table
       await safeUpdate('profiles', { is_assigned: false }, 'id', studentId);
 
       // Update UI by removing the student from the list

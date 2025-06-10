@@ -127,43 +127,24 @@ const MentorDashboard = () => {
         try {
             console.log('🔍 DEBUG: Starting fetchAssignedStudents with mentorUserId:', mentorUserId);
 
-            // First get the mentor table ID from the mentor user_id
-            const { data: mentorData, error: mentorError } = await supabase
-                .from('mentors')
-                .select('id')
-                .eq('user_id', mentorUserId)
-                .single();
-
-            console.log('🔍 DEBUG: Mentor lookup result:', { mentorData, mentorError });
-
-            if (mentorError || !mentorData) {
-                console.error('Mentor not found:', mentorError);
-                return;
-            }
-
-            // Now get students assigned to this mentor using mentor.id
+            // Get students assigned to this mentor using profile IDs directly
             const { data, error } = await supabase
                 .from('mentor_student')
                 .select(`
-                    students:student_id (
-                        *,
-                        users:user_id (
-                            email
-                        )
-                    )
+                    student_id,
+                    profiles!mentor_student_student_id_fkey(*)
                 `)
-                .eq('mentor_id', mentorData.id);
+                .eq('mentor_id', mentorUserId);
 
             console.log('🔍 DEBUG: Mentor-student lookup result:', { data, error });
 
             if (error) throw error;
 
             const loadedStudents = data.map((item) => ({
-                ...item.students,
-                email: item.students.users?.email,
-                // Use user_id for compatibility with other components
-                id: item.students.user_id,
-                user_id: item.students.user_id
+                ...item.profiles,
+                // Use profile id for compatibility
+                id: item.profiles.id,
+                user_id: item.profiles.id
             }));
 
             console.log('🔍 DEBUG: Processed students:', loadedStudents);
