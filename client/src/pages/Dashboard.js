@@ -1218,7 +1218,10 @@ Keep up the great work on your college journey!`;
                     </div>
                     <div className="mt-2">
                       <button
-                        onClick={() => setMainTab('fellowship')}
+                        onClick={() => {
+                          setMainTab('fellowship');
+                          setSubTab('assignments');
+                        }}
                         className="inline-flex items-center text-xs text-purple-700 hover:text-purple-800 font-medium"
                       >
                         <CheckSquare size={12} className="mr-1" />
@@ -1244,7 +1247,10 @@ Keep up the great work on your college journey!`;
                     </div>
                     <div className="mt-2">
                       <button
-                        onClick={() => setMainTab('fellowship')}
+                        onClick={() => {
+                          setMainTab('fellowship');
+                          setSubTab('assignments');
+                        }}
                         className="inline-flex items-center text-xs text-orange-700 hover:text-orange-800 font-medium"
                       >
                         <Clock size={12} className="mr-1" />
