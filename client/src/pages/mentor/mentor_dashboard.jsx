@@ -21,7 +21,8 @@ import {
 import OutcomeTagging from '../../components/OutcomeTagging';
 import OutcomeModal from '../../components/OutcomeModal';
 import StudentSchoolChoicesViewer from '../../components/StudentSchoolChoicesViewer';
-import AIAdvisorSidebar from '../../components/AIAdvisorSidebar';
+import MentorSidebar from '../../components/MentorDashboard/MentorSidebar';
+import StudentDetailModal from '../../components/StudentDetailModal';
 
 const MentorDashboard = () => {
     const { user } = useAuth();
@@ -41,11 +42,11 @@ const MentorDashboard = () => {
     const [expandedNotes, setExpandedNotes] = useState({});
     const [notesChannel, setNotesChannel] = useState(null);
 
-    // OUTER dashboard tab: 'notes' | 'schools' | 'outcomes' | 'analytics'
-    const [activeTab, setActiveTab] = useState('notes');
+    // OUTER dashboard tab: 'students' | 'schools' | 'outcomes' | 'analytics'
+    const [activeTab, setActiveTab] = useState('students');
 
-    // Add state for AI sidebar
-    const [showAISidebar, setShowAISidebar] = useState(true);
+    // Sub tab for each main tab
+    const [subTab, setSubTab] = useState('list');
 
     // INNER student‐detail tab: 'notes' | 'outcomes'
     const [detailTab, setDetailTab] = useState('notes');
@@ -89,6 +90,10 @@ const MentorDashboard = () => {
 
     const [outcomeModalOpen, setOutcomeModalOpen] = useState(false);
     const [editingOutcome, setEditingOutcome] = useState(null);
+
+    // Student detail modal
+    const [studentDetailModalOpen, setStudentDetailModalOpen] = useState(false);
+    const [detailModalStudent, setDetailModalStudent] = useState(null);
 
     // Chart colors
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -682,6 +687,11 @@ const MentorDashboard = () => {
         }));
     };
 
+    const openStudentDetailModal = (student) => {
+        setDetailModalStudent(student);
+        setStudentDetailModalOpen(true);
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -715,12 +725,12 @@ const MentorDashboard = () => {
             {/* ─── MAIN CONTENT WITH AI SIDEBAR ──────────────────────────────────────── */}
             <div className="flex h-screen">
                 {/* AI Advisor Sidebar */}
-                <AIAdvisorSidebar
+                {/* <AIAdvisorSidebar
                     studentName={selectedStudent ? `${selectedStudent.first_name} ${selectedStudent.last_name}` : null}
                     isCollapsed={!showAISidebar}
                     onToggle={() => setShowAISidebar(!showAISidebar)}
                     selectedStudent={selectedStudent}
-                />
+                /> */}
 
                 {/* Main Dashboard Content */}
                 <div className="flex-1 overflow-auto">
@@ -745,174 +755,107 @@ const MentorDashboard = () => {
                             </div>
                         </div>
 
-                        {/* ─── Outer Dashboard Tabs ────────────────────────────────────────────────── */}
-                        <div className="bg-white rounded-xl shadow-md mb-8 overflow-hidden">
-                            <div className="border-b border-gray-200">
-                                <nav className="flex -mb-px">
-                                    <button
-                                        onClick={() => {
-                                            setActiveTab('notes');
-                                            setSelectedStudent(null);
-                                        }}
-                                        className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'notes'
-                                            ? 'border-indigo-500 text-indigo-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        Students & Notes
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setActiveTab('schools');
-                                            setSelectedStudent(null);
-                                        }}
-                                        className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'schools'
-                                            ? 'border-indigo-500 text-indigo-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        School Choices
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setActiveTab('outcomes');
-                                            setSelectedStudent(null);
-                                        }}
-                                        className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'outcomes'
-                                            ? 'border-indigo-500 text-indigo-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        Student Outcomes
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setActiveTab('analytics');
-                                            setSelectedStudent(null);
-                                        }}
-                                        className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'analytics'
-                                            ? 'border-indigo-500 text-indigo-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        Analytics & Demographics
-                                    </button>
-                                </nav>
+                        {/* ─── Main Content with Sidebar Layout ────────────────────────────────────────────────── */}
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                            {/* Sidebar */}
+                            <div className="lg:col-span-1">
+                                <MentorSidebar
+                                    activeTab={activeTab}
+                                    setActiveTab={setActiveTab}
+                                    subTab={subTab}
+                                    setSubTab={setSubTab}
+                                    students={students}
+                                    stats={stats}
+                                />
                             </div>
-                        </div>
 
-                        {/* ─── "Students & Notes" Tab Content ──────────────────────────────────────── */}
-                        {activeTab === 'notes' ? (
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                                {/* ─── Left Column: Your Students ───────── */}
-                                <div className="lg:col-span-3 bg-white rounded-xl shadow-md p-6">
-                                    <h2 className="text-xl font-bold mb-4">Your Students</h2>
-                                    {students.length === 0 ? (
-                                        <div className="text-center p-6 bg-gray-50 rounded-lg">
-                                            <p className="text-gray-500">No students assigned yet</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {students.map((student) => (
-                                                <div
-                                                    key={student.id}
-                                                    onClick={() => handleStudentSelect(student)}
-                                                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedStudent?.id === student.id
-                                                        ? 'bg-indigo-50 border-indigo-300'
-                                                        : 'hover:bg-gray-50 border-gray-200'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center">
-                                                            <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-                                                                <span className="text-indigo-600 font-medium">
-                                                                    {student.first_name?.[0]}
-                                                                    {student.last_name?.[0]}
-                                                                </span>
+                            {/* Main Content Area */}
+                            <div className="lg:col-span-3">
+                                {/* ─── Students Tab Content ──────────────────────────────────────── */}
+                                {activeTab === 'students' && (
+                                    <>
+                                        {subTab === 'list' && (
+                                            <div className="bg-white rounded-xl shadow-md p-6">
+                                                <h2 className="text-xl font-bold mb-4">Your Students</h2>
+                                                {students.length === 0 ? (
+                                                    <div className="text-center p-6 bg-gray-50 rounded-lg">
+                                                        <p className="text-gray-500">No students assigned yet</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                        {students.map((student) => (
+                                                            <div
+                                                                key={student.id}
+                                                                onClick={() => handleStudentSelect(student)}
+                                                                className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedStudent?.id === student.id
+                                                                    ? 'bg-indigo-50 border-indigo-300'
+                                                                    : 'hover:bg-gray-50 border-gray-200'
+                                                                    }`}
+                                                            >
+                                                                <div className="flex items-center justify-between w-full">
+                                                                    <div className="flex items-center">
+                                                                        <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                                                                            <span className="text-indigo-600 font-medium">
+                                                                                {student.first_name?.[0]}
+                                                                                {student.last_name?.[0]}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div>
+                                                                            <h3 className="font-medium">
+                                                                                {student.first_name} {student.last_name}
+                                                                            </h3>
+                                                                            <p className="text-sm text-gray-500">{student.email}</p>
+                                                                            <p className="text-xs text-indigo-600">
+                                                                                {student.student_id
+                                                                                    ? `Student ID: ${student.student_id}`
+                                                                                    : 'No Student ID'}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            openStudentDetailModal(student);
+                                                                        }}
+                                                                        className="px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                                                                    >
+                                                                        View Profile
+                                                                    </button>
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <h3 className="font-medium">
-                                                                    {student.first_name} {student.last_name}
-                                                                </h3>
-                                                                <p className="text-sm text-gray-500">{student.email}</p>
-                                                                <p className="text-xs text-indigo-600">
-                                                                    {student.student_id
-                                                                        ? `Student ID: ${student.student_id}`
-                                                                        : 'No Student ID'}
-                                                                </p>
-                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {subTab === 'notes' && selectedStudent && (
+                                            <div className="bg-white rounded-xl shadow-md">
+                                                {/* Profile Header */}
+                                                <div className="p-6 border-b border-gray-200">
+                                                    <div className="flex items-center space-x-4">
+                                                        <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-800 font-bold text-xl">
+                                                            {selectedStudent.first_name[0]}
+                                                            {selectedStudent.last_name[0]}
                                                         </div>
-                                                        {stats.notesMade > 0 && (
-                                                            <div className="flex flex-col items-end">
-                                                                <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full">
-                                                                    {stats.notesMade} notes
-                                                                </span>
-                                                            </div>
-                                                        )}
+                                                        <div>
+                                                            <h2 className="text-2xl font-bold">
+                                                                {selectedStudent.first_name} {selectedStudent.last_name}
+                                                            </h2>
+                                                            <p className="text-gray-600">{selectedStudent.email}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => scheduleMeeting(selectedStudent.id)}
+                                                            className="ml-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                                                        >
+                                                            Schedule Meeting
+                                                        </button>
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
 
-                                {/* ─── Middle Column: Student Details ─────────── */}
-                                {selectedStudent ? (
-                                    <div className="lg:col-span-5 bg-white rounded-xl shadow-md">
-                                        {/* ─── Profile Header ───────────────────────────────────────────────── */}
-                                        <div className="p-6 border-b border-gray-200">
-                                            <div className="flex items-center space-x-4">
-                                                <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-800 font-bold text-xl">
-                                                    {selectedStudent.first_name[0]}
-                                                    {selectedStudent.last_name[0]}
-                                                </div>
-                                                <div>
-                                                    <h2 className="text-2xl font-bold">
-                                                        {selectedStudent.first_name} {selectedStudent.last_name}
-                                                    </h2>
-                                                    <p className="text-gray-600">{selectedStudent.email}</p>
-                                                    <p className="text-sm font-medium text-indigo-600">
-                                                        {selectedStudent.student_id
-                                                            ? `Student ID: ${selectedStudent.student_id}`
-                                                            : ''}
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    onClick={() => scheduleMeeting(selectedStudent.id)}
-                                                    className="ml-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-                                                >
-                                                    Schedule Meeting
-                                                </button>
-                                            </div>
-
-                                            {/* ─── Inner Tabs: Notes & Tasks | Outcomes ── */}
-                                            <div className="mt-6 border-b">
-                                                <button
-                                                    onClick={() => setDetailTab('notes')}
-                                                    className={`px-4 py-3 text-sm font-medium ${detailTab === 'notes'
-                                                        ? 'border-b-2 border-indigo-600 text-indigo-600'
-                                                        : 'text-gray-600 hover:text-gray-900'
-                                                        }`}
-                                                >
-                                                    Notes & Tasks
-                                                </button>
-                                                <button
-                                                    onClick={() => setDetailTab('outcomes')}
-                                                    className={`px-4 py-3 text-sm font-medium ${detailTab === 'outcomes'
-                                                        ? 'border-b-2 border-indigo-600 text-indigo-600'
-                                                        : 'text-gray-600 hover:text-gray-900'
-                                                        }`}
-                                                >
-                                                    Outcomes
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* ─── Inner Content Based on detailTab ─────────────────────────────── */}
-                                        <div className="px-4 py-6">
-                                            {detailTab === 'notes' && (
-                                                <>
-                                                    {/* ─── Notes Filter & Add Button ──────────────────────────────── */}
+                                                {/* Notes Content */}
+                                                <div className="p-6">
+                                                    {/* Notes Filter & Add Button */}
                                                     <div className="mb-4 flex flex-wrap gap-2 items-center justify-between">
                                                         <div className="flex space-x-2">
                                                             <button
@@ -952,14 +895,6 @@ const MentorDashboard = () => {
                                                                     deadline: '',
                                                                     start_date: new Date().toISOString().split('T')[0]
                                                                 });
-                                                                setTimeout(() => {
-                                                                    const noteForm = document.getElementById('add-note-form');
-                                                                    if (noteForm) {
-                                                                        noteForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                                    } else {
-                                                                        toast.info('Select a student first, then create a note');
-                                                                    }
-                                                                }, 100);
                                                             }}
                                                             className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:bg-indigo-700"
                                                         >
@@ -967,7 +902,7 @@ const MentorDashboard = () => {
                                                         </button>
                                                     </div>
 
-                                                    {/* ─── List of Notes (summary) ───────────────────────────────── */}
+                                                    {/* List of Notes */}
                                                     {getFilteredNotes().length === 0 ? (
                                                         <div className="bg-gray-50 rounded-lg p-6 text-center border border-dashed">
                                                             <p className="text-gray-500">
@@ -996,32 +931,14 @@ const MentorDashboard = () => {
                                                                         </span>
                                                                     </div>
                                                                     <p className="text-sm text-gray-600 mt-1">{note.description}</p>
-                                                                    <div
-                                                                        className={`mt-2 text-sm text-gray-500 whitespace-pre-wrap ${expandedNotes[note.id] ? '' : 'line-clamp-2'
-                                                                            }`}
-                                                                    >
+                                                                    <div className="mt-2 text-sm text-gray-500 whitespace-pre-wrap">
                                                                         {note.content}
                                                                     </div>
-                                                                    {note.content && note.content.length > 100 && (
-                                                                        <button
-                                                                            onClick={() => toggleNoteExpansion(note.id)}
-                                                                            className="mt-1 text-xs text-indigo-600 hover:text-indigo-800"
-                                                                        >
-                                                                            {expandedNotes[note.id] ? 'Show less' : 'Show more'}
-                                                                        </button>
-                                                                    )}
-                                                                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                                                    <div className="mt-2 text-xs text-gray-400">
+                                                                        Created: {new Date(note.created_at).toLocaleDateString()}
                                                                         {note.deadline && (
-                                                                            <span className="px-2 py-0.5 bg-gray-100 rounded">
+                                                                            <span className="ml-4">
                                                                                 Deadline: {new Date(note.deadline).toLocaleDateString()}
-                                                                            </span>
-                                                                        )}
-                                                                        <span className="px-2 py-0.5 bg-gray-100 rounded">
-                                                                            Created: {new Date(note.created_at).toLocaleDateString()}
-                                                                        </span>
-                                                                        {note.acknowledged && (
-                                                                            <span className="px-2 py-0.5 bg-green-100 rounded">
-                                                                                Completed: {new Date(note.updated_at).toLocaleDateString()}
                                                                             </span>
                                                                         )}
                                                                     </div>
@@ -1030,400 +947,193 @@ const MentorDashboard = () => {
                                                         </div>
                                                     )}
 
-                                                    {/* ─── New Note Form ──────────────────────────────────────────── */}
-                                                    {renderNoteEditorForm()}
-                                                </>
-                                            )}
-
-                                            {detailTab === 'outcomes' && (
-                                                <div>
-                                                    <div className="mb-6">
-                                                        <h3 className="text-lg font-semibold">Quick Outcomes Overview</h3>
-                                                        <p className="text-sm text-gray-600">
-                                                            View detailed outcomes in the "Student Outcomes" tab for full management.
-                                                        </p>
+                                                    {/* Add Note Form */}
+                                                    <div className="mt-8">
+                                                        {renderNoteEditorForm()}
                                                     </div>
+                                                </div>
+                                            </div>
+                                        )}
 
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                                        <div className="bg-white p-4 rounded-lg shadow-sm border">
-                                                            <div className="flex justify-between items-center">
-                                                                <div>
-                                                                    <h4 className="font-medium text-gray-800">College Admission</h4>
-                                                                    <p className="text-sm text-gray-500">
-                                                                        {collegeAdmissions.length > 0
-                                                                            ? `${collegeAdmissions.length} admission(s) recorded`
-                                                                            : 'No admissions recorded'}
-                                                                    </p>
+                                        {subTab === 'meetings' && (
+                                            <div className="bg-white rounded-xl shadow-md p-6">
+                                                <h2 className="text-xl font-bold mb-4">Meetings</h2>
+                                                <div className="text-center p-6 bg-gray-50 rounded-lg">
+                                                    <p className="text-gray-500">Meeting management coming soon</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+
+                                {/* ─── Schools Tab Content ──────────────────────────────────────── */}
+                                {activeTab === 'schools' && (
+                                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                                        {/* Student List */}
+                                        <div className="lg:col-span-1 bg-white rounded-xl shadow-md p-6">
+                                            <h2 className="text-xl font-bold mb-4">Your Students</h2>
+                                            {students.length === 0 ? (
+                                                <div className="text-center p-6 bg-gray-50 rounded-lg">
+                                                    <p className="text-gray-500">No students assigned yet</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    {students.map((student) => (
+                                                        <div
+                                                            key={student.id}
+                                                            onClick={() => handleStudentSelect(student)}
+                                                            className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedStudent?.id === student.id
+                                                                ? 'bg-indigo-50 border-indigo-300'
+                                                                : 'hover:bg-gray-50 border-gray-200'
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center">
+                                                                <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                                                                    <span className="text-indigo-600 font-medium">
+                                                                        {student.first_name?.[0]}
+                                                                        {student.last_name?.[0]}
+                                                                    </span>
                                                                 </div>
-                                                                <div
-                                                                    className={`rounded-full w-3 h-3 ${collegeAdmissions.length > 0 ? 'bg-green-500' : 'bg-gray-300'
-                                                                        }`}
-                                                                ></div>
+                                                                <div>
+                                                                    <h3 className="font-medium">
+                                                                        {student.first_name} {student.last_name}
+                                                                    </h3>
+                                                                    <p className="text-sm text-gray-500">{student.email}</p>
+                                                                </div>
                                                             </div>
                                                         </div>
-
-                                                        <div className="bg-white p-4 rounded-lg shadow-sm border">
-                                                            <div className="flex justify-between items-center">
-                                                                <div>
-                                                                    <h4 className="font-medium text-gray-800">Scholarships</h4>
-                                                                    <p className="text-sm text-gray-500">
-                                                                        {scholarships.length > 0
-                                                                            ? `${scholarships.length} scholarship(s) awarded`
-                                                                            : 'No scholarships recorded'}
-                                                                    </p>
-                                                                </div>
-                                                                <div
-                                                                    className={`rounded-full w-3 h-3 ${scholarships.length > 0 ? 'bg-green-500' : 'bg-gray-300'
-                                                                        }`}
-                                                                ></div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="bg-white p-4 rounded-lg shadow-sm border">
-                                                            <div className="flex justify-between items-center">
-                                                                <div>
-                                                                    <h4 className="font-medium text-gray-800">Employment</h4>
-                                                                    <p className="text-sm text-gray-500">
-                                                                        {employments.length > 0
-                                                                            ? `${employments.length} position(s) recorded`
-                                                                            : 'No employment recorded'}
-                                                                    </p>
-                                                                </div>
-                                                                <div
-                                                                    className={`rounded-full w-3 h-3 ${employments.length > 0 ? 'bg-green-500' : 'bg-gray-300'
-                                                                        }`}
-                                                                ></div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="mt-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-                                                        <p className="text-sm text-indigo-700">
-                                                            💡 <strong>Tip:</strong> Go to the "Student Outcomes" tab to add and manage detailed outcome records for your students.
-                                                        </p>
-                                                    </div>
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>
-                                    </div>
-                                ) : (
-                                    <div className="lg:col-span-5 bg-white rounded-xl shadow-md p-8 flex flex-col items-center justify-center min-h-[300px]">
-                                        <div className="text-center">
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-16 w-16 text-indigo-200 mx-auto mb-4"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                            </svg>
-                                            <h3 className="text-xl font-medium text-gray-800 mb-2">Select a Student</h3>
-                                            <p className="text-gray-500 max-w-md">
-                                                Choose a student from the list to view details, create notes, or see outcomes.
-                                            </p>
+
+                                        {/* School Choices Viewer */}
+                                        <div className="lg:col-span-3">
+                                            {selectedStudent ? (
+                                                <div className="bg-white rounded-xl shadow-md p-6">
+                                                    <div className="flex items-center mb-6">
+                                                        <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-800 font-bold text-xl mr-4">
+                                                            {selectedStudent.first_name[0]}
+                                                            {selectedStudent.last_name[0]}
+                                                        </div>
+                                                        <div>
+                                                            <h2 className="text-2xl font-bold">
+                                                                {selectedStudent.first_name} {selectedStudent.last_name}'s School Choices
+                                                            </h2>
+                                                            <p className="text-gray-600">Review and provide guidance on their college selections</p>
+                                                        </div>
+                                                    </div>
+                                                    <StudentSchoolChoicesViewer
+                                                        studentId={selectedStudent.id}
+                                                        forMentor={true}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="bg-white rounded-xl shadow-md p-10 flex flex-col items-center justify-center text-center">
+                                                    <div className="text-7xl mb-4">🎓</div>
+                                                    <h3 className="text-xl font-medium mb-2">Select a Student</h3>
+                                                    <p className="text-gray-500">
+                                                        Choose a student from the list to view their school choices and provide guidance.
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
 
-                                {/* ─── Right Column: Mentorship Notes Feed ───────────────────────────────── */}
-                                <div className="lg:col-span-4 bg-white rounded-xl shadow-md p-6 h-fit max-h-[800px] overflow-y-auto">
-                                    <div className="flex justify-between items-center sticky top-0 bg-white pt-1 pb-4 z-10">
-                                        <h3 className="text-lg font-semibold">Mentorship Notes</h3>
-                                        <select
-                                            value={noteFilter}
-                                            onChange={(e) => setNoteFilter(e.target.value)}
-                                            className="p-1 text-sm border rounded"
-                                        >
-                                            <option value="all">All Notes</option>
-                                            <option value="pending">Pending</option>
-                                            <option value="acknowledged">Acknowledged</option>
-                                        </select>
-                                    </div>
-
-                                    {studentNotes.length === 0 ? (
-                                        <div className="py-8 px-4 text-center bg-gray-50 rounded-lg border border-dashed">
-                                            <p className="text-gray-500">No notes available for this student.</p>
-                                            <button
-                                                onClick={() => {
-                                                    setTimeout(() => {
-                                                        const noteForm = document.getElementById('add-note-form');
-                                                        if (noteForm) {
-                                                            noteForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                        } else {
-                                                            toast.info('Select a student first, then create a note');
-                                                        }
-                                                    }, 100);
-                                                }}
-                                                className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
-                                            >
-                                                Create your first note
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {getFilteredNotes().map((note) => (
-                                                <div
-                                                    key={note.id}
-                                                    className={`p-4 rounded-lg border ${note.acknowledged
-                                                        ? 'border-l-4 border-l-green-500 border-gray-200'
-                                                        : 'border-l-4 border-l-yellow-500 border-gray-200'
-                                                        }`}
-                                                >
-                                                    <div className="flex justify-between">
-                                                        <h4 className="font-semibold text-gray-800">{note.task}</h4>
-                                                        <span
-                                                            className={`text-xs px-2 py-0.5 rounded-full ${note.acknowledged ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                {/* ─── Outcomes Tab Content ──────────────────────────────────────── */}
+                                {activeTab === 'outcomes' && (
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                        {/* Student List */}
+                                        <div className="lg:col-span-1 bg-white rounded-xl shadow-md p-6">
+                                            <h2 className="text-xl font-bold mb-4">Your Students</h2>
+                                            {students.length === 0 ? (
+                                                <div className="text-center p-6 bg-gray-50 rounded-lg">
+                                                    <p className="text-gray-500">No students assigned yet</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    {students.map((student) => (
+                                                        <div
+                                                            key={student.id}
+                                                            onClick={() => handleStudentSelect(student)}
+                                                            className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedStudent?.id === student.id
+                                                                ? 'bg-indigo-50 border-indigo-300'
+                                                                : 'hover:bg-gray-50 border-gray-200'
                                                                 }`}
                                                         >
-                                                            {note.acknowledged ? 'Completed' : 'Pending'}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-sm text-gray-600 mt-1">{note.description}</p>
-                                                    <div
-                                                        className={`mt-2 text-sm text-gray-500 whitespace-pre-wrap ${expandedNotes[note.id] ? '' : 'line-clamp-2'
-                                                            }`}
-                                                    >
-                                                        {note.content}
-                                                    </div>
-                                                    {note.content && note.content.length > 100 && (
-                                                        <button
-                                                            onClick={() => toggleNoteExpansion(note.id)}
-                                                            className="mt-1 text-xs text-indigo-600 hover:text-indigo-800"
-                                                        >
-                                                            {expandedNotes[note.id] ? 'Show less' : 'Show more'}
-                                                        </button>
-                                                    )}
-                                                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                                                        {note.deadline && (
-                                                            <span className="px-2 py-0.5 bg-gray-100 rounded">
-                                                                Deadline: {new Date(note.deadline).toLocaleDateString()}
-                                                            </span>
-                                                        )}
-                                                        <span className="px-2 py-0.5 bg-gray-100 rounded">
-                                                            Created: {new Date(note.created_at).toLocaleDateString()}
-                                                        </span>
-                                                        {note.acknowledged && (
-                                                            <span className="px-2 py-0.5 bg-green-100 rounded">
-                                                                Completed: {new Date(note.updated_at).toLocaleDateString()}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ) : activeTab === 'schools' ? (
-                            // ─── School Choices Tab Content ────────────────────────────────────────── 
-                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                                {/* Student List */}
-                                <div className="lg:col-span-1 bg-white rounded-xl shadow-md p-6">
-                                    <h2 className="text-xl font-bold mb-4">Your Students</h2>
-                                    {students.length === 0 ? (
-                                        <div className="text-center p-6 bg-gray-50 rounded-lg">
-                                            <p className="text-gray-500">No students assigned yet</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {students.map((student) => (
-                                                <div
-                                                    key={student.id}
-                                                    onClick={() => handleStudentSelect(student)}
-                                                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedStudent?.id === student.id
-                                                        ? 'bg-indigo-50 border-indigo-300'
-                                                        : 'hover:bg-gray-50 border-gray-200'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center">
-                                                        <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-                                                            <span className="text-indigo-600 font-medium">
-                                                                {student.first_name?.[0]}
-                                                                {student.last_name?.[0]}
-                                                            </span>
+                                                            <div className="flex items-center">
+                                                                <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                                                                    <span className="text-indigo-600 font-medium">
+                                                                        {student.first_name?.[0]}
+                                                                        {student.last_name?.[0]}
+                                                                    </span>
+                                                                </div>
+                                                                <div>
+                                                                    <h3 className="font-medium">{student.first_name} {student.last_name}</h3>
+                                                                    <p className="text-sm text-gray-500">{student.email}</p>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <h3 className="font-medium">
-                                                                {student.first_name} {student.last_name}
-                                                            </h3>
-                                                            <p className="text-sm text-gray-500">{student.email}</p>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Outcomes Dashboard */}
+                                        <div className="lg:col-span-2">
+                                            {selectedStudent ? (
+                                                <div className="bg-white rounded-xl shadow-md">
+                                                    {/* Profile header */}
+                                                    <div className="p-6 border-b border-gray-200">
+                                                        <div className="flex items-center space-x-4">
+                                                            <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-800 font-bold text-xl">
+                                                                {selectedStudent.first_name[0]}
+                                                                {selectedStudent.last_name[0]}
+                                                            </div>
+                                                            <div>
+                                                                <h2 className="text-2xl font-bold">
+                                                                    {selectedStudent.first_name} {selectedStudent.last_name}
+                                                                </h2>
+                                                                <p className="text-gray-600">{selectedStudent.email}</p>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
 
-                                {/* School Choices Viewer */}
-                                <div className="lg:col-span-3">
-                                    {selectedStudent ? (
-                                        <div className="bg-white rounded-xl shadow-md p-6">
-                                            <div className="flex items-center mb-6">
-                                                <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-800 font-bold text-xl mr-4">
-                                                    {selectedStudent.first_name[0]}
-                                                    {selectedStudent.last_name[0]}
-                                                </div>
-                                                <div>
-                                                    <h2 className="text-2xl font-bold">
-                                                        {selectedStudent.first_name} {selectedStudent.last_name}'s School Choices
-                                                    </h2>
-                                                    <p className="text-gray-600">Review and provide guidance on their college selections</p>
-                                                </div>
-                                            </div>
-                                            <StudentSchoolChoicesViewer
-                                                studentId={selectedStudent.id}
-                                                forMentor={true}
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="bg-white rounded-xl shadow-md p-10 flex flex-col items-center justify-center text-center">
-                                            <div className="text-7xl mb-4">🎓</div>
-                                            <h3 className="text-xl font-medium mb-2">Select a Student</h3>
-                                            <p className="text-gray-500">
-                                                Choose a student from the list to view their school choices and provide guidance.
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ) : activeTab === 'outcomes' ? (
-                            // ─── Student Outcomes Tab Content ──────────────────────────────────────── 
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                {/* Student List */}
-                                <div className="lg:col-span-1 bg-white rounded-xl shadow-md p-6">
-                                    <h2 className="text-xl font-bold mb-4">Your Students</h2>
-                                    {students.length === 0 ? (
-                                        <div className="text-center p-6 bg-gray-50 rounded-lg">
-                                            <p className="text-gray-500">No students assigned yet</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {students.map((student) => (
-                                                <div
-                                                    key={student.id}
-                                                    onClick={() => handleStudentSelect(student)}
-                                                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedStudent?.id === student.id
-                                                        ? 'bg-indigo-50 border-indigo-300'
-                                                        : 'hover:bg-gray-50 border-gray-200'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center">
-                                                        <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-                                                            <span className="text-indigo-600 font-medium">
-                                                                {student.first_name?.[0]}
-                                                                {student.last_name?.[0]}
-                                                            </span>
+                                                    {/* Quick outcome flags */}
+                                                    <div className="p-6 border-b border-gray-200 bg-gray-50">
+                                                        <h4 className="font-medium text-gray-800 mb-3">Quick Outcome Flags</h4>
+                                                        <OutcomeTagging
+                                                            student={selectedStudent}
+                                                            onUpdate={(outcomes) => {
+                                                                setSelectedStudent((prev) => ({
+                                                                    ...prev,
+                                                                    college_admit: outcomes.college_admit,
+                                                                    scholarship_awarded: outcomes.scholarship_awarded,
+                                                                    stem_major: outcomes.stem_major
+                                                                }));
+                                                            }}
+                                                        />
+                                                    </div>
+
+                                                    <div className="p-6">
+                                                        <div className="flex justify-between items-center mb-4">
+                                                            <h3 className="text-lg font-semibold">College Admissions</h3>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setOutcomeType('admission');
+                                                                    setEditingOutcome(null);
+                                                                    setOutcomeModalOpen(true);
+                                                                }}
+                                                                className="px-3 py-1 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition flex items-center"
+                                                            >
+                                                                <span className="mr-1">+</span> Add New
+                                                            </button>
                                                         </div>
-                                                        <div>
-                                                            <h3 className="font-medium">{student.first_name} {student.last_name}</h3>
-                                                            <p className="text-sm text-gray-500">{student.email}</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
 
-                                {/* Outcomes Dashboard */}
-                                <div className="lg:col-span-2">
-                                    {selectedStudent ? (
-                                        <div className="bg-white rounded-xl shadow-md">
-                                            {/* Profile header */}
-                                            <div className="p-6 border-b border-gray-200">
-                                                <div className="flex items-center space-x-4">
-                                                    <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-800 font-bold text-xl">
-                                                        {selectedStudent.first_name[0]}
-                                                        {selectedStudent.last_name[0]}
-                                                    </div>
-                                                    <div>
-                                                        <h2 className="text-2xl font-bold">
-                                                            {selectedStudent.first_name} {selectedStudent.last_name}
-                                                        </h2>
-                                                        <p className="text-gray-600">{selectedStudent.email}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Quick outcome flags */}
-                                            <div className="p-6 border-b border-gray-200 bg-gray-50">
-                                                <h4 className="font-medium text-gray-800 mb-3">Quick Outcome Flags</h4>
-                                                <OutcomeTagging
-                                                    student={selectedStudent}
-                                                    onUpdate={(outcomes) => {
-                                                        setSelectedStudent((prev) => ({
-                                                            ...prev,
-                                                            college_admit: outcomes.college_admit,
-                                                            scholarship_awarded: outcomes.scholarship_awarded,
-                                                            stem_major: outcomes.stem_major
-                                                        }));
-                                                    }}
-                                                />
-                                            </div>
-
-                                            {/* Tabs: Admissions | Scholarships | Employment */}
-                                            <div className="border-b border-gray-200">
-                                                <nav className="flex justify-between -mb-px px-6 py-2">
-                                                    <div className="flex space-x-2">
-                                                        <button
-                                                            onClick={() => setOutcomeType('admission')}
-                                                            className={`py-2 px-4 text-center border-b-2 font-medium text-sm transition ${outcomeType === 'admission' || !outcomeType
-                                                                ? 'border-indigo-500 text-indigo-600'
-                                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                                                }`}
-                                                        >
-                                                            College Admissions
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setOutcomeType('scholarship')}
-                                                            className={`py-2 px-4 text-center border-b-2 font-medium text-sm transition ${outcomeType === 'scholarship'
-                                                                ? 'border-indigo-500 text-indigo-600'
-                                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                                                }`}
-                                                        >
-                                                            Scholarships
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setOutcomeType('employment')}
-                                                            className={`py-2 px-4 text-center border-b-2 font-medium text-sm transition ${outcomeType === 'employment'
-                                                                ? 'border-indigo-500 text-indigo-600'
-                                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                                                }`}
-                                                        >
-                                                            Employment
-                                                        </button>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditingOutcome(null);
-                                                            setOutcomeModalOpen(true);
-                                                        }}
-                                                        className="px-3 py-1 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition flex items-center"
-                                                    >
-                                                        <span className="mr-1">+</span> Add New
-                                                    </button>
-                                                </nav>
-                                            </div>
-
-                                            <div className="p-6">
-                                                {(!outcomeType || outcomeType === 'admission') && (
-                                                    <div>
-                                                        <h3 className="text-lg font-semibold mb-4">College Admissions</h3>
                                                         {collegeAdmissions.length === 0 ? (
                                                             <div className="py-8 px-4 text-center bg-gray-50 rounded-lg border border-dashed">
                                                                 <p className="text-gray-500">No college admissions recorded yet.</p>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setOutcomeType('admission');
-                                                                        setEditingOutcome(null);
-                                                                        setOutcomeModalOpen(true);
-                                                                    }}
-                                                                    className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
-                                                                >
-                                                                    Add college admission
-                                                                </button>
                                                             </div>
                                                         ) : (
                                                             <div className="space-y-4">
@@ -1469,53 +1179,21 @@ const MentorDashboard = () => {
                                                             </div>
                                                         )}
                                                     </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="bg-white rounded-xl shadow-md p-10 flex flex-col items-center justify-center text-center">
-                                            <div className="text-7xl mb-4">📊</div>
-                                            <h3 className="text-xl font-medium mb-2">Select a Student</h3>
-                                            <p className="text-gray-500">
-                                                Choose a student from the list to view and track their outcomes.
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ) : activeTab === 'analytics' ? (
-                            // ─── Analytics Tab Content ──────────────────────────────────────────────── 
-                            <div className="bg-white rounded-xl shadow-md p-6">
-                                <h2 className="text-xl font-bold mb-6">Demographics and Analytics</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                    {/* Age Distribution */}
-                                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
-                                        <h3 className="text-lg font-semibold mb-4">Age Distribution</h3>
-                                        <div className="h-64">
-                                            {demographicData.age.length > 0 ? (
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={demographicData.age}>
-                                                        <CartesianGrid strokeDasharray="3 3" />
-                                                        <XAxis dataKey="name" />
-                                                        <YAxis />
-                                                        <Tooltip />
-                                                        <Bar dataKey="value" name="Students" fill="#8884d8">
-                                                            {demographicData.age.map((entry, index) => (
-                                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                            ))}
-                                                        </Bar>
-                                                    </BarChart>
-                                                </ResponsiveContainer>
+                                                </div>
                                             ) : (
-                                                <div className="h-full flex items-center justify-center">
-                                                    <p className="text-gray-500">No age data available</p>
+                                                <div className="bg-white rounded-xl shadow-md p-10 flex flex-col items-center justify-center text-center">
+                                                    <div className="text-7xl mb-4">📊</div>
+                                                    <h3 className="text-xl font-medium mb-2">Select a Student</h3>
+                                                    <p className="text-gray-500">
+                                                        Choose a student from the list to view and track their outcomes.
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
-                        ) : null}
+                        </div>
 
                         {/* ─── Outcome Modal ───────────────────────────────────────────────────────── */}
                         <OutcomeModal
@@ -1528,6 +1206,16 @@ const MentorDashboard = () => {
                             outcomeType={outcomeType}
                             initialData={editingOutcome}
                             onSuccess={handleOutcomeSuccess}
+                        />
+
+                        {/* ─── Student Detail Modal ───────────────────────────────────────────────────────── */}
+                        <StudentDetailModal
+                            student={detailModalStudent}
+                            isOpen={studentDetailModalOpen}
+                            onClose={() => {
+                                setStudentDetailModalOpen(false);
+                                setDetailModalStudent(null);
+                            }}
                         />
                     </div>
                 </div>
