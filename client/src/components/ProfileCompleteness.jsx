@@ -13,80 +13,35 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
     const calculateCompletionPercentage = (profileData) => {
         if (!profileData) return 0;
 
-        // Define important fields with weighted importance
-        const criticalFields = [
-            'first_name', 'last_name', 'email'
-        ]; // These should always be present
+        // Define field categories based on actual schema fields available
+        const criticalFields = ['first_name', 'last_name', 'email'];
+        const veryImportantFields = ['date_of_birth', 'gender', 'phone_number', 'education_level', 'english_level'];
+        const importantFields = ['interests', 'bio', 'toefl_score', 'place_of_birth', 'place_of_residence'];
 
-        const veryImportantFields = [
-            'date_of_birth', 'gender', 'phone_number',
-            'high_school', 'city', 'country'
-        ]; // These are important for basic identification
+        // New fields that may or may not exist yet (will be ignored if not in DB)
+        const optionalFields = ['gpa', 'extracurricular_activities', 'province', 'school_type'];
 
-        const importantFields = [
-            'gpa', 'year_in_school', 'extracurricular_activities',
-            'career_interests', 'preferred_universities'
-        ]; // These add value but aren't strictly required
+        // Combine all fields that we will check
+        const allFields = [...criticalFields, ...veryImportantFields, ...importantFields, ...optionalFields];
 
-        // Check how many fields in each category are filled
-        const criticalFilled = criticalFields.filter(field => {
+        const completedFields = allFields.filter(field => {
             const value = profileData[field];
-            return value !== null && value !== undefined && value !== '' && value !== '[]';
-        }).length;
+            return value !== null && value !== undefined && value !== '' && value !== '[]' && value.toString().trim() !== '';
+        });
 
-        const veryImportantFilled = veryImportantFields.filter(field => {
-            const value = profileData[field];
-            return value !== null && value !== undefined && value !== '' && value !== '[]';
-        }).length;
+        // Calculate completion percentage - allow full 100% when completed
+        const totalFields = allFields.length;
+        const completedCount = completedFields.length;
+        const completeness = Math.round((completedCount / totalFields) * 100);
 
-        const importantFilled = importantFields.filter(field => {
-            const value = profileData[field];
-            return value !== null && value !== undefined && value !== '' && value !== '[]';
-        }).length;
+        console.log(`Profile completion details:
+        Critical (${criticalFields.filter(f => completedFields.includes(f)).length}/${criticalFields.length}): ${criticalFields.filter(f => completedFields.includes(f))}
+        Very Important (${veryImportantFields.filter(f => completedFields.includes(f)).length}/${veryImportantFields.length}): ${veryImportantFields.filter(f => completedFields.includes(f))}
+        Important (${importantFields.filter(f => completedFields.includes(f)).length}/${importantFields.length}): ${importantFields.filter(f => completedFields.includes(f))}
+        Optional (${optionalFields.filter(f => completedFields.includes(f)).length}/${optionalFields.length}): ${optionalFields.filter(f => completedFields.includes(f))}
+        Total: ${completedCount}/${totalFields} = ${completeness}%`);
 
-        // Weight the categories differently
-        const criticalWeight = 0.50;  // 50% weight for critical fields (increased from 45%)
-        const veryImportantWeight = 0.35;  // 35% weight for very important fields
-        const importantWeight = 0.15;  // 15% weight for important fields (decreased from 20%)
-
-        // Calculate weighted percentages for each category
-        const criticalScore = (criticalFilled / criticalFields.length) * criticalWeight;
-        const veryImportantScore = (veryImportantFilled / veryImportantFields.length) * veryImportantWeight;
-        const importantScore = (importantFilled / importantFields.length) * importantWeight;
-
-        // Calculate base score
-        const baseScore = (criticalScore + veryImportantScore + importantScore) * 100;
-
-        // Apply progressive boost factors
-        let boostFactor = 1.0;
-
-        // If all critical fields are filled, apply major boost
-        if (criticalFilled === criticalFields.length) {
-            boostFactor += 0.3; // +30% boost
-        }
-
-        // If more than half of very important fields are filled, extra boost
-        if (veryImportantFilled >= Math.ceil(veryImportantFields.length / 2)) {
-            boostFactor += 0.2; // +20% boost
-        }
-
-        // If any important fields are filled, small additional boost
-        if (importantFilled > 0) {
-            boostFactor += 0.1; // +10% boost
-        }
-
-        // Apply a more generous curve to the final score
-        const finalScore = Math.min(100, Math.round(baseScore * boostFactor));
-
-        console.log(`Profile score calculation: 
-        Critical: ${criticalFilled}/${criticalFields.length} (weighted: ${criticalScore * 100}%)
-        Very Important: ${veryImportantFilled}/${veryImportantFields.length} (weighted: ${veryImportantScore * 100}%)
-        Important: ${importantFilled}/${importantFields.length} (weighted: ${importantScore * 100}%)
-        Base score: ${baseScore.toFixed(1)}%
-        Boost factor: ${boostFactor.toFixed(1)}
-        Final score: ${finalScore}%`);
-
-        return finalScore;
+        return completeness;
     };
 
     const analyzeProfile = async () => {
@@ -115,8 +70,8 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
 
         console.log("Profile completeness:", percentage, "%");
 
-        // Only analyze the profile when incomplete - lowered threshold to 70%
-        if (!dismissed && profile && percentage < 70) {
+        // Only analyze the profile when incomplete - set threshold to 90%
+        if (!dismissed && profile && percentage < 90) {
             analyzeProfile();
         } else {
             // If profile is reasonably complete, don't bother with analysis
@@ -126,111 +81,111 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
 
     const handleDismiss = () => {
         setDismissed(true);
-        if (onComplete) {
-            onComplete();
-        }
+        if (onComplete) onComplete();
     };
 
-    const completionPercentage = calculateCompletionPercentage(profile);
-
-    if (dismissed || completionPercentage >= 90) {  // Lowered threshold from 100% to 90%
+    // Don't show if profile is very complete (90%+) and no current analysis
+    const percentage = calculateCompletionPercentage(profile);
+    if (percentage >= 90 && !analysis) {
         return null;
     }
 
     const getBackgroundColor = () => {
-        if (completionPercentage < 25) return 'bg-red-50 border-red-200';
-        if (completionPercentage < 50) return 'bg-yellow-50 border-yellow-200';
+        if (percentage < 25) return 'bg-red-50 border-red-200';
+        if (percentage < 50) return 'bg-yellow-50 border-yellow-200';
         return 'bg-green-50 border-green-200';
     };
 
     const getTextColor = () => {
-        if (completionPercentage < 25) return 'text-red-700';
-        if (completionPercentage < 50) return 'text-yellow-700';
+        if (percentage < 25) return 'text-red-700';
+        if (percentage < 50) return 'text-yellow-700';
         return 'text-green-700';
     };
 
     return (
-        <div className={`rounded-lg border ${getBackgroundColor()} p-4 mb-6 overflow-hidden transition-all`}>
-            <div className="flex items-start justify-between">
-                <div className="flex items-center">
-                    <div className="mr-3 p-2 rounded-full bg-white">
+        <div className={`rounded-xl border ${getBackgroundColor()} p-4 sm:p-6 mb-6 overflow-hidden transition-all shadow-sm`}>
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center min-w-0 flex-1">
+                    <div className="mr-3 p-2 rounded-full bg-white shadow-sm flex-shrink-0">
                         <User className={getTextColor()} size={20} />
                     </div>
-                    <div>
-                        <h3 className="font-medium">Profile Completeness</h3>
-                        <div className="flex items-center mt-1">
-                            <div className="w-full bg-gray-200 rounded-full h-2 max-w-[150px] mr-2">
+                    <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-gray-800 text-sm sm:text-base mb-2">Profile Completeness</h3>
+                        <div className="flex items-center gap-3">
+                            <div className="w-full max-w-[120px] sm:max-w-[150px] bg-gray-200 rounded-full h-2">
                                 <div
-                                    className={`h-2 rounded-full ${completionPercentage < 30 ? 'bg-red-500' :
-                                        completionPercentage < 60 ? 'bg-yellow-500' :
+                                    className={`h-2 rounded-full transition-all duration-500 ${percentage < 30 ? 'bg-red-500' :
+                                        percentage < 60 ? 'bg-yellow-500' :
                                             'bg-green-500'
                                         }`}
-                                    style={{ width: `${completionPercentage}%` }}
+                                    style={{ width: `${Math.min(percentage, 100)}%` }}
                                 ></div>
                             </div>
-                            <span className="text-sm font-medium">{completionPercentage}%</span>
+                            <span className="text-sm font-bold text-gray-700 whitespace-nowrap">{percentage}%</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex">
+                <div className="flex gap-1 flex-shrink-0">
                     <button
                         onClick={() => setExpanded(!expanded)}
-                        className="text-gray-500 hover:text-gray-700 mr-1"
+                        className="text-gray-500 hover:text-gray-700 p-1 rounded transition-colors"
+                        title={expanded ? "Collapse" : "Expand"}
                     >
-                        {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                     </button>
                     <button
                         onClick={handleDismiss}
-                        className="text-gray-500 hover:text-red-500"
+                        className="text-gray-500 hover:text-red-500 p-1 rounded transition-colors"
+                        title="Dismiss"
                     >
-                        <X size={20} />
+                        <X size={18} />
                     </button>
                 </div>
             </div>
 
             {expanded && (
-                <div className="mt-4 transition-all">
+                <div className="mt-4 transition-all duration-300">
                     {loading ? (
-                        <div className="flex items-center justify-center p-4">
-                            <Loader className="mr-2 h-4 w-4 animate-spin" />
-                            <span>Analyzing your profile...</span>
+                        <div className="flex items-center justify-center p-6 bg-white rounded-lg border">
+                            <Loader className="mr-3 h-5 w-5 animate-spin text-indigo-600" />
+                            <span className="text-gray-600">Analyzing your profile...</span>
                         </div>
                     ) : analysis ? (
-                        <div className="bg-white rounded-md p-3 text-sm">
-                            <div className="flex items-start mb-2">
-                                <AlertTriangle className="text-amber-500 mt-0.5 mr-2 h-4 w-4 flex-shrink-0" />
-                                <p className="font-medium">AI-powered recommendations to complete your profile:</p>
+                        <div className="bg-white rounded-lg p-4 border shadow-sm">
+                            <div className="flex items-start mb-3">
+                                <AlertTriangle className="text-amber-500 mt-0.5 mr-3 h-5 w-5 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-medium text-gray-800 mb-2">AI-powered recommendations:</p>
+                                    <div className="whitespace-pre-line text-gray-700 text-sm leading-relaxed">
+                                        {analysis}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="whitespace-pre-line text-gray-700 ml-6">
-                                {analysis}
-                            </div>
-                            <div className="mt-3 flex justify-end">
+                            <div className="mt-4 flex justify-end">
                                 <a
                                     href="/profile"
-                                    className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                                    className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
                                 >
-                                    Edit Profile →
+                                    Update Profile →
                                 </a>
                             </div>
                         </div>
-                    ) : completionPercentage < 80 ? (
-                        <div className="bg-white rounded-md p-3 flex items-center">
-                            <AlertTriangle className="text-amber-500 mr-2 h-4 w-4" />
-                            <span>Please complete your profile to improve your experience.</span>
-                            <div className="ml-auto">
-                                <a
-                                    href="/profile"
-                                    className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                                >
-                                    Edit Profile →
-                                </a>
-                            </div>
+                    ) : percentage < 80 ? (
+                        <div className="bg-white rounded-lg p-4 border shadow-sm flex items-center gap-3">
+                            <AlertTriangle className="text-amber-500 h-5 w-5 flex-shrink-0" />
+                            <span className="text-gray-700 flex-1">Complete your profile to improve your college application experience.</span>
+                            <a
+                                href="/profile"
+                                className="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors whitespace-nowrap"
+                            >
+                                Edit Profile →
+                            </a>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-md p-3 flex items-center">
-                            <CheckCircle className="text-green-500 mr-2 h-4 w-4" />
-                            <span>Your profile has all the essential information.</span>
+                        <div className="bg-white rounded-lg p-4 border shadow-sm flex items-center gap-3">
+                            <CheckCircle className="text-green-500 h-5 w-5 flex-shrink-0" />
+                            <span className="text-gray-700 flex-1">Your profile has all the essential information.</span>
                         </div>
                     )}
                 </div>

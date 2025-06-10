@@ -330,6 +330,7 @@ const ProfileTutorial = () => {
         education_level: '',
         english_level: '',
         toefl_score: '',
+        gpa: '',
         interests: '',
         date_of_birth: '',
         place_of_birth: '',
@@ -337,6 +338,7 @@ const ProfileTutorial = () => {
         bio: '',
         gender: '',
         religion: '',
+        extracurricular_activities: '',
         is_assigned: false,
         student_id: null,
         // New survey fields
@@ -377,6 +379,7 @@ const ProfileTutorial = () => {
                 education_level: profile.education_level || '',
                 english_level: profile.english_level || '',
                 toefl_score: profile.toefl_score || '',
+                gpa: profile.gpa || '',
                 interests: profile.interests || '',
                 date_of_birth: profile.date_of_birth || '',
                 place_of_birth: profile.place_of_birth || '',
@@ -384,6 +387,7 @@ const ProfileTutorial = () => {
                 bio: profile.bio || '',
                 gender: profile.gender || '',
                 religion: profile.religion || '',
+                extracurricular_activities: profile.extracurricular_activities || '',
                 is_assigned: profile.is_assigned || false,
                 student_id: profile.student_id || null,
                 // New survey fields
@@ -484,6 +488,7 @@ const ProfileTutorial = () => {
                 education_level: formData.education_level,
                 english_level: formData.english_level,
                 toefl_score: formData.toefl_score ? parseInt(formData.toefl_score, 10) || null : null,
+                gpa: formData.gpa ? parseFloat(formData.gpa) || null : null,
                 interests: formData.interests?.trim(),
                 date_of_birth: formData.date_of_birth || null,
                 place_of_birth: formData.place_of_birth?.trim() || null,
@@ -491,6 +496,7 @@ const ProfileTutorial = () => {
                 bio: formData.bio?.trim(),
                 gender: formData.gender,
                 religion: formData.religion?.trim(),
+                extracurricular_activities: formData.extracurricular_activities?.trim(),
                 is_assigned: formData.is_assigned || false,
                 student_id: formData.student_id,
                 // New survey fields
@@ -755,6 +761,21 @@ const ProfileTutorial = () => {
                                     max="120"
                                 />
                             </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1">GPA (4.0 scale)</label>
+                                <input
+                                    type="number"
+                                    name="gpa"
+                                    value={formData.gpa}
+                                    onChange={handleChange}
+                                    className="w-full p-2 border rounded-md"
+                                    placeholder="e.g. 3.75"
+                                    min="0"
+                                    max="4.0"
+                                    step="0.01"
+                                />
+                            </div>
                         </div>
                     </div>
                 );
@@ -790,6 +811,17 @@ const ProfileTutorial = () => {
                                     onChange={handleChange}
                                     className="w-full p-2 border rounded-md h-24"
                                     placeholder={t('bioPlaceholder')}
+                                ></textarea>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Extracurricular Activities</label>
+                                <textarea
+                                    name="extracurricular_activities"
+                                    value={formData.extracurricular_activities}
+                                    onChange={handleChange}
+                                    className="w-full p-2 border rounded-md h-24"
+                                    placeholder="List your activities, clubs, sports, volunteer work, leadership roles, etc."
                                 ></textarea>
                             </div>
                         </div>
@@ -943,10 +975,22 @@ const ProfileTutorial = () => {
                                     <span>{formData.toefl_score}</span>
                                 </div>
                             )}
+                            {formData.gpa && (
+                                <div className="p-3 flex">
+                                    <span className="font-medium w-1/3">GPA (4.0 scale):</span>
+                                    <span>{formData.gpa}</span>
+                                </div>
+                            )}
                             {formData.interests && (
                                 <div className="p-3 flex">
                                     <span className="font-medium w-1/3">{t('areasOfInterest')}:</span>
                                     <span>{formData.interests}</span>
+                                </div>
+                            )}
+                            {formData.extracurricular_activities && (
+                                <div className="p-3 flex">
+                                    <span className="font-medium w-1/3">Extracurricular Activities:</span>
+                                    <span>{formData.extracurricular_activities}</span>
                                 </div>
                             )}
                             {formData.province && (

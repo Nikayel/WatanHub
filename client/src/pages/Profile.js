@@ -86,7 +86,7 @@ export default function Profile() {
         <User size={64} className="text-gray-400 mb-4" />
         <h2 className="text-xl font-semibold text-gray-700">No Profile Found</h2>
         <p className="text-gray-500 mt-2 text-center">We couldn't find your profile information.</p>
-        <button 
+        <button
           onClick={() => navigate(-1)}
           className="mt-6 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
         >
@@ -100,12 +100,20 @@ export default function Profile() {
     { label: 'First Name', key: 'first_name', type: 'text' },
     { label: 'Last Name', key: 'last_name', type: 'text' },
     { label: 'Email', key: 'email', type: 'email' },
+    { label: 'Date of Birth', key: 'date_of_birth', type: 'date' },
+    { label: 'Gender', key: 'gender', type: 'text' },
+    { label: 'Phone Number', key: 'phone_number', type: 'tel' },
     { label: 'Education Level', key: 'education_level', type: 'text' },
     { label: 'English Level', key: 'english_level', type: 'text' },
-    { label: 'TOEFL Score', key: 'toefl_score', type: 'text' },
-    { label: 'Date of Birth', key: 'date_of_birth', type: 'date' },
+    { label: 'TOEFL Score', key: 'toefl_score', type: 'number' },
+    { label: 'GPA (4.0 scale)', key: 'gpa', type: 'number', step: '0.01', min: '0', max: '4.0' },
+    { label: 'Place of Birth', key: 'place_of_birth', type: 'text' },
+    { label: 'Place of Residence', key: 'place_of_residence', type: 'text' },
+    { label: 'Province', key: 'province', type: 'text' },
+    { label: 'School Type', key: 'school_type', type: 'text' },
     { label: 'Interests', key: 'interests', type: 'textarea' },
     { label: 'Bio', key: 'bio', type: 'textarea' },
+    { label: 'Extracurricular Activities', key: 'extracurricular_activities', type: 'textarea' },
   ];
 
   return (
@@ -119,9 +127,9 @@ export default function Profile() {
           <ChevronLeft size={16} className="mr-1" />
           Back
         </button>
-        
+
         <h1 className="text-3xl sm:text-4xl font-bold text-center sm:text-left flex-grow">My Profile</h1>
-        
+
         {!editing && (
           <button
             onClick={() => setEditing(true)}
@@ -142,20 +150,20 @@ export default function Profile() {
             </div>
           </div>
         </div>
-        
+
         {/* Profile Content */}
         <div className="pt-14 sm:pt-16 p-6 sm:p-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 sm:gap-y-6 mt-4">
             {profileFields.map((field) => {
               const isTextarea = field.type === 'textarea';
               const colSpan = isTextarea ? "md:col-span-2" : "";
-              
+
               return (
                 <div key={field.key} className={`${colSpan}`}>
                   <label className="text-gray-600 font-medium text-sm block mb-1">
                     {field.label}
                   </label>
-                  
+
                   {editing ? (
                     isTextarea ? (
                       <textarea
@@ -166,6 +174,9 @@ export default function Profile() {
                     ) : (
                       <input
                         type={field.type}
+                        step={field.step}
+                        min={field.min}
+                        max={field.max}
                         className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                         value={editForm[field.key] || ''}
                         onChange={(e) => handleInputChange(field.key, e.target.value)}

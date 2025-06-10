@@ -56,7 +56,7 @@ const translations = {
         chatPlaceholder: 'Choose a topic or type your question...',
         chatButton: 'Send',
         chatIntro:
-            "Hello! I can provide insights about colleges or universities you’re interested in. Please select one of the topics below or ask me something directly.",
+            "Hello! I can provide insights about colleges or universities you're interested in. Please select one of the topics below or ask me something directly.",
         aiTyping: 'AI is thinking...',
         hidePanel: 'Hide Guide',
         showPanel: 'Show Guide',
@@ -350,6 +350,9 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
     // ─── Local State ────────────────────────────────────────────────────────────
     const [schoolChoices, setSchoolChoices] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [studentProfile, setStudentProfile] = useState(null);
+    const [overallFeedback, setOverallFeedback] = useState('');
+    const [overallFeedbackLoading, setOverallFeedbackLoading] = useState(false);
 
     const [expandedCategories, setExpandedCategories] = useState({
         target: true,
@@ -372,6 +375,111 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [showRightPanel, setShowRightPanel] = useState(!forMentor); // students see panel by default, mentors can toggle
     const chatEndRef = useRef(null);
+
+    // ─── Helper Functions ─────────────────────────────────────────────────────────
+
+    // Helper: Filter schools by category
+    const getCategorySchools = (category) => {
+        return schoolChoices.filter(
+            (school) => school.preference_type === category
+        );
+    };
+
+    // Get realistic assessment for student
+    const getRealisticAssessment = (school, profile, type) => {
+        if (!profile) return "Complete your profile for personalized assessment.";
+
+        const gpa = parseFloat(profile.gpa) || 0;
+        const hasStandardizedScores = profile.toefl_score;
+        const toeflScore = profile.toefl_score ? parseInt(profile.toefl_score) : 0;
+
+        let assessment = "";
+        let chanceColor = "";
+
+        // More detailed assessment logic based on school type and student profile
+        if (type === 'safety') {
+            if (gpa >= 3.0) {
+                assessment = `✅ Excellent safety choice! With your GPA of ${gpa}, you have a very strong chance of admission. ${hasStandardizedScores ? `Your TOEFL score of ${toeflScore} adds to your strength.` : 'Consider taking standardized tests to further strengthen your application.'}`;
+                chanceColor = "text-green-700";
+            } else if (gpa >= 2.5) {
+                assessment = `✅ Good safety option. Your GPA of ${gpa} should be sufficient for admission. Focus on writing strong essays to complement your application.`;
+                chanceColor = "text-green-600";
+            } else {
+                assessment = `⚠️ Verify this is truly a safety school. Consider researching their average admitted GPA to confirm this is a good fit.`;
+                chanceColor = "text-yellow-700";
+            }
+        } else if (type === 'target') {
+            if (gpa >= 3.5) {
+                assessment = `🎯 Strong target choice! Your GPA of ${gpa} aligns well with target school standards. ${hasStandardizedScores ? `Your TOEFL score of ${toeflScore} ${toeflScore >= 100 ? 'is excellent' : toeflScore >= 80 ? 'meets requirements' : 'may need improvement'}.` : 'Consider taking standardized tests to boost your chances.'}`;
+                chanceColor = "text-blue-700";
+            } else if (gpa >= 3.0) {
+                assessment = `🎯 Realistic target. Your GPA of ${gpa} puts you in the competitive range. Strong extracurriculars and essays will be crucial.`;
+                chanceColor = "text-blue-600";
+            } else {
+                assessment = `⚠️ Challenging target. Consider whether this might be better classified as a stretch school. Focus on unique strengths and compelling personal story.`;
+                chanceColor = "text-yellow-700";
+            }
+        } else if (type === 'stretch') {
+            if (gpa >= 3.8) {
+                assessment = `🌟 Ambitious but achievable! Your strong GPA of ${gpa} gives you a competitive foundation. ${hasStandardizedScores ? `With your TOEFL score of ${toeflScore}, focus on ` : 'Focus on '}exceptional essays, unique experiences, and strong recommendations.`;
+                chanceColor = "text-purple-700";
+            } else if (gpa >= 3.5) {
+                assessment = `🌟 Challenging stretch choice. Your GPA of ${gpa} is competitive, but you'll need to showcase exceptional qualities beyond academics to stand out.`;
+                chanceColor = "text-purple-600";
+            } else {
+                assessment = `🌟 Very ambitious choice! While your GPA is below typical admits, extraordinary circumstances, unique talents, or compelling personal stories can sometimes overcome academic gaps.`;
+                chanceColor = "text-purple-500";
+            }
+        }
+
+        return (
+            <div className={chanceColor}>
+                <div className="font-medium mb-1">{assessment}</div>
+
+                {/* Additional contextual information */}
+                <div className="mt-2 space-y-1 text-xs">
+                    {profile.extracurricular_activities && (
+                        <div className="bg-gray-50 rounded p-2">
+                            <span className="font-medium">Your Activities:</span> {profile.extracurricular_activities.slice(0, 100)}...
+                        </div>
+                    )}
+
+                    {profile.interests && (
+                        <div className="bg-gray-50 rounded p-2">
+                            <span className="font-medium">Academic Interests:</span> {profile.interests.slice(0, 80)}...
+                        </div>
+                    )}
+
+                    {/* General tips based on school type */}
+                    <div className="bg-blue-50 rounded p-2 mt-2">
+                        <span className="font-medium">💡 Tips for {school.school_name}:</span>
+                        {type === 'safety' && (
+                            <ul className="list-disc list-inside mt-1">
+                                <li>Apply early to demonstrate interest</li>
+                                <li>Still put effort into your application</li>
+                                <li>Consider this school seriously as a potential choice</li>
+                            </ul>
+                        )}
+                        {type === 'target' && (
+                            <ul className="list-disc list-inside mt-1">
+                                <li>Research specific program requirements thoroughly</li>
+                                <li>Tailor your essays to show fit with the school</li>
+                                <li>Consider visiting campus or attending virtual events</li>
+                            </ul>
+                        )}
+                        {type === 'stretch' && (
+                            <ul className="list-disc list-inside mt-1">
+                                <li>Apply for Early Decision if this is your top choice</li>
+                                <li>Write exceptional, unique essays</li>
+                                <li>Seek strong letters of recommendation</li>
+                                <li>Apply for merit scholarships if available</li>
+                            </ul>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     // ─── Fetch School Choices from Supabase ─────────────────────────────────────
     const fetchSchoolChoices = useCallback(async () => {
@@ -404,9 +512,28 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
         }
     }, [studentId, forMentor]);
 
+    // ─── Fetch Student Profile for Context ──────────────────────────────────────
+    const fetchStudentProfile = useCallback(async () => {
+        if (!studentId) return;
+
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', studentId)
+                .single();
+
+            if (error) throw error;
+            setStudentProfile(data);
+        } catch (err) {
+            console.error('Error fetching student profile:', err);
+        }
+    }, [studentId]);
+
     useEffect(() => {
         fetchSchoolChoices();
-    }, [fetchSchoolChoices]);
+        fetchStudentProfile();
+    }, [fetchSchoolChoices, fetchStudentProfile]);
 
     // ─── Scroll Chat to Bottom on New Messages ───────────────────────────────────
     useEffect(() => {
@@ -457,44 +584,99 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
 
         setInsightLoading((prev) => ({ ...prev, [school.id]: true }));
         try {
-            const feedback = await geminiService.getSchoolInsight(school);
+            // Use actual AI service to get personalized feedback
+            const feedback = await geminiService.getSchoolInsight(school, forMentor, studentProfile);
+
             setSchoolSpecificFeedback((prev) => ({
                 ...prev,
                 [school.id]: feedback
             }));
         } catch (err) {
             console.error(`Error getting feedback for ${school.school_name}:`, err);
-            toast.error(`Failed to get insights for ${school.school_name}`);
+
+            // Provide helpful fallback that doesn't pretend to be AI analysis
+            const fallbackMessage = forMentor
+                ? `Unable to generate AI feedback. Please research ${school.school_name} with your student:
+• Verify this ${school.preference_type} school classification is appropriate
+• Review ${school.major_name} program requirements and deadlines
+• Discuss application strategy and requirements
+• Help them connect with admissions counselors or current students`
+                : `Research needed for ${school.school_name}:
+• Check their ${school.major_name} program details and requirements  
+• Review admission statistics and requirements
+• Explore campus life and student resources
+• Contact admissions office for specific questions
+• Discuss with your mentor for personalized guidance
+
+Visit their official website and attend information sessions for the most current information.`;
+
+            setSchoolSpecificFeedback((prev) => ({
+                ...prev,
+                [school.id]: fallbackMessage
+            }));
         } finally {
             setInsightLoading((prev) => ({ ...prev, [school.id]: false }));
         }
     };
 
-    // ─── Fetch AI feedback for all school choices at once ───────────────────────
-    const getAllChoicesFeedback = async () => {
+    // ─── Get overall feedback ──────────────────────────────────────────────────
+    const getOverallFeedback = async () => {
         if (!schoolChoices.length) return;
-        setLoading(true);
+
+        setOverallFeedbackLoading(true);
         try {
+            // Use actual AI service for overall school list analysis
             const feedback = await geminiService.getSchoolChoicesFeedback(
                 schoolChoices,
-                forMentor
+                forMentor,
+                studentProfile
             );
-            // We can store that in a top‐level `aiFeedback` state if desired.
-            toast.success('AI feedback generated!');
-            console.log('All AI feedback:', feedback);
-        } catch (err) {
-            console.error('Error getting AI feedback for all choices:', err);
-            toast.error('Failed to generate overall feedback');
-        } finally {
-            setLoading(false);
-        }
-    };
 
-    // ─── Helper: Filter schools by category ─────────────────────────────────────
-    const getCategorySchools = (category) => {
-        return schoolChoices.filter(
-            (school) => school.preference_type === category
-        );
+            setOverallFeedback(feedback);
+        } catch (err) {
+            console.error('Error getting overall feedback:', err);
+
+            // Provide helpful analysis without AI
+            const targetSchools = schoolChoices.filter(s => s.preference_type === 'target');
+            const safetySchools = schoolChoices.filter(s => s.preference_type === 'safety');
+            const stretchSchools = schoolChoices.filter(s => s.preference_type === 'stretch');
+
+            let feedback = `SCHOOL LIST ANALYSIS\n\n`;
+            feedback += `📊 Current Breakdown:\n`;
+            feedback += `• ${targetSchools.length} Target Schools\n`;
+            feedback += `• ${safetySchools.length} Safety Schools\n`;
+            feedback += `• ${stretchSchools.length} Stretch Schools\n`;
+            feedback += `• ${schoolChoices.length} Total Schools\n\n`;
+
+            feedback += `💡 Recommendations:\n`;
+
+            if (schoolChoices.length < 8) {
+                feedback += `• Consider adding more schools (8-12 total recommended)\n`;
+            }
+
+            if (safetySchools.length < 2) {
+                feedback += `• Add more safety schools (3-4 recommended)\n`;
+            }
+
+            if (targetSchools.length < 3) {
+                feedback += `• Consider more target schools (4-5 recommended)\n`;
+            }
+
+            if (stretchSchools.length > 2) {
+                feedback += `• Focus on most realistic stretch schools\n`;
+            }
+
+            feedback += `\n🎯 Next Steps:\n`;
+            feedback += `1. Research admission requirements for each school\n`;
+            feedback += `2. Create application timeline and checklist\n`;
+            feedback += `3. ${forMentor ? 'Discuss essay strategies with student' : 'Work on application essays'}\n`;
+            feedback += `4. ${forMentor ? 'Help plan campus visits' : 'Plan campus visits (virtual or in-person)'}\n`;
+            feedback += `5. ${forMentor ? 'Connect student with admissions representatives' : 'Contact admissions representatives'}\n`;
+
+            setOverallFeedback(feedback);
+        } finally {
+            setOverallFeedbackLoading(false);
+        }
     };
 
     // ─── Handle sending a new chat message (free text) ─────────────────────────
@@ -510,9 +692,12 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
         setChatInput('');
         setIsChatLoading(true);
 
-        // Call Gemini API
-        geminiService
-            .getSchoolChatResponse(trimmed)
+        // Call appropriate API based on context
+        const apiCall = forMentor
+            ? geminiService.getMentorChatResponse(trimmed, studentProfile ? `Student Profile: ${JSON.stringify(studentProfile)}` : '')
+            : geminiService.getStudentChatResponse(trimmed, studentProfile);
+
+        apiCall
             .then((response) => {
                 setChatMessages((prev) => [
                     ...prev,
@@ -525,8 +710,9 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                     ...prev,
                     {
                         role: 'ai',
-                        content:
-                            "I'm sorry, I couldn't process that right now. Please try again later."
+                        content: forMentor
+                            ? "I'm having trouble connecting right now. Use your mentoring experience to guide the conversation."
+                            : "I'm sorry, I couldn't process that right now. Please try again later."
                     }
                 ]);
             })
@@ -750,8 +936,8 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                             >
                                 <div
                                     className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user'
-                                            ? 'bg-indigo-600 text-white'
-                                            : 'bg-white border border-gray-200 text-gray-800'
+                                        ? 'bg-indigo-600 text-white'
+                                        : 'bg-white border border-gray-200 text-gray-800'
                                         }`}
                                 >
                                     <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -808,8 +994,11 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                                             }, 800);
                                         } else {
                                             // Otherwise call API
-                                            geminiService
-                                                .getSchoolChatResponse(topic.title)
+                                            const apiCall = forMentor
+                                                ? geminiService.getMentorChatResponse(topic.title, studentProfile ? `Student Profile: ${JSON.stringify(studentProfile)}` : '')
+                                                : geminiService.getStudentChatResponse(topic.title, studentProfile);
+
+                                            apiCall
                                                 .then((response) => {
                                                     setChatMessages((prev) => [
                                                         ...prev,
@@ -825,8 +1014,9 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                                                         ...prev,
                                                         {
                                                             role: 'ai',
-                                                            content:
-                                                                "I'm sorry, I couldn't retrieve information about this topic. Please try again later."
+                                                            content: forMentor
+                                                                ? "I'm having trouble connecting right now. Use your mentoring experience to guide the conversation."
+                                                                : "I'm sorry, I couldn't retrieve information about this topic. Please try again later."
                                                         }
                                                     ]);
                                                 })
@@ -878,8 +1068,11 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                                                 { role: 'user', content: question }
                                             ]);
                                             setIsChatLoading(true);
-                                            geminiService
-                                                .getSchoolChatResponse(question)
+                                            const apiCall = forMentor
+                                                ? geminiService.getMentorChatResponse(question, studentProfile ? `Student Profile: ${JSON.stringify(studentProfile)}` : '')
+                                                : geminiService.getStudentChatResponse(question, studentProfile);
+
+                                            apiCall
                                                 .then((response) => {
                                                     setChatMessages((prev) => [
                                                         ...prev,
@@ -895,8 +1088,9 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                                                         ...prev,
                                                         {
                                                             role: 'ai',
-                                                            content:
-                                                                "I'm sorry, I couldn't retrieve information about this question. Please try again later."
+                                                            content: forMentor
+                                                                ? "I'm having trouble connecting right now. Use your mentoring experience to guide the conversation."
+                                                                : "I'm sorry, I couldn't retrieve information about this question. Please try again later."
                                                         }
                                                     ]);
                                                 })
@@ -913,7 +1107,7 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                         </div>
                     )}
 
-                    {/* If in a follow-up, show “More questions” / “New topic” */}
+                    {/* If in a follow-up, show "More questions" / "New topic" */}
                     {selectedFollowup && (
                         <div className="flex justify-between">
                             <button
@@ -1009,7 +1203,7 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
 
                     {/* Main options */}
                     <div className="space-y-4 mb-4">
-                        {/* “Chat with AI Advisor” button */}
+                        {/* "Chat with AI Advisor" button */}
                         <button
                             onClick={() => {
                                 setShowChat(true);
@@ -1130,38 +1324,106 @@ const StudentSchoolChoicesViewer = ({ studentId, forMentor = true }) => {
                                     {categorySchools.map((school) => (
                                         <div
                                             key={school.id}
-                                            className="border rounded-lg p-3 flex justify-between items-center"
+                                            className="border rounded-lg p-4 hover:shadow-md transition-shadow"
                                         >
-                                            <div>
-                                                <h5 className="font-medium text-gray-800">{school.school_name}</h5>
-                                                <p className="text-xs text-gray-500">
-                                                    {school.city || ''} {school.country ? `, ${school.country}` : ''}
-                                                </p>
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div className="flex-1">
+                                                    <h5 className="font-semibold text-gray-800 text-lg">{school.school_name}</h5>
+                                                    <p className="text-sm text-gray-600 mb-1">
+                                                        Major: <span className="font-medium">{school.major_name}</span>
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {school.city || 'Location not specified'} {school.country ? `, ${school.country}` : ''}
+                                                    </p>
+                                                    {school.application_status && (
+                                                        <div className="mt-2">
+                                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${school.application_status === 'submitted'
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : school.application_status === 'in_progress'
+                                                                    ? 'bg-yellow-100 text-yellow-800'
+                                                                    : 'bg-gray-100 text-gray-800'
+                                                                }`}>
+                                                                {school.application_status.replace('_', ' ').toUpperCase()}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <button
+                                                    onClick={() => getSchoolSpecificFeedback(school)}
+                                                    className="ml-4 px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    disabled={insightLoading[school.id]}
+                                                >
+                                                    {insightLoading[school.id] ? (
+                                                        <span className="flex items-center">
+                                                            <Loader size={14} className="animate-spin mr-1" />
+                                                            Loading...
+                                                        </span>
+                                                    ) : forMentor ? 'Get Guidance' : 'Get Details'}
+                                                </button>
                                             </div>
-                                            <button
-                                                onClick={() => getSchoolSpecificFeedback(school)}
-                                                className="text-indigo-600 text-sm hover:underline disabled:opacity-50"
-                                                disabled={insightLoading[school.id]}
-                                            >
-                                                {insightLoading[school.id] ? 'Loading...' : 'Get Insight'}
-                                            </button>
+
+                                            {/* AI Feedback/Details */}
                                             {schoolSpecificFeedback[school.id] && (
-                                                <div className="ml-4 max-w-xs text-sm text-gray-700">
-                                                    {schoolSpecificFeedback[school.id]}
+                                                <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                                                    <div className="flex items-start">
+                                                        <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center mr-2 mt-0.5">
+                                                            <MessageSquare size={12} className="text-indigo-600" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <h6 className="font-medium text-indigo-800 mb-1">
+                                                                {forMentor ? 'Mentoring Guidance' : 'School Insights'}
+                                                            </h6>
+                                                            <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                                                                {schoolSpecificFeedback[school.id]}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Student-specific realistic assessment */}
+                                            {!forMentor && studentProfile && (
+                                                <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                                                    <h6 className="font-medium text-yellow-800 mb-2 flex items-center">
+                                                        <CheckCircle size={16} className="mr-1" />
+                                                        Realistic Assessment
+                                                    </h6>
+                                                    <div className="text-sm text-yellow-700">
+                                                        {getRealisticAssessment(school, studentProfile, type)}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
                                     ))}
 
-                                    {/* If mentor, show “Get overall feedback” at bottom */}
-                                    {forMentor && (
-                                        <div className="mt-4">
+                                    {/* Overall feedback section */}
+                                    {schoolChoices.length > 0 && (
+                                        <div className="mt-6 pt-4 border-t border-gray-200">
                                             <button
-                                                onClick={getAllChoicesFeedback}
-                                                className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                                                onClick={() => getOverallFeedback()}
+                                                disabled={overallFeedbackLoading}
+                                                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                {translations[language].getFeedback}
+                                                {overallFeedbackLoading ? (
+                                                    <span className="flex items-center justify-center">
+                                                        <Loader size={18} className="animate-spin mr-2" />
+                                                        Analyzing your choices...
+                                                    </span>
+                                                ) : forMentor ? 'Get Overall Mentoring Guidance' : 'Analyze My School List'}
                                             </button>
+
+                                            {overallFeedback && (
+                                                <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+                                                    <h6 className="font-medium text-green-800 mb-2 flex items-center">
+                                                        <FileText size={16} className="mr-1" />
+                                                        {forMentor ? 'Overall Mentoring Strategy' : 'Your School List Analysis'}
+                                                    </h6>
+                                                    <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                                                        {overallFeedback}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

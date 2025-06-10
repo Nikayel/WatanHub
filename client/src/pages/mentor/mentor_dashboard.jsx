@@ -719,6 +719,7 @@ const MentorDashboard = () => {
                     studentName={selectedStudent ? `${selectedStudent.first_name} ${selectedStudent.last_name}` : null}
                     isCollapsed={!showAISidebar}
                     onToggle={() => setShowAISidebar(!showAISidebar)}
+                    selectedStudent={selectedStudent}
                 />
 
                 {/* Main Dashboard Content */}
