@@ -3,20 +3,69 @@
 
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Watan | Empowering Youth</title>
-  <meta name="description" content="WatanHub - Connecting underrepresented youth with mentors across industries." />
-  <meta name="theme-color" content="#0A66C2" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#000000" />
 
-  <!-- Favicon + Icons -->
-  <link rel="icon" type="image/x-icon" href="%PUBLIC_URL%/favicon.ico" />
-  <link rel="icon" type="image/png" sizes="96x96" href="%PUBLIC_URL%/favicon-96x96.png" />
-  <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" />
-  <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" sizes="180x180" />
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://watanhub.onrender.com; frame-src 'none';">
 
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="%PUBLIC_URL%/site.webmanifest" />
+  <!-- SEO and Social Media -->
+  <meta name="description"
+    content="WatanHub - Empowering Afghan students through educational mentorship, college guidance, and community support. Join our mission to preserve culture while building futures." />
+  <meta name="keywords"
+    content="Afghan students, education, mentorship, college guidance, cultural preservation, humanitarian support" />
+  <meta name="author" content="WatanHub" />
 
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://watanhub.org/" />
+  <meta property="og:title" content="WatanHub - Educational Mentorship for Afghan Students" />
+  <meta property="og:description"
+    content="Empowering Afghan students through educational mentorship, college guidance, and community support." />
+  <meta property="og:image" content="%PUBLIC_URL%/Logo.png" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://watanhub.org/" />
+  <meta property="twitter:title" content="WatanHub - Educational Mentorship for Afghan Students" />
+  <meta property="twitter:description"
+    content="Empowering Afghan students through educational mentorship, college guidance, and community support." />
+  <meta property="twitter:image" content="%PUBLIC_URL%/Logo.png" />
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "WatanHub",
+    "description": "Educational mentorship platform for Afghan students",
+    "url": "https://watanhub.org",
+    "logo": "%PUBLIC_URL%/Logo.png",
+    "sameAs": [],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "support",
+      "email": "support@watanhub.org"
+    }
+  }
+  </script>
+
+  <!-- Icons and Manifest -->
+  <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+  <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
+  <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+  <!-- Performance Hints -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://exvlmriyxeownzwmmwkr.supabase.co">
+
+  <title>WatanHub - Educational Mentorship for Afghan Students</title>
 </head>
 
 <body>

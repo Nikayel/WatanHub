@@ -2,15 +2,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "./Navigation/Navbar";
 import Welcome from "./Sections/Welcome";
-
-
 import About from "./Sections/About";
 import Contact from "./Sections/Contact";
 import Footer from "./Footer";
 import SignUpSteps from "./Sections/SingUpSteps";
 import BlogList from "../pages/BlogList";
 import { motion, useInView, AnimatePresence } from "framer-motion";
-import { ArrowRight, X, GraduationCap, Calendar, Sparkles } from "lucide-react";
+import { ArrowRight, X, GraduationCap, Calendar, Sparkles, ChevronDown, BookOpen, Users, Target } from "lucide-react";
 import { supabase } from '../lib/supabase';
 import FAQ from "./Sections/FAQ";
 
@@ -24,22 +22,22 @@ const HomePage = () => {
   });
 
   // Refs for scroll animation sections
+  const heroContentRef = useRef(null);
   const blogSectionRef = useRef(null);
   const signupSectionRef = useRef(null);
-  const faqSectionRef = useRef(null);
-
+  const aboutSectionRef = useRef(null);
 
   // Check if sections are in view
-  const isBlogInView = useInView(blogSectionRef, { once: false, amount: 0.2 });
-  const isSignupInView = useInView(signupSectionRef, { once: false, amount: 0.2 });
-  const isFaqInView = useInView(faqSectionRef, { once: false, amount: 0.2 });
-
+  const isHeroContentInView = useInView(heroContentRef, { once: true, amount: 0.3 });
+  const isBlogInView = useInView(blogSectionRef, { once: true, amount: 0.2 });
+  const isSignupInView = useInView(signupSectionRef, { once: true, amount: 0.2 });
+  const isAboutInView = useInView(aboutSectionRef, { once: true, amount: 0.2 });
 
   useEffect(() => {
-    // Show fellowship popup after 3 seconds
+    // Show fellowship popup after 5 seconds (less aggressive)
     const timer = setTimeout(() => {
       setShowFellowshipPopup(true);
-    }, 3000);
+    }, 5000);
 
     // Fetch fellowship info
     fetchFellowshipInfo();
@@ -62,8 +60,15 @@ const HomePage = () => {
     }
   };
 
+  const scrollToContent = () => {
+    document.getElementById('main-content')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-white">
       <Navbar
         onHomeClick={() => setActiveTab("home")}
         onAboutClick={() => setActiveTab("about")}
@@ -73,86 +78,167 @@ const HomePage = () => {
       <main className="flex-grow">
         {activeTab === "home" && (
           <>
-            <Welcome />
+            {/* Hero Section */}
+            <Welcome onScrollClick={scrollToContent} />
 
-            {/* Content sections with improved layout and scroll animations */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-              {/* Latest Blog Posts Section with Apple-style scroll animations */}
+            {/* Main Content Area - Clean Apple-style layout */}
+            <div id="main-content" className="bg-white">
+              {/* Hero Content Section - immediately after welcome */}
               <motion.section
-                id="blog-list"
+                ref={heroContentRef}
+                className="py-20 lg:py-32 bg-gray-50"
+              >
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <motion.div
+                    initial={{ opacity: 0, y: 60 }}
+                    animate={isHeroContentInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 60 }}
+                    transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="text-center mb-20"
+                  >
+                    <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+                      Empowering Future Leaders
+                    </h2>
+                    <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                      We connect Afghan students with mentors, resources, and opportunities
+                      to build brighter futures through education and community support.
+                    </p>
+                  </motion.div>
+
+                  {/* Feature Cards */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={isHeroContentInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
+                    transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12"
+                  >
+                    <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300">
+                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
+                        <Users className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-4">Mentorship</h3>
+                      <p className="text-gray-600 leading-relaxed">
+                        Connect with experienced mentors who guide your academic and professional journey.
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300">
+                      <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-6">
+                        <BookOpen className="h-6 w-6 text-green-600" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-4">Resources</h3>
+                      <p className="text-gray-600 leading-relaxed">
+                        Access educational materials, scholarship opportunities, and career guidance.
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300">
+                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
+                        <Target className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-4">Opportunities</h3>
+                      <p className="text-gray-600 leading-relaxed">
+                        Discover internships, college programs, and pathways to success.
+                      </p>
+                    </div>
+                  </motion.div>
+                </div>
+              </motion.section>
+
+              {/* Latest Blog Posts Section */}
+              <motion.section
                 ref={blogSectionRef}
-                className="mb-24 py-12"
+                className="py-20 lg:py-32 bg-white"
               >
-                <motion.div
-                  initial={{ opacity: 0, y: 40 }}
-                  animate={isBlogInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-                  transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                  className="text-center mb-16"
-                >
-                  <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-                    <span className="inline-block border-b-2 border-indigo-500 pb-2">Latest Posts</span>
-                  </h2>
-                  <p className="max-w-2xl mx-auto text-gray-600 text-lg">
-                    Stay up to date with the latest news, resources, and opportunities in our community.
-                  </p>
-                </motion.div>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <motion.div
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={isBlogInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
+                    transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="text-center mb-16"
+                  >
+                    <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+                      Latest Updates
+                    </h2>
+                    <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                      Stay informed with the latest news, insights, and opportunities from our community.
+                    </p>
+                  </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={isBlogInView ? { opacity: 1 } : { opacity: 0 }}
-                  transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                  className="bg-white rounded-xl shadow-md p-6 sm:p-8 transform-gpu"
-                >
-                  <BlogList />
-                </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 60 }}
+                    animate={isBlogInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 60 }}
+                    transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                  >
+                    <BlogList />
+                  </motion.div>
+                </div>
               </motion.section>
 
-              {/* Sign Up Steps with card layout and scroll animations */}
+              {/* Get Started Section */}
               <motion.section
-                id="signup-steps"
                 ref={signupSectionRef}
-                className="mb-24 py-12"
+                className="py-20 lg:py-32 bg-gray-50"
+              >
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <motion.div
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={isSignupInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
+                    transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="text-center mb-16"
+                  >
+                    <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+                      Ready to Get Started?
+                    </h2>
+                    <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                      Join our community and take the first step towards your educational goals.
+                    </p>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 60 }}
+                    animate={isSignupInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 60 }}
+                    transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 lg:p-12"
+                  >
+                    <SignUpSteps />
+                  </motion.div>
+                </div>
+              </motion.section>
+
+              {/* About Section */}
+              <motion.section
+                ref={aboutSectionRef}
+                className="py-20 lg:py-32 bg-white"
               >
                 <motion.div
-                  initial={{ opacity: 0, y: 40 }}
-                  animate={isSignupInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-                  transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                  initial={{ opacity: 0, y: 60 }}
+                  animate={isAboutInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 60 }}
+                  transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
                 >
-                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-md p-6 sm:p-8">
-                    <SignUpSteps />
-                  </div>
+                  <About />
                 </motion.div>
               </motion.section>
 
-              {/* FAQ Section with improved styling and scroll animations */}
-              <motion.section
-                id="faq-section"
-                ref={faqSectionRef}
-                className="mb-16 py-12"
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 40 }}
-                  animate={isFaqInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-                  transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <div className="bg-white rounded-xl shadow-md p-6 sm:p-8">
+              {/* FAQ Section */}
+              <section className="py-20 lg:py-32 bg-gray-50">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 lg:p-12">
                     <FAQ onContactClick={() => setContactOpen(true)} />
                   </div>
-                </motion.div>
-              </motion.section>
+                </div>
+              </section>
 
+              {/* Contact Section */}
+              <section className="py-20 lg:py-32 bg-white">
+                <Contact />
+              </section>
             </div>
-
-            {/* Page Sections */}
-            <About />
-
-            <Contact />
           </>
         )}
 
         {activeTab === "about" && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="bg-white rounded-xl shadow-md p-6 sm:p-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 lg:p-12">
               <About />
             </div>
           </div>
@@ -169,36 +255,36 @@ const HomePage = () => {
         <Contact isOpen={contactOpen} onClose={() => setContactOpen(false)} />
       )}
 
-      {/* Fellowship Popup */}
+      {/* Fellowship Popup - More subtle and Apple-like */}
       <AnimatePresence>
         {showFellowshipPopup && (
           <motion.div
-            initial={{ x: 400, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 400, opacity: 0 }}
-            className="fixed top-4 right-4 z-50 max-w-sm"
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="fixed top-32 right-8 z-50 max-w-sm"
           >
-            <div className="bg-white/95 backdrop-blur-lg rounded-xl p-4 shadow-xl border border-gray-200">
-              <div className="flex items-start space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <GraduationCap className="h-5 w-5 text-white" />
+            <div className="bg-white/95 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border border-gray-200/50">
+              <div className="flex items-start space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <GraduationCap className="h-6 w-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-gray-900 text-sm">Fellowship Program</h4>
-                  <p className="text-xs text-gray-600 mt-1">Starting {fellowshipInfo.start_date}</p>
-                  <div className="flex items-center space-x-2 mt-2">
+                  <h4 className="font-semibold text-gray-900 text-base mb-1">Fellowship Program</h4>
+                  <p className="text-sm text-gray-600 mb-3">Starting {fellowshipInfo.start_date}</p>
+                  <div className="flex items-center space-x-3">
                     <button
                       onClick={() => {
                         setShowFellowshipPopup(false);
                         window.location.href = '/mentors';
                       }}
-                      className="text-xs bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition-colors"
+                      className="text-sm bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
                     >
                       Learn More
                     </button>
                     <button
                       onClick={() => setShowFellowshipPopup(false)}
-                      className="text-xs text-gray-500 hover:text-gray-700"
+                      className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
                     >
                       Dismiss
                     </button>
@@ -206,9 +292,9 @@ const HomePage = () => {
                 </div>
                 <button
                   onClick={() => setShowFellowshipPopup(false)}
-                  className="text-gray-400 hover:text-gray-600 p-1"
+                  className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
             </div>

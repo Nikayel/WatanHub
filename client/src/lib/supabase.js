@@ -1,17 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
-import { toast } from 'sonner'; // for notifications
+import { toast } from 'sonner';
+import config from '../config/environment';
+import Logger from '../utils/logger';
 
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+const { supabase: supabaseConfig } = config;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:', {
-    url: !!supabaseUrl,
-    key: !!supabaseAnonKey
+if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+  const error = 'Supabase configuration is incomplete';
+  Logger.error(error, {
+    url: !!supabaseConfig.url,
+    key: !!supabaseConfig.anonKey
   });
+  throw new Error(error);
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(
+  supabaseConfig.url,
+  supabaseConfig.anonKey,
+  supabaseConfig.options
+);
 
 // Reusable safe fetch for SELECT
 export async function safeSelect(table, columns = '*', filters = {}) {
@@ -25,7 +32,7 @@ export async function safeSelect(table, columns = '*', filters = {}) {
   const { data, error } = await query;
 
   if (error) {
-    console.error(`❌ Error selecting from ${table}:`, error);
+    Logger.error(`Error selecting from ${table}:`, error);
     toast.error(`Failed to fetch ${table}.`);
     return null;
   }
@@ -38,12 +45,11 @@ export async function safeInsert(table, payload) {
   const { data, error } = await supabase.from(table).insert(payload).select();
 
   if (error) {
-    // Handle unique constraint violation specifically
     if (error.code === '23505') {
-      console.warn(`⚠️ Duplicate entry prevented in '${table}'`);
+      Logger.warn(`Duplicate entry prevented in '${table}'`);
       toast.error(`You have already submitted an application.`);
     } else {
-      console.error(`❌ safeInsert failed for '${table}':`, {
+      Logger.error(`safeInsert failed for '${table}':`, {
         message: error.message,
         details: error.details,
         hint: error.hint,
@@ -66,7 +72,7 @@ export async function safeUpdate(table, updates, matchKey, matchValue) {
     .eq(matchKey, matchValue); // 👈 ADD `.select()`
 
   if (error) {
-    console.error(`❌ Error updating ${table}:`, error);
+    Logger.error(`Error updating ${table}:`, error);
     toast.error(`Failed to update ${table}.`);
     return null;
   }
@@ -82,7 +88,7 @@ export async function safeDelete(table, matchKey, matchValue) {
     .eq(matchKey, matchValue);
 
   if (error) {
-    console.error(`❌ Error deleting from ${table}:`, error);
+    Logger.error(`Error deleting from ${table}:`, error);
     toast.error(`Failed to delete from ${table}.`);
     return false;
   }

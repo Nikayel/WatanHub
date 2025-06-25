@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Download, FileText, ExternalLink, AlertCircle } from 'lucide-react';
+import Logger from '../utils/logger';
 
 const PDFViewer = ({
     fileUrl,
@@ -20,7 +21,7 @@ const PDFViewer = ({
 
     const handleIframeError = () => {
         setLoadError(true);
-        console.log('PDF preview failed for:', fileName);
+        Logger.warn('PDF preview failed for:', fileName);
     };
 
     const formatFileSize = (bytes) => {

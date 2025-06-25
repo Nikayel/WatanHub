@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { geminiService } from '../services/ApiService';
 import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Loader, User, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import Logger from '../utils/logger';
 
 // This component analyzes profile completeness and provides AI-powered suggestions
 const ProfileCompleteness = ({ profile, onComplete }) => {
@@ -8,6 +10,8 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
     const [analysis, setAnalysis] = useState(null);
     const [expanded, setExpanded] = useState(false);
     const [dismissed, setDismissed] = useState(false);
+    const [completionData, setCompletionData] = useState(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     // Calculate profile completion percentage based on our key fields
     const calculateCompletionPercentage = (profileData) => {
@@ -34,7 +38,7 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
         const completedCount = completedFields.length;
         const completeness = Math.round((completedCount / totalFields) * 100);
 
-        console.log(`Profile completion details:
+        Logger.debug(`Profile completion analysis:
         Critical (${criticalFields.filter(f => completedFields.includes(f)).length}/${criticalFields.length}): ${criticalFields.filter(f => completedFields.includes(f))}
         Very Important (${veryImportantFields.filter(f => completedFields.includes(f)).length}/${veryImportantFields.length}): ${veryImportantFields.filter(f => completedFields.includes(f))}
         Important (${importantFields.filter(f => completedFields.includes(f)).length}/${importantFields.length}): ${importantFields.filter(f => completedFields.includes(f))}
@@ -49,12 +53,12 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
 
         setLoading(true);
         try {
-            console.log("Analyzing profile with AI service");
+            Logger.info("Starting profile analysis");
             const result = await geminiService.analyzeProfileCompleteness(profile);
-            console.log("AI analysis result:", result);
+            Logger.info("Profile analysis completed");
             setAnalysis(result);
         } catch (error) {
-            console.error("Error analyzing profile:", error);
+            Logger.error("Profile analysis failed:", error);
             setAnalysis("Unable to analyze profile completeness at this time.");
         } finally {
             setLoading(false);
@@ -62,22 +66,24 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
     };
 
     useEffect(() => {
-        // Always expand on first render to make it visible
         setExpanded(true);
 
-        // On first render or when profile changes significantly, check completeness
         const percentage = calculateCompletionPercentage(profile);
+        Logger.debug("Profile completeness calculated:", percentage, "%");
 
-        console.log("Profile completeness:", percentage, "%");
+        // Calculate additional completion data if profile exists
+        if (profile) {
+            const data = calculateCompletion();
+            setCompletionData(data);
+        }
 
         // Only analyze the profile when incomplete - set threshold to 90%
         if (!dismissed && profile && percentage < 90) {
             analyzeProfile();
         } else {
-            // If profile is reasonably complete, don't bother with analysis
             setAnalysis(null);
         }
-    }, [profile]); // Removed dismissed from dependencies to ensure analysis runs
+    }, [profile]);
 
     const handleDismiss = () => {
         setDismissed(true);
@@ -101,6 +107,72 @@ const ProfileCompleteness = ({ profile, onComplete }) => {
         if (percentage < 50) return 'text-yellow-700';
         return 'text-green-700';
     };
+
+    const calculateCompletion = () => {
+        if (!profile) return { percentage: 0, details: {} };
+
+        const fields = {
+            'Basic Info': {
+                'Full Name': !!profile.full_name,
+                'Email': !!profile.email,
+                'Phone': !!profile.phone_number,
+                'Date of Birth': !!profile.date_of_birth,
+                'Address': !!profile.address,
+                'Gender': !!profile.gender
+            },
+            'Academic': {
+                'Current School': !!profile.current_school,
+                'Grade Level': !!profile.grade_level,
+                'GPA': !!profile.gpa,
+                'Intended Major': !!profile.intended_major
+            },
+            'Background': {
+                'Country of Origin': !!profile.country_of_origin,
+                'Languages Spoken': !!profile.languages_spoken,
+                'Immigration Status': !!profile.immigration_status,
+                'Parent/Guardian Info': !!profile.parent_guardian_info
+            },
+            'Goals & Interests': {
+                'Career Goals': !!profile.career_goals,
+                'Interests/Hobbies': !!profile.interests_hobbies,
+                'Extracurricular Activities': !!profile.extracurricular_activities,
+                'Community Involvement': !!profile.community_involvement
+            },
+            'Survey Data': {
+                'Financial Need': profile.financial_need !== null,
+                'Academic Support Need': profile.academic_support_need !== null
+            }
+        };
+
+        Logger.debug(`Profile completion details:`, fields);
+
+        const totalFields = Object.values(fields).reduce((sum, section) => sum + Object.keys(section).length, 0);
+        const completedFields = Object.values(fields).reduce((sum, section) =>
+            sum + Object.values(section).filter(Boolean).length, 0);
+
+        return {
+            percentage: Math.round((completedFields / totalFields) * 100),
+            details: fields,
+            completed: completedFields,
+            total: totalFields
+        };
+    };
+
+    const analyzeWithAI = async () => {
+        setIsAnalyzing(true);
+        try {
+            Logger.log("Analyzing profile with AI service");
+            const result = await fetch('/api/analyze-profile', { method: 'POST', body: JSON.stringify(profile) });
+            Logger.log("AI analysis result:", result);
+            setIsAnalyzing(false);
+            if (onComplete) onComplete(result);
+        } catch (error) {
+            Logger.error("Error analyzing profile:", error);
+            setIsAnalyzing(false);
+        }
+    };
+
+
 
     return (
         <div className={`rounded-xl border ${getBackgroundColor()} p-4 sm:p-6 mb-6 overflow-hidden transition-all shadow-sm`}>

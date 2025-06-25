@@ -1,7 +1,7 @@
 import React from "react";
 import Navbar from "../components/Navigation/Navbar";
 import Footer from "../components/Footer";
-import Mentors from "../components/Sections/Mentors";
+import AboutUs from "../components/Sections/Mentors";
 import { useNavigate } from "react-router-dom";
 
 const MentorsPage = () => {
@@ -27,7 +27,7 @@ const MentorsPage = () => {
         onContactClick={handleContactClick}
       />
       <main>
-        <Mentors />
+        <AboutUs />
       </main>
       <Footer />
     </>

@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 export default function AdminBlogCreate() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -45,6 +45,7 @@ export default function AdminBlogCreate() {
       cover_image_url: coverImageUrl.trim(),
       description: description.trim(),
       created_by: user.id,
+      published: true,
     }];
 
     const result = await safeInsert('blogs', payload);

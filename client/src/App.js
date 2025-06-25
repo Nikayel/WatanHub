@@ -1,12 +1,13 @@
 import React from 'react';
-//UI
 import { Toaster } from 'sonner';
 import { Analytics } from "@vercel/analytics/react"
-// VERCEL EXTRAS
-// import { SpeedInsights } from "@vercel/speed-insights/react"
-// React and Routing
 import { Routes, Route } from 'react-router-dom';
 import './App.css';
+
+// Production optimizations
+import ErrorBoundary from './components/ErrorBoundary';
+import config from './config/environment';
+import Logger from './utils/logger';
 
 // Context and Protection
 import ProtectedRoute from './components/Routes/ProtectedRoute';
@@ -16,6 +17,8 @@ import MentorsPage from './pages/MentorsPage';
 
 // Public Pages
 import HomePage from './components/HomePage';
+import GetInvolvedPage from './pages/GetInvolvedPage';
+import OurVisionPage from './pages/OurVisionPage';
 import TimelineDemo from './components/ui/timeline-demo';
 import BlogList from './pages/BlogList';
 import BlogDetail from './pages/BlogDetails';
@@ -34,6 +37,7 @@ import AdminBlogCreate from './pages/admin/AdminBlogCreate';
 import AdminBlogEdit from './pages/admin/AdminBlogEdit';
 import AdminAnnouncementSend from './pages/admin/AdminAnnouncementSend'; // 👈 import it
 import MigrationTool from './pages/admin/MigrationTool'; // 👈 import migration tool
+import FellowshipSettingsAdmin from './pages/admin/FellowshipSettingsAdmin';
 
 //mentor section
 import MentorApplicationPage from './pages/MentorApplicationPage';
@@ -50,15 +54,28 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 
 function App() {
+  // Initialize performance monitoring in development
+  React.useEffect(() => {
+    if (config.isDevelopment) {
+      Logger.info('WatanHub App initialized', {
+        version: config.app.version,
+        environment: process.env.NODE_ENV,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, []);
+
   return (
-    <>
-      <Toaster position="top-center" richColors /> {/* <- here */}
+    <ErrorBoundary>
+      <Toaster position="top-center" richColors />
       <ProfileTutorial />
       <TermsChecker />
       <Routes>
 
         {/* Public Routes */}
         <Route path="/mentors" element={<MentorsPage />} />
+        <Route path="/get-involved" element={<GetInvolvedPage />} />
+        <Route path="/our-vision" element={<OurVisionPage />} />
         <Route path="/" element={<HomePage />} />
         <Route path="/timeline" element={<TimelineDemo />} />
         <Route path="/blogs" element={<BlogList />} />
@@ -130,12 +147,19 @@ function App() {
           </AdminRoute>
         } />
 
+        {/* Fellowship Settings Admin Route */}
+        <Route path="/admin/fellowship-settings" element={
+          <AdminRoute>
+            <FellowshipSettingsAdmin />
+          </AdminRoute>
+        } />
+
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
 
       </Routes>
       <Analytics />
-    </>
+    </ErrorBoundary>
   );
 }
 

@@ -1125,20 +1125,46 @@ Bio: ${student.bio || 'N/A'}
     try {
       setFellowshipLoading(true);
 
-      // First try to update existing record
-      const { data: updateData, error: updateError } = await supabase
+      // First check if record exists
+      const { data: existingData, error: existingError } = await supabase
         .from('fellowship_settings')
-        .update({
-          start_date: fellowshipSettings.start_date,
-          description: fellowshipSettings.description,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', 1);
+        .select('id')
+        .single();
 
-      if (updateError) {
-        console.error('Error updating fellowship settings:', updateError);
-        toast.error('Failed to update fellowship settings');
-        return;
+      if (existingError && existingError.code === 'PGRST116') {
+        // No record exists, create one
+        const { data: insertData, error: insertError } = await supabase
+          .from('fellowship_settings')
+          .insert({
+            start_date: fellowshipSettings.start_date,
+            description: fellowshipSettings.description,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating fellowship settings:', insertError);
+          toast.error('Failed to create fellowship settings');
+          return;
+        }
+      } else if (existingData) {
+        // Record exists, update it
+        const { data: updateData, error: updateError } = await supabase
+          .from('fellowship_settings')
+          .update({
+            start_date: fellowshipSettings.start_date,
+            description: fellowshipSettings.description,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingData.id);
+
+        if (updateError) {
+          console.error('Error updating fellowship settings:', updateError);
+          toast.error('Failed to update fellowship settings');
+          return;
+        }
       }
 
       toast.success('Fellowship settings updated successfully');
@@ -1235,207 +1261,400 @@ Bio: ${student.bio || 'N/A'}
           </div>
         </div>
 
-        <AnimatePresence mode="wait">
-          {/* CRM-Style Stats Overview Cards */}
-          {activeTab === 'overview' && (
-            <div className="space-y-8">
-              {/* Enhanced Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* Total Students Card */}
-                <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-indigo-100 text-sm font-medium">Total Students</p>
-                      <h3 className="text-3xl font-bold">{students.length}</h3>
-                      <div className="flex items-center mt-2">
-                        <TrendingUp className="h-4 w-4 mr-1" />
-                        <span className="text-sm text-indigo-100">
-                          {students.filter(s => {
-                            const createdAt = new Date(s.created_at);
-                            const oneMonthAgo = new Date();
-                            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-                            return createdAt > oneMonthAgo;
-                          }).length} this month
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bg-indigo-400 bg-opacity-30 rounded-full p-3">
-                      <Users className="h-8 w-8" />
+        {/* CRM-Style Stats Overview Cards */}
+        {activeTab === 'overview' && (
+          <div className="space-y-8">
+            {/* Enhanced Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Total Students Card */}
+              <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-xl p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-indigo-100 text-sm font-medium">Total Students</p>
+                    <h3 className="text-3xl font-bold">{students.length}</h3>
+                    <div className="flex items-center mt-2">
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                      <span className="text-sm text-indigo-100">
+                        {students.filter(s => {
+                          const createdAt = new Date(s.created_at);
+                          const oneMonthAgo = new Date();
+                          oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+                          return createdAt > oneMonthAgo;
+                        }).length} this month
+                      </span>
                     </div>
                   </div>
-                </div>
-
-                {/* Active Mentors Card */}
-                <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-green-100 text-sm font-medium">Active Mentors</p>
-                      <h3 className="text-3xl font-bold">{approvedMentors.length}</h3>
-                      <div className="flex items-center mt-2">
-                        <UserCheck className="h-4 w-4 mr-1" />
-                        <span className="text-sm text-green-100">
-                          {mentorApplications.filter(m => m.status === 'pending').length} pending
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bg-green-400 bg-opacity-30 rounded-full p-3">
-                      <UserCheck className="h-8 w-8" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* College Admissions Card */}
-                <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl shadow-xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-amber-100 text-sm font-medium">College Admissions</p>
-                      <h3 className="text-3xl font-bold">{outcomesStats.collegeAdmissions.total}</h3>
-                      <div className="flex items-center mt-2">
-                        <GraduationCap className="h-4 w-4 mr-1" />
-                        <span className="text-sm text-amber-100">
-                          {outcomesStats.collegeAdmissions.stemCount} STEM
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bg-amber-400 bg-opacity-30 rounded-full p-3">
-                      <GraduationCap className="h-8 w-8" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Scholarships Card */}
-                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-purple-100 text-sm font-medium">Total Scholarships</p>
-                      <h3 className="text-3xl font-bold">{outcomesStats.scholarships.total}</h3>
-                      <div className="flex items-center mt-2">
-                        <DollarSign className="h-4 w-4 mr-1" />
-                        <span className="text-sm text-purple-100">
-                          ${outcomesStats.scholarships.totalValue?.toLocaleString() || 0}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bg-purple-400 bg-opacity-30 rounded-full p-3">
-                      <Award className="h-8 w-8" />
-                    </div>
+                  <div className="bg-indigo-400 bg-opacity-30 rounded-full p-3">
+                    <Users className="h-8 w-8" />
                   </div>
                 </div>
               </div>
 
-              {/* Secondary Stats Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-500 text-sm font-medium">Total Notes</p>
-                      <h3 className="text-2xl font-bold text-gray-900">{noteStats.total}</h3>
+              {/* Active Mentors Card */}
+              <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-xl p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-sm font-medium">Active Mentors</p>
+                    <h3 className="text-3xl font-bold">{approvedMentors.length}</h3>
+                    <div className="flex items-center mt-2">
+                      <UserCheck className="h-4 w-4 mr-1" />
+                      <span className="text-sm text-green-100">
+                        {mentorApplications.filter(m => m.status === 'pending').length} pending
+                      </span>
                     </div>
-                    <FileText className="h-8 w-8 text-indigo-600" />
                   </div>
-                  <div className="mt-2">
-                    <span className="text-sm text-gray-600">
-                      {noteStats.acknowledged} acknowledged
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-500 text-sm font-medium">Employment</p>
-                      <h3 className="text-2xl font-bold text-gray-900">{outcomesStats.employment.total}</h3>
-                    </div>
-                    <Briefcase className="h-8 w-8 text-green-600" />
-                  </div>
-                  <div className="mt-2">
-                    <span className="text-sm text-gray-600">Job placements</span>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-500 text-sm font-medium">Avg Profile Completion</p>
-                      <h3 className="text-2xl font-bold text-gray-900">
-                        {students.length > 0 ?
-                          Math.round(students.reduce((acc, s) => {
-                            const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
-                            const completed = fields.filter(f => s[f]).length;
-                            return acc + (completed / fields.length * 100);
-                          }, 0) / students.length) : 0}%
-                      </h3>
-                    </div>
-                    <CheckCircle className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <div className="mt-2">
-                    <span className="text-sm text-gray-600">Profile completeness</span>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-500 text-sm font-medium">Success Rate</p>
-                      <h3 className="text-2xl font-bold text-gray-900">
-                        {students.length > 0 ?
-                          Math.round((students.filter(s => s.college_admit || s.scholarship_awarded).length / students.length) * 100) : 0}%
-                      </h3>
-                    </div>
-                    <TrendingUp className="h-8 w-8 text-emerald-600" />
-                  </div>
-                  <div className="mt-2">
-                    <span className="text-sm text-gray-600">Student outcomes</span>
+                  <div className="bg-green-400 bg-opacity-30 rounded-full p-3">
+                    <UserCheck className="h-8 w-8" />
                   </div>
                 </div>
               </div>
 
-              {/* Charts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Student Signup Trend */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Signups Trend</h3>
-                  <div className="h-80">
-                    {demographicData.signupTrend.length > 0 ? (
+              {/* College Admissions Card */}
+              <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl shadow-xl p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-amber-100 text-sm font-medium">College Admissions</p>
+                    <h3 className="text-3xl font-bold">{outcomesStats.collegeAdmissions.total}</h3>
+                    <div className="flex items-center mt-2">
+                      <GraduationCap className="h-4 w-4 mr-1" />
+                      <span className="text-sm text-amber-100">
+                        {outcomesStats.collegeAdmissions.stemCount} STEM
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-amber-400 bg-opacity-30 rounded-full p-3">
+                    <GraduationCap className="h-8 w-8" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Scholarships Card */}
+              <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-xl p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-100 text-sm font-medium">Total Scholarships</p>
+                    <h3 className="text-3xl font-bold">{outcomesStats.scholarships.total}</h3>
+                    <div className="flex items-center mt-2">
+                      <DollarSign className="h-4 w-4 mr-1" />
+                      <span className="text-sm text-purple-100">
+                        ${outcomesStats.scholarships.totalValue?.toLocaleString() || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-purple-400 bg-opacity-30 rounded-full p-3">
+                    <Award className="h-8 w-8" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Secondary Stats Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Total Notes</p>
+                    <h3 className="text-2xl font-bold text-gray-900">{noteStats.total}</h3>
+                  </div>
+                  <FileText className="h-8 w-8 text-indigo-600" />
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-gray-600">
+                    {noteStats.acknowledged} acknowledged
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Employment</p>
+                    <h3 className="text-2xl font-bold text-gray-900">{outcomesStats.employment.total}</h3>
+                  </div>
+                  <Briefcase className="h-8 w-8 text-green-600" />
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-gray-600">Job placements</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Avg Profile Completion</p>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      {students.length > 0 ?
+                        Math.round(students.reduce((acc, s) => {
+                          const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
+                          const completed = fields.filter(f => s[f]).length;
+                          return acc + (completed / fields.length * 100);
+                        }, 0) / students.length) : 0}%
+                    </h3>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-blue-600" />
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-gray-600">Profile completeness</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Success Rate</p>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      {students.length > 0 ?
+                        Math.round((students.filter(s => s.college_admit || s.scholarship_awarded).length / students.length) * 100) : 0}%
+                    </h3>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-emerald-600" />
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-gray-600">Student outcomes</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Student Signup Trend */}
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Signups Trend</h3>
+                <div className="h-80">
+                  {demographicData.signupTrend.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={demographicData.signupTrend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="name" stroke="#6b7280" />
+                        <YAxis stroke="#6b7280" />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#fff',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="value"
+                          name="New Students"
+                          stroke={PRIMARY_COLOR}
+                          fill={PRIMARY_COLOR}
+                          fillOpacity={0.3}
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-500">
+                      <div className="text-center">
+                        <TrendingUp className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                        <p>No signup data available</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Student Demographics */}
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Demographics</h3>
+                <div className="h-80">
+                  {demographicData.gender.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={demographicData.gender}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="value"
+                          nameKey="name"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {demographicData.gender.map((entry, index) => (
+                            <Cell key={`gender-analytics-${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#fff',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-500">
+                      <div className="text-center">
+                        <Users className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                        <p>No demographic data available</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Outcomes Overview */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">Student Outcomes Overview</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* College Admissions */}
+                <div className="text-center">
+                  <div className="bg-blue-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                    <GraduationCap className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-gray-900">{outcomesStats.collegeAdmissions.total}</h4>
+                  <p className="text-gray-600">College Admissions</p>
+                  <p className="text-sm text-blue-600 font-medium">{outcomesStats.collegeAdmissions.stemCount} STEM</p>
+                </div>
+
+                {/* Scholarships */}
+                <div className="text-center">
+                  <div className="bg-green-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                    <Award className="h-8 w-8 text-green-600" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-gray-900">{outcomesStats.scholarships.total}</h4>
+                  <p className="text-gray-600">Scholarships Awarded</p>
+                  <p className="text-sm text-green-600 font-medium">
+                    ${outcomesStats.scholarships.totalValue?.toLocaleString() || 0} total
+                  </p>
+                </div>
+
+                {/* Employment */}
+                <div className="text-center">
+                  <div className="bg-purple-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                    <Briefcase className="h-8 w-8 text-purple-600" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-gray-900">{outcomesStats.employment.total}</h4>
+                  <p className="text-gray-600">Job Placements</p>
+                  <p className="text-sm text-purple-600 font-medium">Full & Part-time</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button
+                  onClick={() => setActiveTab('students')}
+                  className="p-4 text-left border border-gray-200 rounded-xl hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+                >
+                  <Users className="h-6 w-6 text-indigo-600 mb-2" />
+                  <p className="font-medium text-gray-900">Manage Students</p>
+                  <p className="text-sm text-gray-500">View and edit student profiles</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('mentors')}
+                  className="p-4 text-left border border-gray-200 rounded-xl hover:border-green-300 hover:bg-green-50 transition-colors"
+                >
+                  <UserCheck className="h-6 w-6 text-green-600 mb-2" />
+                  <p className="font-medium text-gray-900">Review Applications</p>
+                  <p className="text-sm text-gray-500">Approve mentor applications</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('assignments')}
+                  className="p-4 text-left border border-gray-200 rounded-xl hover:border-amber-300 hover:bg-amber-50 transition-colors"
+                >
+                  <UserPlus className="h-6 w-6 text-amber-600 mb-2" />
+                  <p className="font-medium text-gray-900">Assign Mentors</p>
+                  <p className="text-sm text-gray-500">Match students with mentors</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('analytics')}
+                  className="p-4 text-left border border-gray-200 rounded-xl hover:border-purple-300 hover:bg-purple-50 transition-colors"
+                >
+                  <TrendingUp className="h-6 w-6 text-purple-600 mb-2" />
+                  <p className="font-medium text-gray-900">View Analytics</p>
+                  <p className="text-sm text-gray-500">Platform insights & demographics</p>
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+        }
+
+
+
+        {/* Analytics & Demographics Tab */}
+        {
+          activeTab === 'analytics' && (
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-2xl font-bold mb-6">Platform Analytics</h2>
+
+              {/* Signup Trend Chart */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold mb-4">Student Signups Over Time</h3>
+                <div className="h-80 bg-gray-50 rounded-lg p-4">
+                  {demographicData.signupTrend.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={demographicData.signupTrend}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Area type="monotone" dataKey="value" name="New Students" stroke="#8884d8" fill="#8884d8" fillOpacity={0.3} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No signup data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Demographics Section */}
+              <h3 className="text-lg font-semibold mb-4">Student Demographics</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+                {/* Age Distribution */}
+                <div className="bg-white border rounded-lg shadow-sm p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Age Distribution</h4>
+                  <div className="h-64">
+                    {demographicData.age.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={demographicData.signupTrend}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="name" stroke="#6b7280" />
-                          <YAxis stroke="#6b7280" />
+                        <BarChart data={demographicData.age}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
                           <Tooltip
-                            contentStyle={{
-                              backgroundColor: '#fff',
-                              border: '1px solid #e5e7eb',
-                              borderRadius: '8px',
-                              boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
-                            }}
+                            formatter={(value, name) => [`${value} students`, 'Count']}
+                            labelFormatter={(label) => `Age Range: ${label}`}
                           />
-                          <Area
-                            type="monotone"
+                          <Bar
                             dataKey="value"
-                            name="New Students"
-                            stroke={PRIMARY_COLOR}
-                            fill={PRIMARY_COLOR}
-                            fillOpacity={0.3}
-                            strokeWidth={2}
-                          />
-                        </AreaChart>
+                            name="Students"
+                            fill="#8884d8"
+                            radius={[4, 4, 0, 0]}
+                          >
+                            {demographicData.age.map((entry, index) => (
+                              <Cell key={`age-cell-${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="h-full flex items-center justify-center text-gray-500">
-                        <div className="text-center">
-                          <TrendingUp className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                          <p>No signup data available</p>
-                        </div>
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No age data available</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Student Demographics */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Demographics</h3>
-                  <div className="h-80">
+                {/* Gender Distribution */}
+                <div className="bg-white border rounded-lg shadow-sm p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Gender Distribution</h4>
+                  <div className="h-64">
                     {demographicData.gender.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -1443,1313 +1662,976 @@ Bio: ${student.bio || 'N/A'}
                             data={demographicData.gender}
                             cx="50%"
                             cy="50%"
-                            outerRadius={100}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            nameKey="name"
+                            label
+                          >
+                            {demographicData.gender.map((entry, index) => (
+                              <Cell key={`gender-cell-${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No gender data available</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Religion Distribution */}
+                <div className="bg-white border rounded-lg shadow-sm p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Religion Distribution</h4>
+                  <div className="h-64">
+                    {demographicData.religion.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={demographicData.religion}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            nameKey="name"
+                            label
+                          >
+                            {demographicData.religion.map((entry, index) => (
+                              <Cell key={`religion-cell-${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No religion data available</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Education Level */}
+                <div className="bg-white border rounded-lg shadow-sm p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Education Level</h4>
+                  <div className="h-64">
+                    {demographicData.educationLevel.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart layout="vertical" data={demographicData.educationLevel}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" />
+                          <YAxis dataKey="name" type="category" width={120} />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="value" name="Students" fill="#82ca9d" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No education level data available</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* English Level */}
+                <div className="bg-white border rounded-lg shadow-sm p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">English Proficiency</h4>
+                  <div className="h-64">
+                    {demographicData.englishLevel.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart layout="vertical" data={demographicData.englishLevel}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" />
+                          <YAxis dataKey="name" type="category" width={120} />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="value" name="Students" fill="#ffc658" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No English level data available</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* New Socioeconomic Demographics Section */}
+              <h3 className="text-lg font-semibold mb-4 mt-8 border-t pt-8">Socioeconomic Demographics</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+                {/* Province Chart */}
+                <div className="bg-white border rounded-lg shadow-sm p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Student Provinces</h4>
+                  <div className="h-64">
+                    {demographicData.province.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={demographicData.province.sort((a, b) => b.value - a.value).slice(0, 10)}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-45} textAnchor="end" height={80} />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="value" name="Students" fill="#8884d8">
+                            {demographicData.province.map((entry, index) => (
+                              <Cell key={`province-cell-${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No province data available</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* School Type Chart */}
+                <div className="bg-white border rounded-lg shadow-sm p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">School Types</h4>
+                  <div className="h-64">
+                    {demographicData.schoolType.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={demographicData.schoolType}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={true}
+                            outerRadius={80}
                             fill="#8884d8"
                             dataKey="value"
                             nameKey="name"
                             label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                           >
-                            {demographicData.gender.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            {demographicData.schoolType.map((entry, index) => (
+                              <Cell key={`schooltype-cell-${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: '#fff',
-                              border: '1px solid #e5e7eb',
-                              borderRadius: '8px',
-                              boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
-                            }}
-                          />
+                          <Tooltip formatter={(value, name) => [value, name]} />
                         </PieChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="h-full flex items-center justify-center text-gray-500">
-                        <div className="text-center">
-                          <Users className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                          <p>No demographic data available</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Outcomes Overview */}
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">Student Outcomes Overview</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* College Admissions */}
-                  <div className="text-center">
-                    <div className="bg-blue-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
-                      <GraduationCap className="h-8 w-8 text-blue-600" />
-                    </div>
-                    <h4 className="text-2xl font-bold text-gray-900">{outcomesStats.collegeAdmissions.total}</h4>
-                    <p className="text-gray-600">College Admissions</p>
-                    <p className="text-sm text-blue-600 font-medium">{outcomesStats.collegeAdmissions.stemCount} STEM</p>
-                  </div>
-
-                  {/* Scholarships */}
-                  <div className="text-center">
-                    <div className="bg-green-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
-                      <Award className="h-8 w-8 text-green-600" />
-                    </div>
-                    <h4 className="text-2xl font-bold text-gray-900">{outcomesStats.scholarships.total}</h4>
-                    <p className="text-gray-600">Scholarships Awarded</p>
-                    <p className="text-sm text-green-600 font-medium">
-                      ${outcomesStats.scholarships.totalValue?.toLocaleString() || 0} total
-                    </p>
-                  </div>
-
-                  {/* Employment */}
-                  <div className="text-center">
-                    <div className="bg-purple-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
-                      <Briefcase className="h-8 w-8 text-purple-600" />
-                    </div>
-                    <h4 className="text-2xl font-bold text-gray-900">{outcomesStats.employment.total}</h4>
-                    <p className="text-gray-600">Job Placements</p>
-                    <p className="text-sm text-purple-600 font-medium">Full & Part-time</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <button
-                    onClick={() => setActiveTab('students')}
-                    className="p-4 text-left border border-gray-200 rounded-xl hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
-                  >
-                    <Users className="h-6 w-6 text-indigo-600 mb-2" />
-                    <p className="font-medium text-gray-900">Manage Students</p>
-                    <p className="text-sm text-gray-500">View and edit student profiles</p>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('mentors')}
-                    className="p-4 text-left border border-gray-200 rounded-xl hover:border-green-300 hover:bg-green-50 transition-colors"
-                  >
-                    <UserCheck className="h-6 w-6 text-green-600 mb-2" />
-                    <p className="font-medium text-gray-900">Review Applications</p>
-                    <p className="text-sm text-gray-500">Approve mentor applications</p>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('assignments')}
-                    className="p-4 text-left border border-gray-200 rounded-xl hover:border-amber-300 hover:bg-amber-50 transition-colors"
-                  >
-                    <UserPlus className="h-6 w-6 text-amber-600 mb-2" />
-                    <p className="font-medium text-gray-900">Assign Mentors</p>
-                    <p className="text-sm text-gray-500">Match students with mentors</p>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('analytics')}
-                    className="p-4 text-left border border-gray-200 rounded-xl hover:border-purple-300 hover:bg-purple-50 transition-colors"
-                  >
-                    <TrendingUp className="h-6 w-6 text-purple-600 mb-2" />
-                    <p className="font-medium text-gray-900">View Analytics</p>
-                    <p className="text-sm text-gray-500">Platform insights & demographics</p>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
-          }
-
-          {/* Tab Navigation */}
-          <div className="mb-8">
-            <div className="flex flex-wrap border-b border-gray-200">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`px-6 py-3 font-medium text-sm ${activeTab === 'overview'
-                  ? 'border-b-2 border-indigo-600 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('students')}
-                className={`px-6 py-3 font-medium text-sm ${activeTab === 'students'
-                  ? 'border-b-2 border-indigo-600 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                Students ({students.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('mentors')}
-                className={`px-6 py-3 font-medium text-sm ${activeTab === 'mentors'
-                  ? 'border-b-2 border-indigo-600 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                Mentor Applications ({mentorApplications.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('assignments')}
-                className={`px-6 py-3 font-medium text-sm ${activeTab === 'assignments'
-                  ? 'border-b-2 border-indigo-600 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                Mentors & Assignments
-              </button>
-              <button
-                onClick={() => setActiveTab('analytics')}
-                className={`px-6 py-3 font-medium text-sm ${activeTab === 'analytics'
-                  ? 'border-b-2 border-indigo-600 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                Analytics & Demographics
-              </button>
-              <button
-                onClick={() => setActiveTab('outcomes')}
-                className={`px-6 py-3 font-medium text-sm ${activeTab === 'outcomes'
-                  ? 'border-b-2 border-indigo-600 text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                Outcomes Analytics
-              </button>
-            </div>
-          </div>
-
-          {/* Analytics & Demographics Tab */}
-          {
-            activeTab === 'analytics' && (
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h2 className="text-2xl font-bold mb-6">Platform Analytics</h2>
-
-                {/* Signup Trend Chart */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-4">Student Signups Over Time</h3>
-                  <div className="h-80 bg-gray-50 rounded-lg p-4">
-                    {demographicData.signupTrend.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={demographicData.signupTrend}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
-                          <Tooltip />
-                          <Legend />
-                          <Area type="monotone" dataKey="value" name="New Students" stroke="#8884d8" fill="#8884d8" fillOpacity={0.3} />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    ) : (
                       <div className="h-full flex items-center justify-center">
-                        <p className="text-gray-500">No signup data available</p>
+                        <p className="text-gray-500">No school type data available</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Demographics Section */}
-                <h3 className="text-lg font-semibold mb-4">Student Demographics</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-                  {/* Age Distribution */}
-                  <div className="bg-white border rounded-lg shadow-sm p-4">
-                    <h4 className="font-medium text-gray-800 mb-3">Age Distribution</h4>
-                    <div className="h-64">
-                      {demographicData.age.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={demographicData.age}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis />
-                            <Tooltip
-                              formatter={(value, name) => [`${value} students`, 'Count']}
-                              labelFormatter={(label) => `Age Range: ${label}`}
-                            />
-                            <Bar
-                              dataKey="value"
-                              name="Students"
-                              fill="#8884d8"
-                              radius={[4, 4, 0, 0]}
-                            >
-                              {demographicData.age.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No age data available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Gender Distribution */}
-                  <div className="bg-white border rounded-lg shadow-sm p-4">
-                    <h4 className="font-medium text-gray-800 mb-3">Gender Distribution</h4>
-                    <div className="h-64">
-                      {demographicData.gender.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={demographicData.gender}
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={80}
-                              fill="#8884d8"
-                              dataKey="value"
-                              nameKey="name"
-                              label
-                            >
-                              {demographicData.gender.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No gender data available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Religion Distribution */}
-                  <div className="bg-white border rounded-lg shadow-sm p-4">
-                    <h4 className="font-medium text-gray-800 mb-3">Religion Distribution</h4>
-                    <div className="h-64">
-                      {demographicData.religion.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={demographicData.religion}
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={80}
-                              fill="#8884d8"
-                              dataKey="value"
-                              nameKey="name"
-                              label
-                            >
-                              {demographicData.religion.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No religion data available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Education Level */}
-                  <div className="bg-white border rounded-lg shadow-sm p-4">
-                    <h4 className="font-medium text-gray-800 mb-3">Education Level</h4>
-                    <div className="h-64">
-                      {demographicData.educationLevel.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart layout="vertical" data={demographicData.educationLevel}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" />
-                            <YAxis dataKey="name" type="category" width={120} />
-                            <Tooltip />
-                            <Legend />
-                            <Bar dataKey="value" name="Students" fill="#82ca9d" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No education level data available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* English Level */}
-                  <div className="bg-white border rounded-lg shadow-sm p-4">
-                    <h4 className="font-medium text-gray-800 mb-3">English Proficiency</h4>
-                    <div className="h-64">
-                      {demographicData.englishLevel.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart layout="vertical" data={demographicData.englishLevel}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" />
-                            <YAxis dataKey="name" type="category" width={120} />
-                            <Tooltip />
-                            <Legend />
-                            <Bar dataKey="value" name="Students" fill="#ffc658" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No English level data available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* New Socioeconomic Demographics Section */}
-                <h3 className="text-lg font-semibold mb-4 mt-8 border-t pt-8">Socioeconomic Demographics</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-                  {/* Province Chart */}
-                  <div className="bg-white border rounded-lg shadow-sm p-4">
-                    <h4 className="font-medium text-gray-800 mb-3">Student Provinces</h4>
-                    <div className="h-64">
-                      {demographicData.province.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={demographicData.province.sort((a, b) => b.value - a.value).slice(0, 10)}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-45} textAnchor="end" height={80} />
-                            <YAxis />
-                            <Tooltip />
-                            <Bar dataKey="value" name="Students" fill="#8884d8">
-                              {demographicData.province.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No province data available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* School Type Chart */}
-                  <div className="bg-white border rounded-lg shadow-sm p-4">
-                    <h4 className="font-medium text-gray-800 mb-3">School Types</h4>
-                    <div className="h-64">
-                      {demographicData.schoolType.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={demographicData.schoolType}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={true}
-                              outerRadius={80}
-                              fill="#8884d8"
-                              dataKey="value"
-                              nameKey="name"
-                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                            >
-                              {demographicData.schoolType.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip formatter={(value, name) => [value, name]} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No school type data available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Household Income Chart */}
-                  <div className="bg-white border rounded-lg shadow-sm p-4">
-                    <h4 className="font-medium text-gray-800 mb-3">Household Income Bands</h4>
-                    <div className="h-64">
-                      {demographicData.householdIncome.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={demographicData.householdIncome}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-45} textAnchor="end" height={80} />
-                            <YAxis />
-                            <Tooltip />
-                            <Bar dataKey="value" name="Students" fill="#8884d8">
-                              {demographicData.householdIncome.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No income data available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Parental Education Chart */}
-                  <div className="bg-white border rounded-lg shadow-sm p-4">
-                    <h4 className="font-medium text-gray-800 mb-3">Parental Education</h4>
-                    <div className="h-64">
-                      {demographicData.parentalEducation.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={demographicData.parentalEducation}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={true}
-                              outerRadius={80}
-                              fill="#8884d8"
-                              dataKey="value"
-                              nameKey="name"
-                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                            >
-                              {demographicData.parentalEducation.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip formatter={(value, name) => [value, name]} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No parental education data available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Internet Speed Chart */}
-                  <div className="bg-white border rounded-lg shadow-sm p-4">
-                    <h4 className="font-medium text-gray-800 mb-3">Internet Access Quality</h4>
-                    <div className="h-64">
-                      {demographicData.internetSpeed.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={demographicData.internetSpeed}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-45} textAnchor="end" height={80} />
-                            <YAxis />
-                            <Tooltip />
-                            <Bar dataKey="value" name="Students" fill="#8884d8">
-                              {demographicData.internetSpeed.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No internet quality data available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Scholarship Eligibility Potential */}
-                  <div className="bg-white border rounded-lg shadow-sm p-4">
-                    <h4 className="font-medium text-gray-800 mb-3">Scholarship Eligibility Potential</h4>
-                    <div className="h-64">
+                {/* Household Income Chart */}
+                <div className="bg-white border rounded-lg shadow-sm p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Household Income Bands</h4>
+                  <div className="h-64">
+                    {demographicData.householdIncome.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={[
-                            {
-                              name: 'High Potential', value: students?.filter(s =>
-                                s.household_income_band?.includes('Less than') ||
-                                s.household_income_band?.includes('10,000') ||
-                                s.household_income_band?.includes('30,000')
-                              )?.length || 0
-                            },
-                            {
-                              name: 'Medium Potential', value: students?.filter(s =>
-                                s.household_income_band?.includes('50,000') ||
-                                s.household_income_band?.includes('70,000')
-                              )?.length || 0
-                            },
-                            {
-                              name: 'Low Potential', value: students?.filter(s =>
-                                s.household_income_band?.includes('100,000') ||
-                                s.household_income_band?.includes('More than')
-                              )?.length || 0
-                            }
-                          ]}
-                        >
+                        <BarChart data={demographicData.householdIncome}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
+                          <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-45} textAnchor="end" height={80} />
                           <YAxis />
                           <Tooltip />
-                          <Bar dataKey="value" name="Students">
-                            <Cell fill="#4CAF50" />
-                            <Cell fill="#FFC107" />
-                            <Cell fill="#F44336" />
+                          <Bar dataKey="value" name="Students" fill="#8884d8">
+                            {demographicData.householdIncome.map((entry, index) => (
+                              <Cell key={`income-cell-${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
-                    </div>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No income data available</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Mentorship Analytics */}
-                <div className="mt-8 border-t pt-8">
-                  <h4 className="font-medium text-gray-800 mb-3">Mentorship Notes Analytics</h4>
+                {/* Parental Education Chart */}
+                <div className="bg-white border rounded-lg shadow-sm p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Parental Education</h4>
+                  <div className="h-64">
+                    {demographicData.parentalEducation.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={demographicData.parentalEducation}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={true}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            nameKey="name"
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {demographicData.parentalEducation.map((entry, index) => (
+                              <Cell key={`parental-cell-${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value, name) => [value, name]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No parental education data available</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Internet Speed Chart */}
+                <div className="bg-white border rounded-lg shadow-sm p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Internet Access Quality</h4>
+                  <div className="h-64">
+                    {demographicData.internetSpeed.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={demographicData.internetSpeed}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-45} textAnchor="end" height={80} />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="value" name="Students" fill="#8884d8">
+                            {demographicData.internetSpeed.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No internet quality data available</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Scholarship Eligibility Potential */}
+                <div className="bg-white border rounded-lg shadow-sm p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Scholarship Eligibility Potential</h4>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={[
-                          { name: 'Total Notes', value: noteStats.total },
-                          { name: 'Acknowledged', value: noteStats.acknowledged },
-                          { name: 'Pending', value: noteStats.pending }
+                          {
+                            name: 'High Potential', value: students?.filter(s =>
+                              s.household_income_band?.includes('Less than') ||
+                              s.household_income_band?.includes('10,000') ||
+                              s.household_income_band?.includes('30,000')
+                            )?.length || 0
+                          },
+                          {
+                            name: 'Medium Potential', value: students?.filter(s =>
+                              s.household_income_band?.includes('50,000') ||
+                              s.household_income_band?.includes('70,000')
+                            )?.length || 0
+                          },
+                          {
+                            name: 'Low Potential', value: students?.filter(s =>
+                              s.household_income_band?.includes('100,000') ||
+                              s.household_income_band?.includes('More than')
+                            )?.length || 0
+                          }
                         ]}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
                         <Tooltip />
-                        <Legend />
-                        <Bar dataKey="value" name="Notes" fill="#8884d8" />
+                        <Bar dataKey="value" name="Students">
+                          <Cell fill="#4CAF50" />
+                          <Cell fill="#FFC107" />
+                          <Cell fill="#F44336" />
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
               </div>
-            )
-          }
 
-          {/* Outcomes Analytics Tab */}
-          {
-            activeTab === 'outcomes' && (
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h2 className="text-2xl font-bold mb-6">Student Outcomes Analytics</h2>
+              {/* Mentorship Analytics */}
+              <div className="mt-8 border-t pt-8">
+                <h4 className="font-medium text-gray-800 mb-3">Mentorship Notes Analytics</h4>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={[
+                        { name: 'Total Notes', value: noteStats.total },
+                        { name: 'Acknowledged', value: noteStats.acknowledged },
+                        { name: 'Pending', value: noteStats.pending }
+                      ]}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="value" name="Notes" fill="#8884d8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )
+        }
 
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                  <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">College Admissions</p>
-                        <h3 className="text-3xl font-bold text-indigo-600">{outcomesStats.collegeAdmissions.total}</h3>
-                      </div>
-                      <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path d="M12 14l9-5-9-5-9 5 9 5z" />
-                          <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-                        </svg>
-                      </div>
+        {/* Outcomes Analytics Tab */}
+        {
+          activeTab === 'outcomes' && (
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-2xl font-bold mb-6">Student Outcomes Analytics</h2>
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">College Admissions</p>
+                      <h3 className="text-3xl font-bold text-indigo-600">{outcomesStats.collegeAdmissions.total}</h3>
                     </div>
-                    <div className="mt-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">STEM Admissions</span>
-                        <span className="text-sm font-medium">{outcomesStats.collegeAdmissions.stemCount}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                        <div
-                          className="bg-green-600 h-2.5 rounded-full"
-                          style={{
-                            width: outcomesStats.collegeAdmissions.total > 0
-                              ? `${(outcomesStats.collegeAdmissions.stemCount / outcomesStats.collegeAdmissions.total) * 100}%`
-                              : '0%'
-                          }}
-                        ></div>
-                      </div>
+                    <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                      </svg>
                     </div>
                   </div>
-
-                  <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">Scholarship Awards</p>
-                        <h3 className="text-3xl font-bold text-green-600">{outcomesStats.scholarships.total}</h3>
-                      </div>
-                      <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">STEM Admissions</span>
+                      <span className="text-sm font-medium">{outcomesStats.collegeAdmissions.stemCount}</span>
                     </div>
-                    <div className="mt-4">
-                      <span className="text-sm text-gray-500">Total Value</span>
-                      <p className="text-xl font-medium text-gray-800">
-                        ${outcomesStats.scholarships.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">Employment Records</p>
-                        <h3 className="text-3xl font-bold text-purple-600">{outcomesStats.employment.total}</h3>
-                      </div>
-                      <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <div className="flex flex-wrap gap-2">
-                        {outcomesStats.employment.byType.map((type, index) => (
-                          <span key={index} className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
-                            {type.name}: {type.value}
-                          </span>
-                        ))}
-                      </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                      <div
+                        className="bg-green-600 h-2.5 rounded-full"
+                        style={{
+                          width: outcomesStats.collegeAdmissions.total > 0
+                            ? `${(outcomesStats.collegeAdmissions.stemCount / outcomesStats.collegeAdmissions.total) * 100}%`
+                            : '0%'
+                        }}
+                      ></div>
                     </div>
                   </div>
                 </div>
 
-                {/* College Admissions Charts */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-4">College Admissions Over Time</h3>
+                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">Scholarship Awards</p>
+                      <h3 className="text-3xl font-bold text-green-600">{outcomesStats.scholarships.total}</h3>
+                    </div>
+                    <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <span className="text-sm text-gray-500">Total Value</span>
+                    <p className="text-xl font-medium text-gray-800">
+                      ${outcomesStats.scholarships.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">Employment Records</p>
+                      <h3 className="text-3xl font-bold text-purple-600">{outcomesStats.employment.total}</h3>
+                    </div>
+                    <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <div className="flex flex-wrap gap-2">
+                      {outcomesStats.employment.byType.map((type, index) => (
+                        <span key={index} className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                          {type.name}: {type.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* College Admissions Charts */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold mb-4">College Admissions Over Time</h3>
+                <div className="h-80 bg-white border border-gray-200 rounded-lg p-4">
+                  {outcomesStats.collegeAdmissions.byMonth.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={outcomesStats.collegeAdmissions.byMonth}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="all" name="All Admissions" fill="#8884d8" />
+                        <Bar dataKey="stem" name="STEM Admissions" fill="#82ca9d" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No admission data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Scholarships Charts */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold mb-4">Scholarship Distribution</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="h-80 bg-white border border-gray-200 rounded-lg p-4">
-                    {outcomesStats.collegeAdmissions.byMonth.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={outcomesStats.collegeAdmissions.byMonth}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
-                          <Tooltip />
-                          <Legend />
-                          <Bar dataKey="all" name="All Admissions" fill="#8884d8" />
-                          <Bar dataKey="stem" name="STEM Admissions" fill="#82ca9d" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center">
-                        <p className="text-gray-500">No admission data available</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Scholarships Charts */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-4">Scholarship Distribution</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="h-80 bg-white border border-gray-200 rounded-lg p-4">
-                      <h4 className="text-md font-medium mb-2">Count by Type</h4>
-                      {outcomesStats.scholarships.byType.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="90%">
-                          <PieChart>
-                            <Pie
-                              data={outcomesStats.scholarships.byType}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={true}
-                              outerRadius={80}
-                              fill="#8884d8"
-                              dataKey="count"
-                              nameKey="name"
-                              label
-                            >
-                              {outcomesStats.scholarships.byType.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip formatter={(value, name, props) => [`${value} scholarships`, props.payload.name]} />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No scholarship data available</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="h-80 bg-white border border-gray-200 rounded-lg p-4">
-                      <h4 className="text-md font-medium mb-2">Value by Type</h4>
-                      {outcomesStats.scholarships.byType.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="90%">
-                          <BarChart data={outcomesStats.scholarships.byType}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis />
-                            <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Value']} />
-                            <Bar dataKey="value" name="Scholarship Value" fill="#82ca9d">
-                              {outcomesStats.scholarships.byType.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-gray-500">No scholarship data available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Employment Charts */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-4">Employment Analysis</h3>
-                  <div className="h-80 bg-white border border-gray-200 rounded-lg p-4">
-                    {outcomesStats.employment.byType.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
+                    <h4 className="text-md font-medium mb-2">Count by Type</h4>
+                    {outcomesStats.scholarships.byType.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="90%">
                         <PieChart>
                           <Pie
-                            data={outcomesStats.employment.byType}
+                            data={outcomesStats.scholarships.byType}
                             cx="50%"
                             cy="50%"
                             labelLine={true}
-                            outerRadius={100}
+                            outerRadius={80}
                             fill="#8884d8"
-                            dataKey="value"
+                            dataKey="count"
                             nameKey="name"
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            label
                           >
-                            {outcomesStats.employment.byType.map((entry, index) => (
+                            {outcomesStats.scholarships.byType.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value, name) => [value, name]} />
+                          <Tooltip formatter={(value, name, props) => [`${value} scholarships`, props.payload.name]} />
                           <Legend />
                         </PieChart>
                       </ResponsiveContainer>
                     ) : (
                       <div className="h-full flex items-center justify-center">
-                        <p className="text-gray-500">No employment data available</p>
+                        <p className="text-gray-500">No scholarship data available</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="h-80 bg-white border border-gray-200 rounded-lg p-4">
+                    <h4 className="text-md font-medium mb-2">Value by Type</h4>
+                    {outcomesStats.scholarships.byType.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="90%">
+                        <BarChart data={outcomesStats.scholarships.byType}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Value']} />
+                          <Bar dataKey="value" name="Scholarship Value" fill="#82ca9d">
+                            {outcomesStats.scholarships.byType.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <p className="text-gray-500">No scholarship data available</p>
                       </div>
                     )}
                   </div>
                 </div>
+              </div>
 
-                {/* Combined Outcomes Success Metrics */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Overall Student Success Metrics</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-white border border-gray-200 rounded-lg p-6">
-                      <h4 className="font-medium text-gray-800 mb-3">Success Breakdown</h4>
-                      <div className="space-y-4">
-                        <div>
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm font-medium">College Admissions</span>
-                            <span className="text-sm font-medium">{students.length > 0 ? ((outcomesStats.collegeAdmissions.total / students.length) * 100).toFixed(1) : 0}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2.5">
-                            <div className="bg-indigo-600 h-2.5 rounded-full" style={{
-                              width: students.length > 0 ? `${(outcomesStats.collegeAdmissions.total / students.length) * 100}%` : '0%'
-                            }}></div>
-                          </div>
+              {/* Employment Charts */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold mb-4">Employment Analysis</h3>
+                <div className="h-80 bg-white border border-gray-200 rounded-lg p-4">
+                  {outcomesStats.employment.byType.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={outcomesStats.employment.byType}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={true}
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="value"
+                          nameKey="name"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {outcomesStats.employment.byType.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value, name) => [value, name]} />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-500">No employment data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Combined Outcomes Success Metrics */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Overall Student Success Metrics</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h4 className="font-medium text-gray-800 mb-3">Success Breakdown</h4>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">College Admissions</span>
+                          <span className="text-sm font-medium">{students.length > 0 ? ((outcomesStats.collegeAdmissions.total / students.length) * 100).toFixed(1) : 0}%</span>
                         </div>
-
-                        <div>
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm font-medium">Scholarship Recipients</span>
-                            <span className="text-sm font-medium">{students.length > 0 ? ((outcomesStats.scholarships.total / students.length) * 100).toFixed(1) : 0}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2.5">
-                            <div className="bg-green-600 h-2.5 rounded-full" style={{
-                              width: students.length > 0 ? `${(outcomesStats.scholarships.total / students.length) * 100}%` : '0%'
-                            }}></div>
-                          </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div className="bg-indigo-600 h-2.5 rounded-full" style={{
+                            width: students.length > 0 ? `${(outcomesStats.collegeAdmissions.total / students.length) * 100}%` : '0%'
+                          }}></div>
                         </div>
+                      </div>
 
-                        <div>
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm font-medium">Employment Placed</span>
-                            <span className="text-sm font-medium">{students.length > 0 ? ((outcomesStats.employment.total / students.length) * 100).toFixed(1) : 0}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2.5">
-                            <div className="bg-purple-600 h-2.5 rounded-full" style={{
-                              width: students.length > 0 ? `${(outcomesStats.employment.total / students.length) * 100}%` : '0%'
-                            }}></div>
-                          </div>
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">Scholarship Recipients</span>
+                          <span className="text-sm font-medium">{students.length > 0 ? ((outcomesStats.scholarships.total / students.length) * 100).toFixed(1) : 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div className="bg-green-600 h-2.5 rounded-full" style={{
+                            width: students.length > 0 ? `${(outcomesStats.scholarships.total / students.length) * 100}%` : '0%'
+                          }}></div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">Employment Placed</span>
+                          <span className="text-sm font-medium">{students.length > 0 ? ((outcomesStats.employment.total / students.length) * 100).toFixed(1) : 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div className="bg-purple-600 h-2.5 rounded-full" style={{
+                            width: students.length > 0 ? `${(outcomesStats.employment.total / students.length) * 100}%` : '0%'
+                          }}></div>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="bg-white border border-gray-200 rounded-lg p-6">
-                      <h4 className="font-medium text-gray-800 mb-3">Overall Success Rate</h4>
-                      <div className="flex items-center space-x-6">
-                        <div className="relative h-32 w-32">
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-2xl font-bold">
-                              {students.length > 0 ?
-                                ((students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length / students.length) * 100).toFixed(0)
-                                : 0}%
-                            </span>
-                          </div>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={[
-                                  {
-                                    name: 'Success',
-                                    value: students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length
-                                  },
-                                  {
-                                    name: 'Pending',
-                                    value: students.length - students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length
-                                  }
-                                ]}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={40}
-                                outerRadius={50}
-                                fill="#8884d8"
-                                dataKey="value"
-                              >
-                                <Cell fill="#4F46E5" />
-                                <Cell fill="#E5E7EB" />
-                              </Pie>
-                            </PieChart>
-                          </ResponsiveContainer>
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h4 className="font-medium text-gray-800 mb-3">Overall Success Rate</h4>
+                    <div className="flex items-center space-x-6">
+                      <div className="relative h-32 w-32">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-2xl font-bold">
+                            {students.length > 0 ?
+                              ((students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length / students.length) * 100).toFixed(0)
+                              : 0}%
+                          </span>
                         </div>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={[
+                                {
+                                  name: 'Success',
+                                  value: students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length
+                                },
+                                {
+                                  name: 'Pending',
+                                  value: students.length - students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length
+                                }
+                              ]}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={40}
+                              outerRadius={50}
+                              fill="#8884d8"
+                              dataKey="value"
+                            >
+                              <Cell fill="#4F46E5" />
+                              <Cell fill="#E5E7EB" />
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
 
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-600 mb-4">
-                            <span className="font-medium">
-                              {students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length}
-                            </span> out of <span className="font-medium">{students.length}</span> students have achieved at least one successful outcome.
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full">
-                              College: {students.filter(s => s.college_admit).length}
-                            </span>
-                            <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                              Scholarship: {students.filter(s => s.scholarship_awarded).length}
-                            </span>
-                            <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
-                              Employment: {students.filter(s => s.employed).length}
-                            </span>
-                          </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-600 mb-4">
+                          <span className="font-medium">
+                            {students.filter(s => s.college_admit || s.scholarship_awarded || s.employed).length}
+                          </span> out of <span className="font-medium">{students.length}</span> students have achieved at least one successful outcome.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full">
+                            College: {students.filter(s => s.college_admit).length}
+                          </span>
+                          <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                            Scholarship: {students.filter(s => s.scholarship_awarded).length}
+                          </span>
+                          <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                            Employment: {students.filter(s => s.employed).length}
+                          </span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            )
-          }
+            </div>
+          )
+        }
 
-          {/* Enhanced Students Tab */}
-          {
-            activeTab === 'students' && (
-              <div className="space-y-6">
-                {/* Students Header with Search and Filters */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Enhanced Students Tab */}
+        {
+          activeTab === 'students' && (
+            <div className="space-y-6">
+              {/* Students Header with Search and Filters */}
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Student Management</h2>
+                    <p className="text-gray-600">Manage student profiles and track their progress</p>
+                  </div>
+
+                  {/* Search and Filter Controls */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search students..."
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full sm:w-64"
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <select
+                        value={filterOptions.educationLevel}
+                        onChange={(e) => setFilterOptions({ ...filterOptions, educationLevel: e.target.value })}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="">All Education Levels</option>
+                        {educationLevels.map(level => (
+                          <option key={level} value={level}>{level}</option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={filterOptions.assignmentStatus}
+                        onChange={(e) => setFilterOptions({ ...filterOptions, assignmentStatus: e.target.value })}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="">All Students</option>
+                        <option value="assigned">Assigned</option>
+                        <option value="unassigned">Unassigned</option>
+                      </select>
+
+                      <button
+                        onClick={() => setViewMode(viewMode === 'cards' ? 'table' : 'cards')}
+                        className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        {viewMode === 'cards' ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Student Stats Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900">Student Management</h2>
-                      <p className="text-gray-600">Manage student profiles and track their progress</p>
+                      <p className="text-sm text-gray-500">Total Students</p>
+                      <p className="text-2xl font-bold text-gray-900">{filteredStudents.length}</p>
                     </div>
-
-                    {/* Search and Filter Controls */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Search students..."
-                          value={studentSearch}
-                          onChange={(e) => setStudentSearch(e.target.value)}
-                          className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full sm:w-64"
-                        />
-                      </div>
-
-                      <div className="flex gap-2">
-                        <select
-                          value={filterOptions.educationLevel}
-                          onChange={(e) => setFilterOptions({ ...filterOptions, educationLevel: e.target.value })}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        >
-                          <option value="">All Education Levels</option>
-                          {educationLevels.map(level => (
-                            <option key={level} value={level}>{level}</option>
-                          ))}
-                        </select>
-
-                        <select
-                          value={filterOptions.assignmentStatus}
-                          onChange={(e) => setFilterOptions({ ...filterOptions, assignmentStatus: e.target.value })}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        >
-                          <option value="">All Students</option>
-                          <option value="assigned">Assigned</option>
-                          <option value="unassigned">Unassigned</option>
-                        </select>
-
-                        <button
-                          onClick={() => setViewMode(viewMode === 'cards' ? 'table' : 'cards')}
-                          className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                        >
-                          {viewMode === 'cards' ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
+                    <Users className="h-8 w-8 text-indigo-600" />
                   </div>
                 </div>
 
-                {/* Student Stats Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">Total Students</p>
-                        <p className="text-2xl font-bold text-gray-900">{filteredStudents.length}</p>
-                      </div>
-                      <Users className="h-8 w-8 text-indigo-600" />
+                <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">Assigned</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {filteredStudents.filter(s => s.is_assigned).length}
+                      </p>
                     </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">Assigned</p>
-                        <p className="text-2xl font-bold text-green-600">
-                          {filteredStudents.filter(s => s.is_assigned).length}
-                        </p>
-                      </div>
-                      <UserCheck className="h-8 w-8 text-green-600" />
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">Unassigned</p>
-                        <p className="text-2xl font-bold text-amber-600">
-                          {filteredStudents.filter(s => !s.is_assigned).length}
-                        </p>
-                      </div>
-                      <AlertTriangle className="h-8 w-8 text-amber-600" />
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">Success Outcomes</p>
-                        <p className="text-2xl font-bold text-emerald-600">
-                          {filteredStudents.filter(s => s.college_admit || s.scholarship_awarded).length}
-                        </p>
-                      </div>
-                      <TrendingUp className="h-8 w-8 text-emerald-600" />
-                    </div>
+                    <UserCheck className="h-8 w-8 text-green-600" />
                   </div>
                 </div>
 
-                {/* Students List */}
-                {viewMode === 'cards' ? (
-                  /* Enhanced Card View */
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {filteredStudents.map((student) => (
-                      <div key={student.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow">
-                        {/* Card Header */}
-                        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-4 text-white">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-lg font-bold">
-                                {student.first_name?.[0]}{student.last_name?.[0]}
-                              </div>
-                              <div>
-                                <h3 className="font-semibold text-lg">
-                                  {student.first_name} {student.last_name}
-                                </h3>
-                                <p className="text-indigo-100 text-sm">ID: {student.student_id}</p>
-                              </div>
+                <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">Unassigned</p>
+                      <p className="text-2xl font-bold text-amber-600">
+                        {filteredStudents.filter(s => !s.is_assigned).length}
+                      </p>
+                    </div>
+                    <AlertTriangle className="h-8 w-8 text-amber-600" />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">Success Outcomes</p>
+                      <p className="text-2xl font-bold text-emerald-600">
+                        {filteredStudents.filter(s => s.college_admit || s.scholarship_awarded).length}
+                      </p>
+                    </div>
+                    <TrendingUp className="h-8 w-8 text-emerald-600" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Students List */}
+              {viewMode === 'cards' ? (
+                /* Enhanced Card View */
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {filteredStudents.map((student) => (
+                    <div key={student.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow">
+                      {/* Card Header */}
+                      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-4 text-white">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-lg font-bold">
+                              {student.first_name?.[0]}{student.last_name?.[0]}
                             </div>
-                            <div className={`px-2 py-1 rounded-full text-xs font-medium ${student.is_assigned
-                              ? 'bg-green-500 bg-opacity-20 text-green-100'
-                              : 'bg-amber-500 bg-opacity-20 text-amber-100'
-                              }`}>
-                              {student.is_assigned ? 'Assigned' : 'Unassigned'}
+                            <div>
+                              <h3 className="font-semibold text-lg">
+                                {student.first_name} {student.last_name}
+                              </h3>
+                              <p className="text-indigo-100 text-sm">ID: {student.student_id}</p>
                             </div>
+                          </div>
+                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${student.is_assigned
+                            ? 'bg-green-500 bg-opacity-20 text-green-100'
+                            : 'bg-amber-500 bg-opacity-20 text-amber-100'
+                            }`}>
+                            {student.is_assigned ? 'Assigned' : 'Unassigned'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="p-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="flex items-center space-x-2">
+                            <Mail className="h-4 w-4 text-gray-400" />
+                            <span className="text-gray-600 truncate">{student.email}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Book className="h-4 w-4 text-gray-400" />
+                            <span className="text-gray-600">{student.education_level || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Globe className="h-4 w-4 text-gray-400" />
+                            <span className="text-gray-600">{student.english_level || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <MapPin className="h-4 w-4 text-gray-400" />
+                            <span className="text-gray-600">{student.province || 'N/A'}</span>
                           </div>
                         </div>
 
-                        {/* Card Body */}
-                        <div className="p-4 space-y-3">
-                          <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div className="flex items-center space-x-2">
-                              <Mail className="h-4 w-4 text-gray-400" />
-                              <span className="text-gray-600 truncate">{student.email}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Book className="h-4 w-4 text-gray-400" />
-                              <span className="text-gray-600">{student.education_level || 'N/A'}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Globe className="h-4 w-4 text-gray-400" />
-                              <span className="text-gray-600">{student.english_level || 'N/A'}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <MapPin className="h-4 w-4 text-gray-400" />
-                              <span className="text-gray-600">{student.province || 'N/A'}</span>
-                            </div>
+                        {/* Progress Indicators */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Profile Completion</span>
+                            <span className="font-medium">
+                              {Math.round((() => {
+                                const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
+                                const completed = fields.filter(f => student[f]).length;
+                                return (completed / fields.length) * 100;
+                              })())}%
+                            </span>
                           </div>
-
-                          {/* Progress Indicators */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600">Profile Completion</span>
-                              <span className="font-medium">
-                                {Math.round((() => {
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-indigo-600 h-2 rounded-full transition-all"
+                              style={{
+                                width: `${Math.round((() => {
                                   const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
                                   const completed = fields.filter(f => student[f]).length;
                                   return (completed / fields.length) * 100;
-                                })())}%
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-indigo-600 h-2 rounded-full transition-all"
-                                style={{
-                                  width: `${Math.round((() => {
-                                    const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
-                                    const completed = fields.filter(f => student[f]).length;
-                                    return (completed / fields.length) * 100;
-                                  })())}%`
-                                }}
-                              ></div>
-                            </div>
-                          </div>
-
-                          {/* Outcome Badges */}
-                          <div className="flex flex-wrap gap-1">
-                            {student.college_admit && (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                College Admit
-                              </span>
-                            )}
-                            {student.scholarship_awarded && (
-                              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                                Scholarship
-                              </span>
-                            )}
-                            {student.stem_major && (
-                              <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
-                                STEM
-                              </span>
-                            )}
+                                })())}%`
+                              }}
+                            ></div>
                           </div>
                         </div>
 
-                        {/* Card Footer */}
-                        <div className="px-4 py-3 bg-gray-50 border-t flex justify-between items-center">
-                          <button
-                            onClick={() => handleViewStudentDetails(student)}
-                            disabled={loadingActionId === student.id}
-                            className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-full transition-colors"
-                            title="View Details"
-                          >
-                            {loadingActionId === student.id ? (
-                              <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </button>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => setEditingStudent(student)}
-                              className="p-1 text-gray-400 hover:text-gray-600"
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </button>
-                            <button className="p-1 text-gray-400 hover:text-red-600">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
+                        {/* Outcome Badges */}
+                        <div className="flex flex-wrap gap-1">
+                          {student.college_admit && (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                              College Admit
+                            </span>
+                          )}
+                          {student.scholarship_awarded && (
+                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                              Scholarship
+                            </span>
+                          )}
+                          {student.stem_major && (
+                            <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                              STEM
+                            </span>
+                          )}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  /* Enhanced Table View */
-                  <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Student
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Education
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Progress
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Outcomes
-                            </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {filteredStudents.map((student) => (
-                            <tr key={student.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                                    <span className="text-indigo-800 font-medium text-sm">
-                                      {student.first_name?.[0]}{student.last_name?.[0]}
-                                    </span>
-                                  </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {student.first_name} {student.last_name}
-                                    </div>
-                                    <div className="text-sm text-gray-500">{student.email}</div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">{student.education_level || 'N/A'}</div>
-                                <div className="text-sm text-gray-500">{student.english_level || 'N/A'}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${student.is_assigned
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-amber-100 text-amber-800'
-                                  }`}>
-                                  {student.is_assigned ? 'Assigned' : 'Unassigned'}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                                    <div
-                                      className="bg-indigo-600 h-2 rounded-full"
-                                      style={{
-                                        width: `${Math.round((() => {
-                                          const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
-                                          const completed = fields.filter(f => student[f]).length;
-                                          return (completed / fields.length) * 100;
-                                        })())}%`
-                                      }}
-                                    ></div>
-                                  </div>
-                                  <span className="text-sm text-gray-900">
-                                    {Math.round((() => {
-                                      const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
-                                      const completed = fields.filter(f => student[f]).length;
-                                      return (completed / fields.length) * 100;
-                                    })())}%
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex space-x-1">
-                                  {student.college_admit && (
-                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">College</span>
-                                  )}
-                                  {student.scholarship_awarded && (
-                                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">Scholarship</span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex justify-end space-x-2">
-                                  <button
-                                    onClick={() => handleViewStudentDetails(student)}
-                                    disabled={loadingActionId === student.id}
-                                    className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-full transition-colors"
-                                    title="View Details"
-                                  >
-                                    {loadingActionId === student.id ? (
-                                      <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                      <Eye className="h-4 w-4" />
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingStudent(student)}
-                                    className="text-gray-600 hover:text-gray-900"
-                                  >
-                                    <Edit3 className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+
+                      {/* Card Footer */}
+                      <div className="px-4 py-3 bg-gray-50 border-t flex justify-between items-center">
+                        <button
+                          onClick={() => handleViewStudentDetails(student)}
+                          disabled={loadingActionId === student.id}
+                          className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-full transition-colors"
+                          title="View Details"
+                        >
+                          {loadingActionId === student.id ? (
+                            <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => setEditingStudent(student)}
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                          <button className="p-1 text-gray-400 hover:text-red-600">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {filteredStudents.length === 0 && (
-                  <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
-                    <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No students found</h3>
-                    <p className="text-gray-600">Try adjusting your search or filter criteria.</p>
-                  </div>
-                )}
-              </div>
-            )
-          }
-
-          {/* Mentor Applications Tab Content */}
-          {
-            activeTab === 'mentors' && (
-              <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                {mentorApplications.length > 0 ? (
+                  ))}
+                </div>
+              ) : (
+                /* Enhanced Table View */
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DOB</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Languages</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours/Week</th>
-                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Student
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Education
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Progress
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Outcomes
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {mentorApplications.map((app) => (
-                          <tr key={app.id} className="hover:bg-gray-50">
+                        {filteredStudents.map((student) => (
+                          <tr key={student.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <div className="flex-shrink-0 h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
-                                  <span className="text-green-700 font-medium">
-                                    {app.full_name.split(' ')[0]?.[0]}{app.full_name.split(' ')[1]?.[0]}
+                                <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                  <span className="text-indigo-800 font-medium text-sm">
+                                    {student.first_name?.[0]}{student.last_name?.[0]}
                                   </span>
                                 </div>
                                 <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">{app.full_name}</div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {student.first_name} {student.last_name}
+                                  </div>
+                                  <div className="text-sm text-gray-500">{student.email}</div>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{app.email}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(app.dob).toLocaleDateString()}</td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex flex-wrap gap-1">
-                                {app.languages.map((lang, idx) => (
-                                  <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                    {lang}
-                                  </span>
-                                ))}
+                              <div className="text-sm text-gray-900">{student.education_level || 'N/A'}</div>
+                              <div className="text-sm text-gray-500">{student.english_level || 'N/A'}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${student.is_assigned
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                {student.is_assigned ? 'Assigned' : 'Unassigned'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                  <div
+                                    className="bg-indigo-600 h-2 rounded-full"
+                                    style={{
+                                      width: `${Math.round((() => {
+                                        const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
+                                        const completed = fields.filter(f => student[f]).length;
+                                        return (completed / fields.length) * 100;
+                                      })())}%`
+                                    }}
+                                  ></div>
+                                </div>
+                                <span className="text-sm text-gray-900">
+                                  {Math.round((() => {
+                                    const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
+                                    const completed = fields.filter(f => student[f]).length;
+                                    return (completed / fields.length) * 100;
+                                  })())}%
+                                </span>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                {app.available_hours_per_week} hrs/week
-                              </span>
+                              <div className="flex space-x-1">
+                                {student.college_admit && (
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">College</span>
+                                )}
+                                {student.scholarship_awarded && (
+                                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">Scholarship</span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex justify-end space-x-2">
                                 <button
-                                  onClick={() => handleApproveMentor(app)}
-                                  disabled={loadingActionId === app.id}
-                                  className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white ${loadingActionId === app.id ? 'bg-green-400' : 'bg-green-600 hover:bg-green-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+                                  onClick={() => handleViewStudentDetails(student)}
+                                  disabled={loadingActionId === student.id}
+                                  className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-full transition-colors"
+                                  title="View Details"
                                 >
-                                  {loadingActionId === app.id ? 'Processing...' : 'Approve'}
+                                  {loadingActionId === student.id ? (
+                                    <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
                                 </button>
                                 <button
-                                  onClick={() => handleRejectMentor(app.id)}
-                                  disabled={loadingActionId === app.id}
-                                  className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white ${loadingActionId === app.id ? 'bg-red-400' : 'bg-red-600 hover:bg-red-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500`}
+                                  onClick={() => setEditingStudent(student)}
+                                  className="text-gray-600 hover:text-gray-900"
                                 >
-                                  {loadingActionId === app.id ? 'Processing...' : 'Reject'}
+                                  <Edit3 className="h-4 w-4" />
                                 </button>
                               </div>
                             </td>
@@ -2758,172 +2640,192 @@ Bio: ${student.bio || 'N/A'}
                       </tbody>
                     </table>
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-                    <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    <h3 className="mt-4 text-lg font-medium text-gray-900">No pending applications</h3>
-                    <p className="mt-1 text-sm text-gray-500">There are no mentor applications waiting for review.</p>
-                  </div>
-                )}
-              </div>
-            )
-          }
+                </div>
+              )}
 
-          {/* Mentors & Assignments Tab Content */}
-          {
-            activeTab === 'assignments' && (
-              <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                <div className="p-6">
-                  <div className="mb-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-                    <h2 className="text-xl font-bold">Active Mentors & Student Assignments</h2>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Search mentors..."
-                        value={mentorSearch}
-                        onChange={(e) => setMentorSearch(e.target.value)}
-                        className="pl-10 pr-4 py-2 border rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      />
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
-                      </div>
+              {filteredStudents.length === 0 && (
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
+                  <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No students found</h3>
+                  <p className="text-gray-600">Try adjusting your search or filter criteria.</p>
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        {/* Mentor Applications Tab Content */}
+        {
+          activeTab === 'mentors' && (
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              {mentorApplications.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DOB</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Languages</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours/Week</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {mentorApplications.map((app) => (
+                        <tr key={app.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
+                                <span className="text-green-700 font-medium">
+                                  {app.full_name.split(' ')[0]?.[0]}{app.full_name.split(' ')[1]?.[0]}
+                                </span>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">{app.full_name}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{app.email}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(app.dob).toLocaleDateString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex flex-wrap gap-1">
+                              {app.languages.map((lang, idx) => (
+                                <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                  {lang}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                              {app.available_hours_per_week} hrs/week
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                onClick={() => handleApproveMentor(app)}
+                                disabled={loadingActionId === app.id}
+                                className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white ${loadingActionId === app.id ? 'bg-green-400' : 'bg-green-600 hover:bg-green-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+                              >
+                                {loadingActionId === app.id ? 'Processing...' : 'Approve'}
+                              </button>
+                              <button
+                                onClick={() => handleRejectMentor(app.id)}
+                                disabled={loadingActionId === app.id}
+                                className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white ${loadingActionId === app.id ? 'bg-red-400' : 'bg-red-600 hover:bg-red-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500`}
+                              >
+                                {loadingActionId === app.id ? 'Processing...' : 'Reject'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+                  <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                  <h3 className="mt-4 text-lg font-medium text-gray-900">No pending applications</h3>
+                  <p className="mt-1 text-sm text-gray-500">There are no mentor applications waiting for review.</p>
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        {/* Mentors & Assignments Tab Content */}
+        {
+          activeTab === 'assignments' && (
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="p-6">
+                <div className="mb-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+                  <h2 className="text-xl font-bold">Active Mentors & Student Assignments</h2>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search mentors..."
+                      value={mentorSearch}
+                      onChange={(e) => setMentorSearch(e.target.value)}
+                      className="pl-10 pr-4 py-2 border rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                      </svg>
                     </div>
                   </div>
+                </div>
 
-                  {assignmentMode ? (
-                    <div>
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => {
-                              setAssignmentMode(false);
-                              setSelectedMentorForAssignment(null);
-                              setMentorStudents([]);
-                            }}
-                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
-                          >
-                            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                            </svg>
-                            Back to Mentors
-                          </button>
-                          <h3 className="text-lg font-medium">
-                            Assignments for: <span className="text-indigo-600">{selectedMentorForAssignment?.full_name}</span>
-                          </h3>
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            placeholder="Search students..."
-                            value={studentSearch}
-                            onChange={(e) => setStudentSearch(e.target.value)}
-                            className="pl-10 pr-4 py-2 border rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                          />
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                          </div>
+                {assignmentMode ? (
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => {
+                            setAssignmentMode(false);
+                            setSelectedMentorForAssignment(null);
+                            setMentorStudents([]);
+                          }}
+                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                          <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                          </svg>
+                          Back to Mentors
+                        </button>
+                        <h3 className="text-lg font-medium">
+                          Assignments for: <span className="text-indigo-600">{selectedMentorForAssignment?.full_name}</span>
+                        </h3>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search students..."
+                          value={studentSearch}
+                          onChange={(e) => setStudentSearch(e.target.value)}
+                          className="pl-10 pr-4 py-2 border rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                          </svg>
                         </div>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Assigned Students */}
-                        <div className="bg-white border rounded-xl p-4">
-                          <h4 className="text-md font-medium mb-4 flex items-center">
-                            <span className="mr-2 inline-flex items-center justify-center h-6 w-6 rounded-full bg-green-100 text-green-800">
-                              {mentorStudents.length}
-                            </span>
-                            Assigned Students
-                          </h4>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Assigned Students */}
+                      <div className="bg-white border rounded-xl p-4">
+                        <h4 className="text-md font-medium mb-4 flex items-center">
+                          <span className="mr-2 inline-flex items-center justify-center h-6 w-6 rounded-full bg-green-100 text-green-800">
+                            {mentorStudents.length}
+                          </span>
+                          Assigned Students
+                        </h4>
 
-                          {mentorStudents.length === 0 ? (
-                            <div className="text-center p-6 bg-gray-50 rounded-lg">
-                              <p className="text-gray-500">No students assigned to this mentor yet</p>
-                            </div>
-                          ) : (
-                            <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                              {mentorStudents
-                                .filter(s => {
-                                  if (!assignedSearch) return true;
-                                  const fullName = `${s.first_name} ${s.last_name}`.toLowerCase();
-                                  return fullName.includes(assignedSearch.toLowerCase()) ||
-                                    s.email.toLowerCase().includes(assignedSearch.toLowerCase());
-                                })
-                                .map(student => (
-                                  <div key={student.id} className="border rounded-lg p-3 flex justify-between items-center">
-                                    <div className="flex items-center">
-                                      <div className="h-9 w-9 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-                                        <span className="text-indigo-600 font-medium text-sm">
-                                          {student.first_name?.[0]}{student.last_name?.[0]}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <h5 className="font-medium text-sm">{student.first_name} {student.last_name}</h5>
-                                        <p className="text-xs text-gray-500">{student.email}</p>
-                                      </div>
-                                    </div>
-                                    {confirmUnassign === student.id ? (
-                                      <div className="flex items-center space-x-2">
-                                        <button
-                                          onClick={() => handleUnassignStudent(student.id)}
-                                          className="px-3 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition"
-                                        >
-                                          Confirm
-                                        </button>
-                                        <button
-                                          onClick={() => setConfirmUnassign(null)}
-                                          className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-gray-300 transition"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <button
-                                        onClick={() => setConfirmUnassign(student.id)}
-                                        className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-red-100 hover:text-red-600 transition"
-                                      >
-                                        Unassign
-                                      </button>
-                                    )}
-                                  </div>
-                                ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Available Students */}
-                        <div className="bg-white border rounded-xl p-4">
-                          <h4 className="text-md font-medium mb-4">Available Students</h4>
-
-                          <div className="mb-3">
-                            <input
-                              type="text"
-                              placeholder="Filter by name or email..."
-                              value={assignedSearch}
-                              onChange={(e) => setAssignedSearch(e.target.value)}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            />
+                        {mentorStudents.length === 0 ? (
+                          <div className="text-center p-6 bg-gray-50 rounded-lg">
+                            <p className="text-gray-500">No students assigned to this mentor yet</p>
                           </div>
-
+                        ) : (
                           <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                            {students
-                              .filter(s => !s.is_assigned) // Only show unassigned students
+                            {mentorStudents
                               .filter(s => {
-                                if (!studentSearch) return true;
+                                if (!assignedSearch) return true;
                                 const fullName = `${s.first_name} ${s.last_name}`.toLowerCase();
-                                return fullName.includes(studentSearch.toLowerCase()) ||
-                                  s.email.toLowerCase().includes(studentSearch.toLowerCase());
+                                return fullName.includes(assignedSearch.toLowerCase()) ||
+                                  s.email.toLowerCase().includes(assignedSearch.toLowerCase());
                               })
                               .map(student => (
                                 <div key={student.id} className="border rounded-lg p-3 flex justify-between items-center">
                                   <div className="flex items-center">
-                                    <div className="h-9 w-9 bg-gray-100 rounded-full flex items-center justify-center mr-3">
-                                      <span className="text-gray-600 font-medium text-sm">
+                                    <div className="h-9 w-9 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                                      <span className="text-indigo-600 font-medium text-sm">
                                         {student.first_name?.[0]}{student.last_name?.[0]}
                                       </span>
                                     </div>
@@ -2932,446 +2834,401 @@ Bio: ${student.bio || 'N/A'}
                                       <p className="text-xs text-gray-500">{student.email}</p>
                                     </div>
                                   </div>
-                                  <button
-                                    onClick={() => handleAssignStudent(selectedMentorForAssignment.user_id, student.id)}
-                                    className="px-3 py-1 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 transition"
-                                  >
-                                    Assign
-                                  </button>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      {approvedMentors.length === 0 ? (
-                        <div className="text-center p-10 bg-gray-50 rounded-lg">
-                          <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                          </svg>
-                          <h3 className="text-lg font-medium text-gray-900">No approved mentors</h3>
-                          <p className="mt-1 text-sm text-gray-500">Approve mentors from the Mentor Applications tab to see them here.</p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {approvedMentors
-                            .filter(mentor => {
-                              if (!mentorSearch) return true;
-                              return mentor.full_name.toLowerCase().includes(mentorSearch.toLowerCase()) ||
-                                mentor.email.toLowerCase().includes(mentorSearch.toLowerCase());
-                            })
-                            .map(mentor => (
-                              <div key={mentor.id} className="bg-white border rounded-xl shadow-sm overflow-hidden">
-                                <div className="p-6">
-                                  <div className="flex items-start space-x-4">
-                                    <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center text-xl font-medium text-indigo-700 flex-shrink-0">
-                                      {mentor.full_name.split(' ').map(n => n[0]).join('')}
+                                  {confirmUnassign === student.id ? (
+                                    <div className="flex items-center space-x-2">
+                                      <button
+                                        onClick={() => handleUnassignStudent(student.id)}
+                                        className="px-3 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition"
+                                      >
+                                        Confirm
+                                      </button>
+                                      <button
+                                        onClick={() => setConfirmUnassign(null)}
+                                        className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-gray-300 transition"
+                                      >
+                                        Cancel
+                                      </button>
                                     </div>
-                                    <div className="space-y-1 flex-1">
-                                      <h3 className="text-lg font-medium">{mentor.full_name}</h3>
-                                      <p className="text-sm text-gray-500">{mentor.email}</p>
-                                      {mentor.languages && (
-                                        <div className="flex flex-wrap gap-1 mt-2">
-                                          {mentor.languages.map((lang, idx) => (
-                                            <span key={idx} className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">
-                                              {lang}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="border-t px-6 py-3 bg-gray-50 flex justify-end">
-                                  <button
-                                    onClick={() => handleViewAssigned(mentor)}
-                                    className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition"
-                                  >
-                                    View Assignments
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          }
-
-          {/* Fellowship Settings Tab */}
-          {
-            activeTab === 'fellowship' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                <div className="bg-white rounded-2xl shadow-lg p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Settings className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900">Fellowship Program Settings</h2>
-                        <p className="text-sm text-gray-600">Manage fellowship program information displayed on the website</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setIsEditingFellowship(!isEditingFellowship)}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${isEditingFellowship
-                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
-                    >
-                      {isEditingFellowship ? <X className="h-4 w-4" /> : <PenTool className="h-4 w-4" />}
-                      <span>{isEditingFellowship ? 'Cancel' : 'Edit'}</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-6">
-                    {/* Start Date */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Fellowship Start Date
-                      </label>
-                      {isEditingFellowship ? (
-                        <input
-                          type="text"
-                          value={fellowshipSettings.start_date}
-                          onChange={(e) => setFellowshipSettings(prev => ({
-                            ...prev,
-                            start_date: e.target.value
-                          }))}
-                          placeholder="e.g., August 1st, 2024"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      ) : (
-                        <div className="px-3 py-2 bg-gray-50 rounded-lg text-gray-900">
-                          {fellowshipSettings.start_date || 'Not set'}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Fellowship Description
-                      </label>
-                      {isEditingFellowship ? (
-                        <textarea
-                          value={fellowshipSettings.description}
-                          onChange={(e) => setFellowshipSettings(prev => ({
-                            ...prev,
-                            description: e.target.value
-                          }))}
-                          placeholder="Describe the fellowship program..."
-                          rows={4}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      ) : (
-                        <div className="px-3 py-2 bg-gray-50 rounded-lg text-gray-900 min-h-[100px]">
-                          {fellowshipSettings.description || 'No description set'}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Save Button */}
-                    {isEditingFellowship && (
-                      <div className="flex items-center space-x-4 pt-4 border-t">
-                        <button
-                          onClick={updateFellowshipSettings}
-                          disabled={fellowshipLoading}
-                          className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                        >
-                          {fellowshipLoading ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                          ) : (
-                            <Save className="h-4 w-4" />
-                          )}
-                          <span>{fellowshipLoading ? 'Saving...' : 'Save Changes'}</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setIsEditingFellowship(false);
-                            fetchFellowshipSettings(); // Reset to original values
-                          }}
-                          className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Preview Section */}
-                <div className="bg-white rounded-2xl shadow-lg p-6">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <Eye className="h-4 w-4 text-green-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Preview</h3>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border-2 border-dashed border-blue-200">
-                    <div className="text-center">
-                      <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <GraduationCap className="h-6 w-6 text-white" />
-                      </div>
-                      <h4 className="text-xl font-bold text-gray-900 mb-2">Fellowship Program</h4>
-                      <div className="flex items-center justify-center space-x-2 text-blue-600 mb-3">
-                        <Calendar className="h-4 w-4" />
-                        <span className="font-medium">
-                          Starting {fellowshipSettings.start_date || 'Date not set'}
-                        </span>
-                      </div>
-                      <p className="text-gray-600 leading-relaxed">
-                        {fellowshipSettings.description || 'No description available'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )
-          }
-
-          {/* Student Detail Modal */}
-          {
-            modalStudent && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                  <div className="p-6 border-b border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                          <User className="h-6 w-6 text-indigo-600" />
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-bold text-gray-900">
-                            {modalStudent.first_name} {modalStudent.last_name}
-                          </h2>
-                          <p className="text-gray-600">{modalStudent.email}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setModalStudent(null)}
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                      >
-                        <X className="h-6 w-6" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Personal Information */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Personal Information</h3>
-                        <div className="space-y-3">
-                          <div className="flex items-center space-x-3">
-                            <User className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">
-                              <strong>Name:</strong> {modalStudent.first_name} {modalStudent.last_name}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <Mail className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">
-                              <strong>Email:</strong> {modalStudent.email}
-                            </span>
-                          </div>
-                          {modalStudent.phone_number && (
-                            <div className="flex items-center space-x-3">
-                              <Phone className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">
-                                <strong>Phone:</strong> {modalStudent.phone_number}
-                              </span>
-                            </div>
-                          )}
-                          {modalStudent.date_of_birth && (
-                            <div className="flex items-center space-x-3">
-                              <Calendar className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">
-                                <strong>Date of Birth:</strong> {new Date(modalStudent.date_of_birth).toLocaleDateString()}
-                              </span>
-                            </div>
-                          )}
-                          {modalStudent.place_of_birth && (
-                            <div className="flex items-center space-x-3">
-                              <MapPin className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">
-                                <strong>Place of Birth:</strong> {modalStudent.place_of_birth}
-                              </span>
-                            </div>
-                          )}
-                          {modalStudent.place_of_residence && (
-                            <div className="flex items-center space-x-3">
-                              <MapPin className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">
-                                <strong>Residence:</strong> {modalStudent.place_of_residence}
-                              </span>
-                            </div>
-                          )}
-                          {modalStudent.province && (
-                            <div className="flex items-center space-x-3">
-                              <Globe className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">
-                                <strong>Province:</strong> {modalStudent.province}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Academic Information */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Academic Information</h3>
-                        <div className="space-y-3">
-                          <div className="flex items-center space-x-3">
-                            <Book className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">
-                              <strong>Education Level:</strong> {modalStudent.education_level || 'Not specified'}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <GraduationCap className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">
-                              <strong>English Level:</strong> {modalStudent.english_level || 'Not assessed'}
-                            </span>
-                          </div>
-                          {modalStudent.gpa && (
-                            <div className="flex items-center space-x-3">
-                              <Award className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">
-                                <strong>GPA:</strong> {modalStudent.gpa}
-                              </span>
-                            </div>
-                          )}
-                          {modalStudent.toefl_score && (
-                            <div className="flex items-center space-x-3">
-                              <Award className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">
-                                <strong>TOEFL Score:</strong> {modalStudent.toefl_score}
-                              </span>
-                            </div>
-                          )}
-                          {modalStudent.school_type && (
-                            <div className="flex items-center space-x-3">
-                              <Book className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">
-                                <strong>School Type:</strong> {modalStudent.school_type}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Bio */}
-                      {modalStudent.bio && (
-                        <div className="lg:col-span-2 space-y-4">
-                          <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">About</h3>
-                          <p className="text-sm text-gray-700 leading-relaxed">{modalStudent.bio}</p>
-                        </div>
-                      )}
-
-                      {/* Interests */}
-                      {modalStudent.interests && (
-                        <div className="lg:col-span-2 space-y-4">
-                          <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Interests</h3>
-                          <p className="text-sm text-gray-700">{modalStudent.interests}</p>
-                        </div>
-                      )}
-
-                      {/* Resume Section */}
-                      <div className="lg:col-span-2 space-y-4">
-                        <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Resume</h3>
-                        {modalStudent.resume ? (
-                          <div className="bg-gray-50 rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <FileText className="h-8 w-8 text-blue-600" />
-                                <div>
-                                  <p className="font-medium text-gray-900">Resume Available</p>
-                                  <p className="text-sm text-gray-600">
-                                    Uploaded on {new Date(modalStudent.resume.uploaded_at).toLocaleDateString()}
-                                  </p>
-                                  {modalStudent.resume.file_size && (
-                                    <p className="text-xs text-gray-500">
-                                      Size: {(modalStudent.resume.file_size / 1024 / 1024).toFixed(2)} MB
-                                    </p>
+                                  ) : (
+                                    <button
+                                      onClick={() => setConfirmUnassign(student.id)}
+                                      className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-medium rounded hover:bg-red-100 hover:text-red-600 transition"
+                                    >
+                                      Unassign
+                                    </button>
                                   )}
                                 </div>
-                              </div>
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => window.open(modalStudent.resume.file_url, '_blank')}
-                                  className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
-                                >
-                                  View Resume
-                                </button>
-                                <a
-                                  href={modalStudent.resume.file_url}
-                                  download
-                                  className="px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </a>
-                              </div>
-                            </div>
-
-                            {/* PDF Preview */}
-                            <div className="mt-4">
-                              <iframe
-                                src={modalStudent.resume.file_url}
-                                className="w-full h-96 border border-gray-300 rounded-lg"
-                                title="Resume Preview"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="bg-gray-50 rounded-lg p-4 text-center">
-                            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                            <p className="text-gray-600">No resume uploaded yet</p>
+                              ))}
                           </div>
                         )}
                       </div>
 
-                      {/* Achievements */}
-                      <div className="lg:col-span-2 space-y-4">
-                        <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Achievements</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {modalStudent.college_admit && (
-                            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                              College Admitted
-                            </span>
-                          )}
-                          {modalStudent.scholarship_awarded && (
-                            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
-                              Scholarship Awarded
-                            </span>
-                          )}
-                          {modalStudent.stem_major && (
-                            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                              STEM Major
-                            </span>
-                          )}
-                          {!modalStudent.college_admit && !modalStudent.scholarship_awarded && !modalStudent.stem_major && (
-                            <span className="text-gray-500 text-sm">No achievements recorded yet</span>
-                          )}
+                      {/* Available Students */}
+                      <div className="bg-white border rounded-xl p-4">
+                        <h4 className="text-md font-medium mb-4">Available Students</h4>
+
+                        <div className="mb-3">
+                          <input
+                            type="text"
+                            placeholder="Filter by name or email..."
+                            value={assignedSearch}
+                            onChange={(e) => setAssignedSearch(e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
                         </div>
+
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                          {students
+                            .filter(s => !s.is_assigned) // Only show unassigned students
+                            .filter(s => {
+                              if (!studentSearch) return true;
+                              const fullName = `${s.first_name} ${s.last_name}`.toLowerCase();
+                              return fullName.includes(studentSearch.toLowerCase()) ||
+                                s.email.toLowerCase().includes(studentSearch.toLowerCase());
+                            })
+                            .map(student => (
+                              <div key={student.id} className="border rounded-lg p-3 flex justify-between items-center">
+                                <div className="flex items-center">
+                                  <div className="h-9 w-9 bg-gray-100 rounded-full flex items-center justify-center mr-3">
+                                    <span className="text-gray-600 font-medium text-sm">
+                                      {student.first_name?.[0]}{student.last_name?.[0]}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <h5 className="font-medium text-sm">{student.first_name} {student.last_name}</h5>
+                                    <p className="text-xs text-gray-500">{student.email}</p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleAssignStudent(selectedMentorForAssignment.user_id, student.id)}
+                                  className="px-3 py-1 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 transition"
+                                >
+                                  Assign
+                                </button>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {approvedMentors.length === 0 ? (
+                      <div className="text-center p-10 bg-gray-50 rounded-lg">
+                        <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <h3 className="text-lg font-medium text-gray-900">No approved mentors</h3>
+                        <p className="mt-1 text-sm text-gray-500">Approve mentors from the Mentor Applications tab to see them here.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {approvedMentors
+                          .filter(mentor => {
+                            if (!mentorSearch) return true;
+                            return mentor.full_name.toLowerCase().includes(mentorSearch.toLowerCase()) ||
+                              mentor.email.toLowerCase().includes(mentorSearch.toLowerCase());
+                          })
+                          .map(mentor => (
+                            <div key={mentor.id} className="bg-white border rounded-xl shadow-sm overflow-hidden">
+                              <div className="p-6">
+                                <div className="flex items-start space-x-4">
+                                  <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center text-xl font-medium text-indigo-700 flex-shrink-0">
+                                    {mentor.full_name.split(' ').map(n => n[0]).join('')}
+                                  </div>
+                                  <div className="space-y-1 flex-1">
+                                    <h3 className="text-lg font-medium">{mentor.full_name}</h3>
+                                    <p className="text-sm text-gray-500">{mentor.email}</p>
+                                    {mentor.languages && (
+                                      <div className="flex flex-wrap gap-1 mt-2">
+                                        {mentor.languages.map((lang, idx) => (
+                                          <span key={idx} className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">
+                                            {lang}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="border-t px-6 py-3 bg-gray-50 flex justify-end">
+                                <button
+                                  onClick={() => handleViewAssigned(mentor)}
+                                  className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition"
+                                >
+                                  View Assignments
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        }
+
+        {/* Fellowship Settings Tab */}
+        {
+          activeTab === 'fellowship' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Settings className="h-8 w-8 text-blue-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-3">Fellowship Program Settings</h2>
+                <p className="text-gray-600 mb-6">
+                  Manage fellowship program details, requirements, and highlights that are displayed to users.
+                </p>
+                <Link
+                  to="/admin/fellowship-settings"
+                  className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  <Settings className="h-5 w-5" />
+                  <span>Manage Fellowship Settings</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </motion.div>
+          )
+        }
+
+        {/* Student Detail Modal */}
+        {
+          modalStudent && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <User className="h-6 w-6 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">
+                          {modalStudent.first_name} {modalStudent.last_name}
+                        </h2>
+                        <p className="text-gray-600">{modalStudent.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setModalStudent(null)}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Personal Information */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Personal Information</h3>
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-3">
+                          <User className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm">
+                            <strong>Name:</strong> {modalStudent.first_name} {modalStudent.last_name}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <Mail className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm">
+                            <strong>Email:</strong> {modalStudent.email}
+                          </span>
+                        </div>
+                        {modalStudent.phone_number && (
+                          <div className="flex items-center space-x-3">
+                            <Phone className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm">
+                              <strong>Phone:</strong> {modalStudent.phone_number}
+                            </span>
+                          </div>
+                        )}
+                        {modalStudent.date_of_birth && (
+                          <div className="flex items-center space-x-3">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm">
+                              <strong>Date of Birth:</strong> {new Date(modalStudent.date_of_birth).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                        {modalStudent.place_of_birth && (
+                          <div className="flex items-center space-x-3">
+                            <MapPin className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm">
+                              <strong>Place of Birth:</strong> {modalStudent.place_of_birth}
+                            </span>
+                          </div>
+                        )}
+                        {modalStudent.place_of_residence && (
+                          <div className="flex items-center space-x-3">
+                            <MapPin className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm">
+                              <strong>Residence:</strong> {modalStudent.place_of_residence}
+                            </span>
+                          </div>
+                        )}
+                        {modalStudent.province && (
+                          <div className="flex items-center space-x-3">
+                            <Globe className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm">
+                              <strong>Province:</strong> {modalStudent.province}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Academic Information */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Academic Information</h3>
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-3">
+                          <Book className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm">
+                            <strong>Education Level:</strong> {modalStudent.education_level || 'Not specified'}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <GraduationCap className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm">
+                            <strong>English Level:</strong> {modalStudent.english_level || 'Not assessed'}
+                          </span>
+                        </div>
+                        {modalStudent.gpa && (
+                          <div className="flex items-center space-x-3">
+                            <Award className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm">
+                              <strong>GPA:</strong> {modalStudent.gpa}
+                            </span>
+                          </div>
+                        )}
+                        {modalStudent.toefl_score && (
+                          <div className="flex items-center space-x-3">
+                            <Award className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm">
+                              <strong>TOEFL Score:</strong> {modalStudent.toefl_score}
+                            </span>
+                          </div>
+                        )}
+                        {modalStudent.school_type && (
+                          <div className="flex items-center space-x-3">
+                            <Book className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm">
+                              <strong>School Type:</strong> {modalStudent.school_type}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bio */}
+                    {modalStudent.bio && (
+                      <div className="lg:col-span-2 space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">About</h3>
+                        <p className="text-sm text-gray-700 leading-relaxed">{modalStudent.bio}</p>
+                      </div>
+                    )}
+
+                    {/* Interests */}
+                    {modalStudent.interests && (
+                      <div className="lg:col-span-2 space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Interests</h3>
+                        <p className="text-sm text-gray-700">{modalStudent.interests}</p>
+                      </div>
+                    )}
+
+                    {/* Resume Section */}
+                    <div className="lg:col-span-2 space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Resume</h3>
+                      {modalStudent.resume ? (
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <FileText className="h-8 w-8 text-blue-600" />
+                              <div>
+                                <p className="font-medium text-gray-900">Resume Available</p>
+                                <p className="text-sm text-gray-600">
+                                  Uploaded on {new Date(modalStudent.resume.uploaded_at).toLocaleDateString()}
+                                </p>
+                                {modalStudent.resume.file_size && (
+                                  <p className="text-xs text-gray-500">
+                                    Size: {(modalStudent.resume.file_size / 1024 / 1024).toFixed(2)} MB
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => window.open(modalStudent.resume.file_url, '_blank')}
+                                className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                              >
+                                View Resume
+                              </button>
+                              <a
+                                href={modalStudent.resume.file_url}
+                                download
+                                className="px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm"
+                              >
+                                <Download className="h-4 w-4" />
+                              </a>
+                            </div>
+                          </div>
+
+                          {/* PDF Preview */}
+                          <div className="mt-4">
+                            <iframe
+                              src={modalStudent.resume.file_url}
+                              className="w-full h-96 border border-gray-300 rounded-lg"
+                              title="Resume Preview"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 rounded-lg p-4 text-center">
+                          <FileText className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                          <p className="text-gray-600">No resume uploaded yet</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Achievements */}
+                    <div className="lg:col-span-2 space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Achievements</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {modalStudent.college_admit && (
+                          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                            College Admitted
+                          </span>
+                        )}
+                        {modalStudent.scholarship_awarded && (
+                          <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                            Scholarship Awarded
+                          </span>
+                        )}
+                        {modalStudent.stem_major && (
+                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                            STEM Major
+                          </span>
+                        )}
+                        {!modalStudent.college_admit && !modalStudent.scholarship_awarded && !modalStudent.stem_major && (
+                          <span className="text-gray-500 text-sm">No achievements recorded yet</span>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            )}
-        </AnimatePresence>
+            </div>
+          )}
       </div>
     </div>
   );
