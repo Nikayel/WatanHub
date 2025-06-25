@@ -8,6 +8,13 @@ import {
   PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Cell, LineChart, Line, AreaChart, Area
 } from 'recharts';
+import {
+  Users, UserCheck, FileText, TrendingUp, GraduationCap, Award,
+  Briefcase, DollarSign, Clock, Search, Filter, Download, Plus,
+  Eye, EyeOff, Edit3, Trash2, UserPlus, Settings, Calendar,
+  ChevronRight, AlertTriangle, CheckCircle, Phone, Mail,
+  MapPin, Book, Globe, X, User
+} from 'lucide-react';
 
 function AdminDashboard() {
   const { user } = useAuth();
@@ -20,8 +27,8 @@ function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expanded, setExpanded] = useState(null);
   const [loadingActionId, setLoadingActionId] = useState(null);
-  const [activeTab, setActiveTab] = useState('students');
-  const [viewMode, setViewMode] = useState('table'); // table or grid
+  const [activeTab, setActiveTab] = useState('overview');
+  const [viewMode, setViewMode] = useState('cards'); // cards or table
   const [approvedMentors, setApprovedMentors] = useState([]);
   const [mentorStudents, setMentorStudents] = useState([]);
   const [selectedMentor, setSelectedMentor] = useState(null);
@@ -33,6 +40,29 @@ function AdminDashboard() {
   const [mentorSearch, setMentorSearch] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
   const [assignedSearch, setAssignedSearch] = useState('');
+  const [filterOptions, setFilterOptions] = useState({
+    educationLevel: '',
+    englishLevel: '',
+    province: '',
+    assignmentStatus: ''
+  });
+  const [studentNotes, setStudentNotes] = useState({}); // Fix for ESLint error
+
+  // Enhanced state for CRM-like functionality
+  const [dashboardStats, setDashboardStats] = useState({
+    totalStudents: 0,
+    activeMentors: 0,
+    totalNotes: 0,
+    acknowledgedNotes: 0,
+    collegeAdmissions: 0,
+    scholarships: 0,
+    totalScholarshipValue: 0,
+    employmentPlacements: 0,
+    averageProfileCompletion: 0,
+    monthlySignups: 0,
+    engagementRate: 0
+  });
+
   const [demographicData, setDemographicData] = useState({
     age: [],
     gender: [],
@@ -46,21 +76,26 @@ function AdminDashboard() {
     parentalEducation: [],
     internetSpeed: []
   });
+
   const [noteStats, setNoteStats] = useState({
     total: 0,
     acknowledged: 0,
     pending: 0,
     trend: []
   });
-  const [studentNotes, setStudentNotes] = useState({});
+
   const [outcomesStats, setOutcomesStats] = useState({
     collegeAdmissions: { total: 0, stemCount: 0, byMonth: [] },
     scholarships: { total: 0, totalValue: 0, byType: [] },
     employment: { total: 0, byType: [] }
   });
 
-  // Colors for charts
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
+  // Enhanced color palette for CRM charts
+  const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16'];
+  const SUCCESS_COLOR = '#10B981';
+  const WARNING_COLOR = '#F59E0B';
+  const DANGER_COLOR = '#EF4444';
+  const PRIMARY_COLOR = '#4F46E5';
 
   // Add state for tracking the real-time channel
   const [noteStatsChannel, setNoteStatsChannel] = useState(null);
@@ -235,28 +270,94 @@ function AdminDashboard() {
 
   const fetchStudents = async () => {
     try {
-      const studentsData = await safeSelect('profiles', '*');
-      if (studentsData) {
-        setStudents(studentsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+      setLoading(true);
 
-        // Fetch note counts for each student
-        const noteCounts = {};
-        for (const student of studentsData) {
-          const { count, error } = await supabase
-            .from('mentor_notes')
-            .select('id', { count: 'exact', head: true })
-            .eq('student_id', student.id);
+      // First, fetch all students from profiles table (exclude mentors and admins if they have role field)
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('profiles')
+        .select('*')
+        .neq('role', 'mentor')
+        .neq('role', 'admin');
 
-          if (!error) {
-            noteCounts[student.id] = count || 0;
-          }
-        }
-
-        setStudentNotes(noteCounts);
+      if (studentsError) {
+        console.error('Error fetching students:', studentsError);
+        toast.error('Failed to load students');
+        return;
       }
+
+      // If the role-based filtering fails, try without role filtering
+      let finalStudentsData = studentsData;
+      if (!studentsData || studentsData.length === 0) {
+        const { data: allProfiles, error: allError } = await supabase
+          .from('profiles')
+          .select('*');
+
+        if (allError) {
+          console.error('Error fetching all profiles:', allError);
+          toast.error('Failed to load students');
+          return;
+        }
+        finalStudentsData = allProfiles;
+      }
+
+      // Fetch all mentor-student assignments
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from('mentor_student')
+        .select('student_id, mentor_id, assigned_at');
+
+      if (assignmentsError) {
+        console.error('Error fetching assignments:', assignmentsError);
+      }
+
+      // Transform students to include assignment status
+      const transformedStudents = finalStudentsData.map(student => {
+        const assignment = assignmentsData?.find(a => a.student_id === student.id);
+        return {
+          ...student,
+          is_assigned: !!assignment,
+          assigned_mentor_id: assignment?.mentor_id || null,
+          assigned_at: assignment?.assigned_at || null
+        };
+      });
+
+      setStudents(transformedStudents || []);
+
+      // Update dashboard stats
+      const totalStudents = transformedStudents.length;
+      const assignedStudents = transformedStudents.filter(s => s.is_assigned).length;
+
+      // Get unique active mentors count
+      const activeMentors = assignmentsData ? [...new Set(assignmentsData.map(a => a.mentor_id))].length : 0;
+
+      // Calculate profile completion average
+      const profileFields = [
+        'first_name', 'last_name', 'email', 'education_level', 'english_level',
+        'bio', 'date_of_birth', 'place_of_birth', 'place_of_residence', 'interests'
+      ];
+
+      const completionPercentages = transformedStudents.map(student => {
+        const completedFields = profileFields.filter(field => student[field] && student[field] !== '').length;
+        return (completedFields / profileFields.length) * 100;
+      });
+
+      const averageCompletion = completionPercentages.length > 0
+        ? Math.round(completionPercentages.reduce((a, b) => a + b, 0) / completionPercentages.length)
+        : 0;
+
+      setDashboardStats(prev => ({
+        ...prev,
+        totalStudents,
+        activeMentors,
+        averageProfileCompletion: averageCompletion
+      }));
+
+      console.log('✅ Successfully loaded', totalStudents, 'students with', assignedStudents, 'assigned');
+
     } catch (error) {
-      console.error('Error fetching students:', error);
-      toast.error('Failed to load students');
+      console.error('Error in fetchStudents:', error);
+      toast.error('Failed to load student data');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -907,12 +1008,74 @@ Bio: ${student.bio || 'N/A'}
     }
   };
 
-  const filteredStudents = students.filter((student) => {
-    const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
-    const email = student.email.toLowerCase();
-    const query = searchQuery.toLowerCase();
-    return fullName.includes(query) || email.includes(query);
+  // Enhanced filtering function with education level fix
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = searchQuery.length === 0 ||
+      `${student.first_name} ${student.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (student.student_id && student.student_id.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesEducation = !filterOptions.educationLevel ||
+      student.education_level === filterOptions.educationLevel;
+
+    const matchesEnglish = !filterOptions.englishLevel ||
+      student.english_level === filterOptions.englishLevel;
+
+    const matchesProvince = !filterOptions.province ||
+      student.province === filterOptions.province;
+
+    const matchesAssignment = !filterOptions.assignmentStatus ||
+      (filterOptions.assignmentStatus === 'assigned' && student.is_assigned) ||
+      (filterOptions.assignmentStatus === 'unassigned' && !student.is_assigned);
+
+    return matchesSearch && matchesEducation && matchesEnglish && matchesProvince && matchesAssignment;
   });
+
+  // Get unique values for filter dropdowns
+  const educationLevels = [...new Set(students.map(s => s.education_level).filter(Boolean))];
+  const englishLevels = [...new Set(students.map(s => s.english_level).filter(Boolean))];
+  const provinces = [...new Set(students.map(s => s.province).filter(Boolean))];
+
+  const handleViewStudentDetails = async (student) => {
+    try {
+      setLoadingActionId(student.id);
+
+      // Fetch complete student profile from profiles table
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', student.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching student profile:', profileError);
+        toast.error('Failed to load student profile');
+        return;
+      }
+
+      // Fetch student resume from student_resumes table
+      const { data: resumeData, error: resumeError } = await supabase
+        .from('student_resumes')
+        .select('*')
+        .eq('student_id', student.id)
+        .single();
+
+      if (resumeError && resumeError.code !== 'PGRST116') {
+        console.error('Error fetching resume:', resumeError);
+      }
+
+      // Set the complete student data for the modal
+      setModalStudent({
+        ...profileData,
+        resume: resumeData || null
+      });
+    } catch (error) {
+      console.error('Error viewing student details:', error);
+      toast.error('Failed to load student details');
+    } finally {
+      setLoadingActionId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -978,29 +1141,339 @@ Bio: ${student.bio || 'N/A'}
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-            <div className="text-4xl font-bold text-indigo-600 mb-2">{students.length}</div>
-            <div className="text-gray-500 text-sm">Total Students</div>
+        {/* CRM-Style Stats Overview Cards */}
+        {activeTab === 'overview' && (
+          <div className="space-y-8">
+            {/* Enhanced Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Total Students Card */}
+              <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-xl p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-indigo-100 text-sm font-medium">Total Students</p>
+                    <h3 className="text-3xl font-bold">{students.length}</h3>
+                    <div className="flex items-center mt-2">
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                      <span className="text-sm text-indigo-100">
+                        {students.filter(s => {
+                          const createdAt = new Date(s.created_at);
+                          const oneMonthAgo = new Date();
+                          oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+                          return createdAt > oneMonthAgo;
+                        }).length} this month
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-indigo-400 bg-opacity-30 rounded-full p-3">
+                    <Users className="h-8 w-8" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Mentors Card */}
+              <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-xl p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-sm font-medium">Active Mentors</p>
+                    <h3 className="text-3xl font-bold">{approvedMentors.length}</h3>
+                    <div className="flex items-center mt-2">
+                      <UserCheck className="h-4 w-4 mr-1" />
+                      <span className="text-sm text-green-100">
+                        {mentorApplications.filter(m => m.status === 'pending').length} pending
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-green-400 bg-opacity-30 rounded-full p-3">
+                    <UserCheck className="h-8 w-8" />
+                  </div>
+                </div>
+              </div>
+
+              {/* College Admissions Card */}
+              <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl shadow-xl p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-amber-100 text-sm font-medium">College Admissions</p>
+                    <h3 className="text-3xl font-bold">{outcomesStats.collegeAdmissions.total}</h3>
+                    <div className="flex items-center mt-2">
+                      <GraduationCap className="h-4 w-4 mr-1" />
+                      <span className="text-sm text-amber-100">
+                        {outcomesStats.collegeAdmissions.stemCount} STEM
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-amber-400 bg-opacity-30 rounded-full p-3">
+                    <GraduationCap className="h-8 w-8" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Scholarships Card */}
+              <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-xl p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-100 text-sm font-medium">Total Scholarships</p>
+                    <h3 className="text-3xl font-bold">{outcomesStats.scholarships.total}</h3>
+                    <div className="flex items-center mt-2">
+                      <DollarSign className="h-4 w-4 mr-1" />
+                      <span className="text-sm text-purple-100">
+                        ${outcomesStats.scholarships.totalValue?.toLocaleString() || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-purple-400 bg-opacity-30 rounded-full p-3">
+                    <Award className="h-8 w-8" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Secondary Stats Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Total Notes</p>
+                    <h3 className="text-2xl font-bold text-gray-900">{noteStats.total}</h3>
+                  </div>
+                  <FileText className="h-8 w-8 text-indigo-600" />
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-gray-600">
+                    {noteStats.acknowledged} acknowledged
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Employment</p>
+                    <h3 className="text-2xl font-bold text-gray-900">{outcomesStats.employment.total}</h3>
+                  </div>
+                  <Briefcase className="h-8 w-8 text-green-600" />
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-gray-600">Job placements</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Avg Profile Completion</p>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      {students.length > 0 ?
+                        Math.round(students.reduce((acc, s) => {
+                          const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
+                          const completed = fields.filter(f => s[f]).length;
+                          return acc + (completed / fields.length * 100);
+                        }, 0) / students.length) : 0}%
+                    </h3>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-blue-600" />
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-gray-600">Profile completeness</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm font-medium">Success Rate</p>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      {students.length > 0 ?
+                        Math.round((students.filter(s => s.college_admit || s.scholarship_awarded).length / students.length) * 100) : 0}%
+                    </h3>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-emerald-600" />
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-gray-600">Student outcomes</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Student Signup Trend */}
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Signups Trend</h3>
+                <div className="h-80">
+                  {demographicData.signupTrend.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={demographicData.signupTrend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="name" stroke="#6b7280" />
+                        <YAxis stroke="#6b7280" />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#fff',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="value"
+                          name="New Students"
+                          stroke={PRIMARY_COLOR}
+                          fill={PRIMARY_COLOR}
+                          fillOpacity={0.3}
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-500">
+                      <div className="text-center">
+                        <TrendingUp className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                        <p>No signup data available</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Student Demographics */}
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Demographics</h3>
+                <div className="h-80">
+                  {demographicData.gender.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={demographicData.gender}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="value"
+                          nameKey="name"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {demographicData.gender.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#fff',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-500">
+                      <div className="text-center">
+                        <Users className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                        <p>No demographic data available</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Outcomes Overview */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">Student Outcomes Overview</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* College Admissions */}
+                <div className="text-center">
+                  <div className="bg-blue-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                    <GraduationCap className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-gray-900">{outcomesStats.collegeAdmissions.total}</h4>
+                  <p className="text-gray-600">College Admissions</p>
+                  <p className="text-sm text-blue-600 font-medium">{outcomesStats.collegeAdmissions.stemCount} STEM</p>
+                </div>
+
+                {/* Scholarships */}
+                <div className="text-center">
+                  <div className="bg-green-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                    <Award className="h-8 w-8 text-green-600" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-gray-900">{outcomesStats.scholarships.total}</h4>
+                  <p className="text-gray-600">Scholarships Awarded</p>
+                  <p className="text-sm text-green-600 font-medium">
+                    ${outcomesStats.scholarships.totalValue?.toLocaleString() || 0} total
+                  </p>
+                </div>
+
+                {/* Employment */}
+                <div className="text-center">
+                  <div className="bg-purple-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                    <Briefcase className="h-8 w-8 text-purple-600" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-gray-900">{outcomesStats.employment.total}</h4>
+                  <p className="text-gray-600">Job Placements</p>
+                  <p className="text-sm text-purple-600 font-medium">Full & Part-time</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button
+                  onClick={() => setActiveTab('students')}
+                  className="p-4 text-left border border-gray-200 rounded-xl hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+                >
+                  <Users className="h-6 w-6 text-indigo-600 mb-2" />
+                  <p className="font-medium text-gray-900">Manage Students</p>
+                  <p className="text-sm text-gray-500">View and edit student profiles</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('mentors')}
+                  className="p-4 text-left border border-gray-200 rounded-xl hover:border-green-300 hover:bg-green-50 transition-colors"
+                >
+                  <UserCheck className="h-6 w-6 text-green-600 mb-2" />
+                  <p className="font-medium text-gray-900">Review Applications</p>
+                  <p className="text-sm text-gray-500">Approve mentor applications</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('assignments')}
+                  className="p-4 text-left border border-gray-200 rounded-xl hover:border-amber-300 hover:bg-amber-50 transition-colors"
+                >
+                  <UserPlus className="h-6 w-6 text-amber-600 mb-2" />
+                  <p className="font-medium text-gray-900">Assign Mentors</p>
+                  <p className="text-sm text-gray-500">Match students with mentors</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('analytics')}
+                  className="p-4 text-left border border-gray-200 rounded-xl hover:border-purple-300 hover:bg-purple-50 transition-colors"
+                >
+                  <TrendingUp className="h-6 w-6 text-purple-600 mb-2" />
+                  <p className="font-medium text-gray-900">View Analytics</p>
+                  <p className="text-sm text-gray-500">Platform insights & demographics</p>
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-            <div className="text-4xl font-bold text-green-600 mb-2">{approvedMentors.length}</div>
-            <div className="text-gray-500 text-sm">Active Mentors</div>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-            <div className="text-4xl font-bold text-purple-600 mb-2">{noteStats.total}</div>
-            <div className="text-gray-500 text-sm">Total Notes</div>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-            <div className="text-4xl font-bold text-blue-600 mb-2">{noteStats.acknowledged}</div>
-            <div className="text-gray-500 text-sm">Notes Acknowledged</div>
-          </div>
-        </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="mb-8">
           <div className="flex flex-wrap border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-6 py-3 font-medium text-sm ${activeTab === 'overview'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              Overview
+            </button>
             <button
               onClick={() => setActiveTab('students')}
               className={`px-6 py-3 font-medium text-sm ${activeTab === 'students'
@@ -1751,241 +2224,362 @@ Bio: ${student.bio || 'N/A'}
           </div>
         )}
 
-        {/* Students Tab Content */}
+        {/* Enhanced Students Tab */}
         {activeTab === 'students' && (
-          <div>
-            <div className="mb-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-              <div className="w-full sm:w-auto relative">
-                <input
-                  type="text"
-                  placeholder="Search students by name or email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border rounded-lg w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                  </svg>
+          <div className="space-y-6">
+            {/* Students Header with Search and Filters */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Student Management</h2>
+                  <p className="text-gray-600">Manage student profiles and track their progress</p>
                 </div>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`px-3 py-1 rounded-lg text-sm ${viewMode === 'table' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100'}`}
-                >
-                  Table View
-                </button>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`px-3 py-1 rounded-lg text-sm ${viewMode === 'grid' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100'}`}
-                >
-                  Grid View
-                </button>
+
+                {/* Search and Filter Controls */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search students..."
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full sm:w-64"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <select
+                      value={filterOptions.educationLevel}
+                      onChange={(e) => setFilterOptions({ ...filterOptions, educationLevel: e.target.value })}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">All Education Levels</option>
+                      {educationLevels.map(level => (
+                        <option key={level} value={level}>{level}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={filterOptions.assignmentStatus}
+                      onChange={(e) => setFilterOptions({ ...filterOptions, assignmentStatus: e.target.value })}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">All Students</option>
+                      <option value="assigned">Assigned</option>
+                      <option value="unassigned">Unassigned</option>
+                    </select>
+
+                    <button
+                      onClick={() => setViewMode(viewMode === 'cards' ? 'table' : 'cards')}
+                      className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      {viewMode === 'cards' ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Table View */}
-            {viewMode === 'table' && (
-              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            {/* Student Stats Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Total Students</p>
+                    <p className="text-2xl font-bold text-gray-900">{filteredStudents.length}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-indigo-600" />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Assigned</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {filteredStudents.filter(s => s.is_assigned).length}
+                    </p>
+                  </div>
+                  <UserCheck className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Unassigned</p>
+                    <p className="text-2xl font-bold text-amber-600">
+                      {filteredStudents.filter(s => !s.is_assigned).length}
+                    </p>
+                  </div>
+                  <AlertTriangle className="h-8 w-8 text-amber-600" />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Success Outcomes</p>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {filteredStudents.filter(s => s.college_admit || s.scholarship_awarded).length}
+                    </p>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-emerald-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* Students List */}
+            {viewMode === 'cards' ? (
+              /* Enhanced Card View */
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredStudents.map((student) => (
+                  <div key={student.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow">
+                    {/* Card Header */}
+                    <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-4 text-white">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-lg font-bold">
+                            {student.first_name?.[0]}{student.last_name?.[0]}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">
+                              {student.first_name} {student.last_name}
+                            </h3>
+                            <p className="text-indigo-100 text-sm">ID: {student.student_id}</p>
+                          </div>
+                        </div>
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${student.is_assigned
+                          ? 'bg-green-500 bg-opacity-20 text-green-100'
+                          : 'bg-amber-500 bg-opacity-20 text-amber-100'
+                          }`}>
+                          {student.is_assigned ? 'Assigned' : 'Unassigned'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Body */}
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="flex items-center space-x-2">
+                          <Mail className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600 truncate">{student.email}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Book className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600">{student.education_level || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Globe className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600">{student.english_level || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <MapPin className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600">{student.province || 'N/A'}</span>
+                        </div>
+                      </div>
+
+                      {/* Progress Indicators */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Profile Completion</span>
+                          <span className="font-medium">
+                            {Math.round((() => {
+                              const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
+                              const completed = fields.filter(f => student[f]).length;
+                              return (completed / fields.length) * 100;
+                            })())}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-indigo-600 h-2 rounded-full transition-all"
+                            style={{
+                              width: `${Math.round((() => {
+                                const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
+                                const completed = fields.filter(f => student[f]).length;
+                                return (completed / fields.length) * 100;
+                              })())}%`
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Outcome Badges */}
+                      <div className="flex flex-wrap gap-1">
+                        {student.college_admit && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                            College Admit
+                          </span>
+                        )}
+                        {student.scholarship_awarded && (
+                          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                            Scholarship
+                          </span>
+                        )}
+                        {student.stem_major && (
+                          <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                            STEM
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card Footer */}
+                    <div className="px-4 py-3 bg-gray-50 border-t flex justify-between items-center">
+                      <button
+                        onClick={() => handleViewStudentDetails(student)}
+                        disabled={loadingActionId === student.id}
+                        className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-full transition-colors"
+                        title="View Details"
+                      >
+                        {loadingActionId === student.id ? (
+                          <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setEditingStudent(student)}
+                          className="p-1 text-gray-400 hover:text-gray-600"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </button>
+                        <button className="p-1 text-gray-400 hover:text-red-600">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Enhanced Table View */
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">id</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Education</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">English</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Student
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Education
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Progress
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Outcomes
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredStudents.length > 0 ? (
-                        filteredStudents.map((student) => (
-                          <>
-                            <tr key={student.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap"> {student.student_id}</td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                                    <span className="text-indigo-700 font-medium">
-                                      {student.first_name?.[0]}{student.last_name?.[0]}
-                                    </span>
-                                  </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-gray-900">{student.first_name} {student.last_name}</div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.email}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.education_level || 'N/A'}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.english_level || 'N/A'}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${studentNotes[student.id] > 0 ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'
-                                  }`}>
-                                  {studentNotes[student.id] || 0}
+                      {filteredStudents.map((student) => (
+                        <tr key={student.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                <span className="text-indigo-800 font-medium text-sm">
+                                  {student.first_name?.[0]}{student.last_name?.[0]}
                                 </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex flex-wrap gap-2">
-                                  <button onClick={() => handleCopy(student)} className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                    Copy
-                                  </button>
-                                  <button onClick={() => setExpanded(expanded === student.id ? null : student.id)} className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                    {expanded === student.id ? 'Hide' : 'View More'}
-                                  </button>
-                                  <button onClick={() => setEditingStudent(student)} className="inline-flex items-center px-2.5 py-1.5 border border-transparent shadow-sm text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                    Edit
-                                  </button>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {student.first_name} {student.last_name}
                                 </div>
-                              </td>
-                            </tr>
-
-                            {expanded === student.id && (
-                              <tr className="bg-gray-50">
-                                <td colSpan="5" className="px-6 py-4">
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                                    <div><strong>TOEFL Score:</strong> {student.toefl_score || 'N/A'}</div>
-                                    <div><strong>Interests:</strong> {student.interests || 'N/A'}</div>
-                                    <div><strong>Bio:</strong> {student.bio || 'N/A'}</div>
-                                    <div><strong>Date of Birth:</strong> {student.date_of_birth || 'N/A'}</div>
-                                    <div><strong>Signed Up:</strong> {new Date(student.created_at).toLocaleDateString()}</div>
-
-                                    {/* Socioeconomic fields */}
-                                    <div><strong>Province:</strong> {student.province || 'N/A'}</div>
-                                    <div><strong>School Type:</strong> {student.school_type || 'N/A'}</div>
-                                    <div><strong>Household Income:</strong> {student.household_income_band || 'N/A'}</div>
-                                    <div><strong>Parental Education:</strong> {student.parental_education || 'N/A'}</div>
-                                    <div><strong>Internet Access:</strong> {student.internet_speed || 'N/A'}</div>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="5" className="text-center py-10 text-gray-400">No students found matching your search.</td>
+                                <div className="text-sm text-gray-500">{student.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{student.education_level || 'N/A'}</div>
+                            <div className="text-sm text-gray-500">{student.english_level || 'N/A'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${student.is_assigned
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-amber-100 text-amber-800'
+                              }`}>
+                              {student.is_assigned ? 'Assigned' : 'Unassigned'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                <div
+                                  className="bg-indigo-600 h-2 rounded-full"
+                                  style={{
+                                    width: `${Math.round((() => {
+                                      const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
+                                      const completed = fields.filter(f => student[f]).length;
+                                      return (completed / fields.length) * 100;
+                                    })())}%`
+                                  }}
+                                ></div>
+                              </div>
+                              <span className="text-sm text-gray-900">
+                                {Math.round((() => {
+                                  const fields = ['first_name', 'last_name', 'education_level', 'english_level', 'bio'];
+                                  const completed = fields.filter(f => student[f]).length;
+                                  return (completed / fields.length) * 100;
+                                })())}%
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex space-x-1">
+                              {student.college_admit && (
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">College</span>
+                              )}
+                              {student.scholarship_awarded && (
+                                <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">Scholarship</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                onClick={() => handleViewStudentDetails(student)}
+                                disabled={loadingActionId === student.id}
+                                className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-full transition-colors"
+                                title="View Details"
+                              >
+                                {loadingActionId === student.id ? (
+                                  <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => setEditingStudent(student)}
+                                className="text-gray-600 hover:text-gray-900"
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </div>
               </div>
             )}
 
-            {/* Grid View */}
-            {viewMode === 'grid' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredStudents.length > 0 ? (
-                  filteredStudents.map((student) => (
-                    <div key={student.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
-                      <div className="px-6 pt-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center">
-                            <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center text-lg font-medium text-indigo-700">
-                              {student.first_name?.[0]}{student.last_name?.[0]}
-                            </div>
-                            <div className="ml-3">
-                              <h3 className="text-lg font-medium text-gray-900">{student.first_name} {student.last_name}</h3>
-                              <p className="text-sm text-gray-500">{student.email}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="px-6 py-4">
-                        <div className="flex flex-col gap-2">
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-500">Education:</span>
-                            <span className="text-sm font-medium">{student.education_level || 'N/A'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-500">English Level:</span>
-                            <span className="text-sm font-medium">{student.english_level || 'N/A'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-500">Notes:</span>
-                            <span className={`text-sm font-medium ${studentNotes[student.id] > 0 ? 'text-indigo-600' : ''}`}>
-                              {studentNotes[student.id] || 0}
-                            </span>
-                          </div>
-                          {expanded === student.id && (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-gray-500">TOEFL Score:</span>
-                                <span className="text-sm font-medium">{student.toefl_score || 'N/A'}</span>
-                              </div>
-                              <div className="flex flex-col mt-2">
-                                <span className="text-sm text-gray-500">Interests:</span>
-                                <span className="text-sm">{student.interests || 'N/A'}</span>
-                              </div>
-                              <div className="flex flex-col mt-2">
-                                <span className="text-sm text-gray-500">Bio:</span>
-                                <span className="text-sm">{student.bio || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between mt-2">
-                                <span className="text-sm text-gray-500">DoB:</span>
-                                <span className="text-sm font-medium">{student.date_of_birth || 'N/A'}</span>
-                              </div>
-
-                              {/* Socioeconomic fields */}
-                              <div className="flex justify-between mt-2">
-                                <span className="text-sm text-gray-500">Province:</span>
-                                <span className="text-sm font-medium">{student.province || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between mt-2">
-                                <span className="text-sm text-gray-500">School Type:</span>
-                                <span className="text-sm font-medium">{student.school_type || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between mt-2">
-                                <span className="text-sm text-gray-500">Household Income:</span>
-                                <span className="text-sm font-medium">{student.household_income_band || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between mt-2">
-                                <span className="text-sm text-gray-500">Parental Education:</span>
-                                <span className="text-sm font-medium">{student.parental_education || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between mt-2">
-                                <span className="text-sm text-gray-500">Internet Access:</span>
-                                <span className="text-sm font-medium">{student.internet_speed || 'N/A'}</span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="px-6 pb-6 flex justify-between">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleCopy(student)}
-                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
-                          >
-                            Copy
-                          </button>
-                          <button
-                            onClick={() => setExpanded(expanded === student.id ? null : student.id)}
-                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
-                          >
-                            {expanded === student.id ? 'Hide' : 'View More'}
-                          </button>
-                        </div>
-                        <button
-                          onClick={() => setEditingStudent(student)}
-                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-10 text-gray-400 bg-white rounded-xl shadow-md">
-                    No students found matching your search.
-                  </div>
-                )}
+            {filteredStudents.length === 0 && (
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
+                <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No students found</h3>
+                <p className="text-gray-600">Try adjusting your search or filter criteria.</p>
               </div>
             )}
           </div>
@@ -2303,6 +2897,236 @@ Bio: ${student.bio || 'N/A'}
           </div>
         )}
       </div>
+
+      {/* Student Detail Modal */}
+      {modalStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                    <User className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      {modalStudent.first_name} {modalStudent.last_name}
+                    </h2>
+                    <p className="text-gray-600">{modalStudent.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setModalStudent(null)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Personal Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Personal Information</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <User className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">
+                        <strong>Name:</strong> {modalStudent.first_name} {modalStudent.last_name}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Mail className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">
+                        <strong>Email:</strong> {modalStudent.email}
+                      </span>
+                    </div>
+                    {modalStudent.phone_number && (
+                      <div className="flex items-center space-x-3">
+                        <Phone className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm">
+                          <strong>Phone:</strong> {modalStudent.phone_number}
+                        </span>
+                      </div>
+                    )}
+                    {modalStudent.date_of_birth && (
+                      <div className="flex items-center space-x-3">
+                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm">
+                          <strong>Date of Birth:</strong> {new Date(modalStudent.date_of_birth).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+                    {modalStudent.place_of_birth && (
+                      <div className="flex items-center space-x-3">
+                        <MapPin className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm">
+                          <strong>Place of Birth:</strong> {modalStudent.place_of_birth}
+                        </span>
+                      </div>
+                    )}
+                    {modalStudent.place_of_residence && (
+                      <div className="flex items-center space-x-3">
+                        <MapPin className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm">
+                          <strong>Residence:</strong> {modalStudent.place_of_residence}
+                        </span>
+                      </div>
+                    )}
+                    {modalStudent.province && (
+                      <div className="flex items-center space-x-3">
+                        <Globe className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm">
+                          <strong>Province:</strong> {modalStudent.province}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Academic Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Academic Information</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <Book className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">
+                        <strong>Education Level:</strong> {modalStudent.education_level || 'Not specified'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <GraduationCap className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">
+                        <strong>English Level:</strong> {modalStudent.english_level || 'Not assessed'}
+                      </span>
+                    </div>
+                    {modalStudent.gpa && (
+                      <div className="flex items-center space-x-3">
+                        <Award className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm">
+                          <strong>GPA:</strong> {modalStudent.gpa}
+                        </span>
+                      </div>
+                    )}
+                    {modalStudent.toefl_score && (
+                      <div className="flex items-center space-x-3">
+                        <Award className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm">
+                          <strong>TOEFL Score:</strong> {modalStudent.toefl_score}
+                        </span>
+                      </div>
+                    )}
+                    {modalStudent.school_type && (
+                      <div className="flex items-center space-x-3">
+                        <Book className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm">
+                          <strong>School Type:</strong> {modalStudent.school_type}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bio */}
+                {modalStudent.bio && (
+                  <div className="lg:col-span-2 space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">About</h3>
+                    <p className="text-sm text-gray-700 leading-relaxed">{modalStudent.bio}</p>
+                  </div>
+                )}
+
+                {/* Interests */}
+                {modalStudent.interests && (
+                  <div className="lg:col-span-2 space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Interests</h3>
+                    <p className="text-sm text-gray-700">{modalStudent.interests}</p>
+                  </div>
+                )}
+
+                {/* Resume Section */}
+                <div className="lg:col-span-2 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Resume</h3>
+                  {modalStudent.resume ? (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <FileText className="h-8 w-8 text-blue-600" />
+                          <div>
+                            <p className="font-medium text-gray-900">Resume Available</p>
+                            <p className="text-sm text-gray-600">
+                              Uploaded on {new Date(modalStudent.resume.uploaded_at).toLocaleDateString()}
+                            </p>
+                            {modalStudent.resume.file_size && (
+                              <p className="text-xs text-gray-500">
+                                Size: {(modalStudent.resume.file_size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => window.open(modalStudent.resume.file_url, '_blank')}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                          >
+                            View Resume
+                          </button>
+                          <a
+                            href={modalStudent.resume.file_url}
+                            download
+                            className="px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm"
+                          >
+                            <Download className="h-4 w-4" />
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* PDF Preview */}
+                      <div className="mt-4">
+                        <iframe
+                          src={modalStudent.resume.file_url}
+                          className="w-full h-96 border border-gray-300 rounded-lg"
+                          title="Resume Preview"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-4 text-center">
+                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-600">No resume uploaded yet</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Achievements */}
+                <div className="lg:col-span-2 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Achievements</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {modalStudent.college_admit && (
+                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                        College Admitted
+                      </span>
+                    )}
+                    {modalStudent.scholarship_awarded && (
+                      <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                        Scholarship Awarded
+                      </span>
+                    )}
+                    {modalStudent.stem_major && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                        STEM Major
+                      </span>
+                    )}
+                    {!modalStudent.college_admit && !modalStudent.scholarship_awarded && !modalStudent.stem_major && (
+                      <span className="text-gray-500 text-sm">No achievements recorded yet</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

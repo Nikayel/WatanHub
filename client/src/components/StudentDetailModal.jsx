@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, Calendar, MapPin, BookOpen, Award, Download, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../lib/AuthContext';
 import { toast } from 'sonner';
+import PDFViewer from './PDFViewer';
+import EnglishTestLock from './EnglishTestLock';
 
 const StudentDetailModal = ({ student, isOpen, onClose }) => {
-    const { user } = useAuth();
     const [studentProfile, setStudentProfile] = useState(null);
     const [studentResume, setStudentResume] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
                 setStudentProfile(profileData);
             }
 
-            // Fetch student resume
+            // Fetch student resume from student_resumes table
             const { data: resumeData, error: resumeError } = await supabase
                 .from('student_resumes')
                 .select('*')
@@ -120,10 +120,10 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-gray-200 bg-gray-50">
+                <div className="flex border-b border-gray-200 bg-gray-50 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab('profile')}
-                        className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'profile'
+                        className={`px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'profile'
                             ? 'border-indigo-600 text-indigo-600 bg-white'
                             : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
@@ -132,7 +132,7 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
                     </button>
                     <button
                         onClick={() => setActiveTab('academic')}
-                        className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'academic'
+                        className={`px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'academic'
                             ? 'border-indigo-600 text-indigo-600 bg-white'
                             : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
@@ -140,8 +140,17 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
                         Academic Info
                     </button>
                     <button
+                        onClick={() => setActiveTab('tests')}
+                        className={`px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'tests'
+                            ? 'border-indigo-600 text-indigo-600 bg-white'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        Tests & Assessments
+                    </button>
+                    <button
                         onClick={() => setActiveTab('resume')}
-                        className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'resume'
+                        className={`px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'resume'
                             ? 'border-indigo-600 text-indigo-600 bg-white'
                             : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
@@ -322,6 +331,52 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
                                 </div>
                             )}
 
+                            {/* Tests & Assessments Tab */}
+                            {activeTab === 'tests' && (
+                                <div className="space-y-6">
+                                    <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Tests & Assessments</h3>
+
+                                    {/* English Test Access Control */}
+                                    <div className="space-y-4">
+                                        <h4 className="font-medium text-gray-800">English Test Access</h4>
+                                        <EnglishTestLock
+                                            isStudent={false}
+                                            isMentor={true}
+                                            isAdmin={false}
+                                        />
+                                    </div>
+
+                                    {/* Test Scores */}
+                                    <div className="space-y-4">
+                                        <h4 className="font-medium text-gray-800">Test Scores</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="bg-gray-50 rounded-lg p-4">
+                                                <div className="flex items-center space-x-3">
+                                                    <Award className="h-5 w-5 text-gray-400" />
+                                                    <div>
+                                                        <p className="text-sm text-gray-500">TOEFL Score</p>
+                                                        <p className="font-medium text-lg">
+                                                            {studentProfile?.toefl_score || 'Not taken'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="bg-gray-50 rounded-lg p-4">
+                                                <div className="flex items-center space-x-3">
+                                                    <Award className="h-5 w-5 text-gray-400" />
+                                                    <div>
+                                                        <p className="text-sm text-gray-500">English Level</p>
+                                                        <p className="font-medium text-lg">
+                                                            {studentProfile?.english_level || 'Not assessed'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Resume Tab */}
                             {activeTab === 'resume' && (
                                 <div className="space-y-6">
@@ -357,32 +412,13 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
 
                                             {/* PDF Viewer */}
                                             {studentResume.file_type === 'application/pdf' && (
-                                                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                                                    <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                                                        <h4 className="font-medium text-gray-800">Resume Preview</h4>
-                                                    </div>
-                                                    <div className="h-96 w-full">
-                                                        <iframe
-                                                            src={`${studentResume.file_url}#toolbar=0&navpanes=0&scrollbar=1`}
-                                                            className="w-full h-full"
-                                                            title="Resume Preview"
-                                                            onError={() => {
-                                                                console.log('PDF preview failed, falling back to download link');
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div className="bg-gray-50 px-4 py-2 border-t border-gray-200 text-center">
-                                                        <p className="text-xs text-gray-500">
-                                                            Can't see the preview?
-                                                            <button
-                                                                onClick={downloadResume}
-                                                                className="ml-1 text-indigo-600 hover:text-indigo-700 underline"
-                                                            >
-                                                                Download the file
-                                                            </button>
-                                                        </p>
-                                                    </div>
-                                                </div>
+                                                <PDFViewer
+                                                    fileUrl={studentResume.file_url}
+                                                    fileName={studentResume.file_name}
+                                                    fileSize={studentResume.file_size}
+                                                    uploadDate={studentResume.uploaded_at}
+                                                    height="h-[500px]"
+                                                />
                                             )}
 
                                             {/* Non-PDF files info */}

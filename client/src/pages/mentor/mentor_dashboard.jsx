@@ -114,7 +114,7 @@ const MentorDashboard = () => {
             setMentorProfile(mentorData);
 
             // Load assigned students
-            await fetchAssignedStudents(user.id);
+            await fetchAssignedStudents();
         } catch (error) {
             console.error('Error fetching mentor profile:', error.message);
             toast.error('Failed to load mentor dashboard');
@@ -123,43 +123,124 @@ const MentorDashboard = () => {
         }
     };
 
-    const fetchAssignedStudents = async (mentorUserId) => {
+    const fetchAssignedStudents = async () => {
+        if (!mentorId) return;
+
         try {
-            console.log('🔍 DEBUG: Starting fetchAssignedStudents with mentorUserId:', mentorUserId);
+            setLoading(true);
 
-            // Get students assigned to this mentor - fetch from profiles table directly
-            const { data, error } = await supabase
+            // Query to get students assigned to this mentor via mentor_student relationship
+            const { data: assignedRelations, error: relationError } = await supabase
                 .from('mentor_student')
+                .select('student_id, assigned_at')
+                .eq('mentor_id', mentorId);
+
+            if (relationError) {
+                console.error('Error fetching mentor-student relationships:', relationError);
+                toast.error('Failed to load assigned students');
+                return;
+            }
+
+            if (!assignedRelations || assignedRelations.length === 0) {
+                console.log('No students assigned to this mentor');
+                setStudents([]);
+                return;
+            }
+
+            // Get the student user_ids from the relationships
+            const studentIds = assignedRelations.map(rel => rel.student_id);
+
+            // Fetch complete profile data from profiles table
+            const { data: profilesData, error: profilesError } = await supabase
+                .from('profiles')
                 .select(`
+                    id,
+                    first_name,
+                    last_name,
+                    email,
+                    education_level,
+                    english_level,
+                    toefl_score,
+                    gpa,
+                    interests,
+                    date_of_birth,
+                    place_of_birth,
+                    place_of_residence,
+                    bio,
+                    gender,
+                    religion,
+                    extracurricular_activities,
                     student_id,
-                    profiles!mentor_student_student_id_fkey(*)
+                    created_at,
+                    province,
+                    school_type,
+                    household_income_band,
+                    parental_education,
+                    internet_speed,
+                    phone_number,
+                    college_admit,
+                    scholarship_awarded,
+                    stem_major
                 `)
-                .eq('mentor_id', mentorUserId);
+                .in('id', studentIds);
 
-            console.log('🔍 DEBUG: Mentor-student lookup result:', { data, error });
+            if (profilesError) {
+                console.error('Error fetching student profiles:', profilesError);
+                toast.error('Failed to load student profiles');
+                return;
+            }
 
-            if (error) throw error;
+            // Combine the assignment info with profile data
+            const studentsWithAssignmentInfo = profilesData.map(profile => {
+                const assignmentInfo = assignedRelations.find(rel => rel.student_id === profile.id);
+                return {
+                    ...profile,
+                    assigned_at: assignmentInfo?.assigned_at,
+                    user_id: profile.id // For compatibility with existing code
+                };
+            });
 
-            const loadedStudents = data.map((item) => ({
-                ...item.profiles,
-                // Use profile id for compatibility
-                id: item.profiles.id,
-                user_id: item.profiles.id
+            console.log('✅ Successfully fetched', studentsWithAssignmentInfo.length, 'assigned students');
+            setStudents(studentsWithAssignmentInfo);
+
+            // Calculate profile completeness for each student
+            const studentsWithCompleteness = studentsWithAssignmentInfo.map(student => ({
+                ...student,
+                completeness: calculateProfileCompleteness(student)
             }));
 
-            console.log('🔍 DEBUG: Processed students:', loadedStudents);
-            setStudents(loadedStudents);
+            setStudents(studentsWithCompleteness);
 
-            // Initialize stats.totalNotes to number of students for placeholder
-            setStats((prev) => ({ ...prev, totalNotes: loadedStudents.length }));
+            // Fetch note counts and demographic data
+            await fetchStudentNoteCounts(mentorId, studentsWithCompleteness);
+            await fetchDemographicData(studentsWithCompleteness);
+            await fetchStatistics(mentorId);
 
-            await fetchStudentNoteCounts(mentorUserId, loadedStudents);
-            await fetchStatistics(mentorUserId);
-            await fetchDemographicData(loadedStudents);
         } catch (error) {
-            console.error('Error fetching assigned students:', error.message);
-            console.error('Full error:', error);
+            console.error('Error in fetchAssignedStudents:', error);
+            toast.error('Failed to load assigned students');
+        } finally {
+            setLoading(false);
         }
+    };
+
+    // Calculate profile completeness percentage
+    const calculateProfileCompleteness = (profile) => {
+        if (!profile) return 0;
+
+        const fields = [
+            'first_name', 'last_name', 'email', 'education_level', 'english_level',
+            'date_of_birth', 'place_of_birth', 'place_of_residence', 'bio', 'gender',
+            'religion', 'interests', 'province', 'school_type', 'household_income_band',
+            'parental_education', 'internet_speed', 'phone_number'
+        ];
+
+        const completedFields = fields.filter(field => {
+            const value = profile[field];
+            return value && value.toString().trim() !== '';
+        }).length;
+
+        return Math.round((completedFields / fields.length) * 100);
     };
 
     const fetchStudentNoteCounts = async (mentorUserId, students) => {
