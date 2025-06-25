@@ -32,7 +32,8 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
   const navItems = [
     { id: "home", label: "Home", href: "#" },
     { id: "mentors", label: "Mentors", href: "/mentors" },
-    { id: "about", label: "About", href: "#" },
+    { id: "about", label: "Our Journey", href: "#" },
+
     // { id: "contact", label: "Contact", href: "#" },
   ];
 

@@ -11,6 +11,7 @@ import OutcomeModal from '../../components/OutcomeModal';
 import StudentSchoolChoicesViewer from '../../components/StudentSchoolChoicesViewer';
 import MentorSidebar from '../../components/MentorDashboard/MentorSidebar';
 import StudentDetailModal from '../../components/StudentDetailModal';
+import { Users, FileText, CheckCircle, Calendar } from 'lucide-react';
 
 const MentorDashboard = () => {
     const { user } = useAuth();
@@ -96,8 +97,9 @@ const MentorDashboard = () => {
     const fetchMentorProfile = async () => {
         try {
             setLoading(true);
-            setMentorId(user.id);
+            console.log('🔍 Fetching mentor profile for user:', user.email, 'ID:', user.id);
 
+            // First check if user is approved mentor
             const { data: mentorData, error: mentorError } = await supabase
                 .from('mentorapplications')
                 .select('*')
@@ -105,18 +107,32 @@ const MentorDashboard = () => {
                 .eq('status', 'approved')
                 .single();
 
-            if (mentorError) throw mentorError;
+            console.log('📊 Mentor application check result:', { mentorData, mentorError });
+
+            if (mentorError) {
+                console.error('❌ Mentor application error:', mentorError);
+                toast.error('Mentor profile not found or not approved');
+                navigate('/');
+                return;
+            }
+
             if (!mentorData) {
+                console.error('❌ No mentor data found');
                 toast.error('Mentor profile not found');
                 navigate('/');
                 return;
             }
-            setMentorProfile(mentorData);
 
-            // Load assigned students
-            await fetchAssignedStudents();
+            setMentorProfile(mentorData);
+            // Set mentorId to the user's ID (this is what's used in mentor_student table)
+            const currentMentorId = user.id;
+            setMentorId(currentMentorId);
+            console.log('✅ Mentor profile loaded, setting mentorId to:', currentMentorId);
+
+            // Load assigned students with the current mentorId
+            await fetchAssignedStudentsWithId(currentMentorId);
         } catch (error) {
-            console.error('Error fetching mentor profile:', error.message);
+            console.error('❌ Error fetching mentor profile:', error.message);
             toast.error('Failed to load mentor dashboard');
         } finally {
             setLoading(false);
@@ -124,69 +140,63 @@ const MentorDashboard = () => {
     };
 
     const fetchAssignedStudents = async () => {
-        if (!mentorId) return;
+        if (!mentorId) {
+            console.log('❌ No mentorId available');
+            return;
+        }
+        await fetchAssignedStudentsWithId(mentorId);
+    };
+
+    const fetchAssignedStudentsWithId = async (currentMentorId) => {
+        if (!currentMentorId) {
+            console.log('❌ No mentorId available');
+            return;
+        }
 
         try {
             setLoading(true);
+            console.log('🔍 Fetching students for mentor ID:', currentMentorId);
 
-            // Query to get students assigned to this mentor via mentor_student relationship
             const { data: assignedRelations, error: relationError } = await supabase
                 .from('mentor_student')
                 .select('student_id, assigned_at')
-                .eq('mentor_id', mentorId);
+                .eq('mentor_id', currentMentorId);
+
+            console.log('📊 Mentor-student relationships query result:', { assignedRelations, relationError });
 
             if (relationError) {
-                console.error('Error fetching mentor-student relationships:', relationError);
+                console.error('❌ Error fetching mentor-student relationships:', relationError);
                 toast.error('Failed to load assigned students');
                 return;
             }
 
             if (!assignedRelations || assignedRelations.length === 0) {
-                console.log('No students assigned to this mentor');
+                console.log('⚠️ No students assigned to this mentor');
                 setStudents([]);
                 return;
             }
 
             // Get the student user_ids from the relationships
             const studentIds = assignedRelations.map(rel => rel.student_id);
+            console.log('👥 Student IDs to fetch:', studentIds);
 
             // Fetch complete profile data from profiles table
             const { data: profilesData, error: profilesError } = await supabase
                 .from('profiles')
-                .select(`
-                    id,
-                    first_name,
-                    last_name,
-                    email,
-                    education_level,
-                    english_level,
-                    toefl_score,
-                    gpa,
-                    interests,
-                    date_of_birth,
-                    place_of_birth,
-                    place_of_residence,
-                    bio,
-                    gender,
-                    religion,
-                    extracurricular_activities,
-                    student_id,
-                    created_at,
-                    province,
-                    school_type,
-                    household_income_band,
-                    parental_education,
-                    internet_speed,
-                    phone_number,
-                    college_admit,
-                    scholarship_awarded,
-                    stem_major
-                `)
+                .select('*')
                 .in('id', studentIds);
 
+            console.log('📝 Profiles query result:', { count: profilesData?.length, error: profilesError });
+
             if (profilesError) {
-                console.error('Error fetching student profiles:', profilesError);
+                console.error('❌ Error fetching student profiles:', profilesError);
                 toast.error('Failed to load student profiles');
+                return;
+            }
+
+            if (!profilesData || profilesData.length === 0) {
+                console.log('⚠️ No profile data found for assigned students');
+                setStudents([]);
                 return;
             }
 
@@ -196,28 +206,21 @@ const MentorDashboard = () => {
                 return {
                     ...profile,
                     assigned_at: assignmentInfo?.assigned_at,
-                    user_id: profile.id // For compatibility with existing code
+                    user_id: profile.id, // For compatibility with existing code
+                    completeness: calculateProfileCompleteness(profile)
                 };
             });
 
-            console.log('✅ Successfully fetched', studentsWithAssignmentInfo.length, 'assigned students');
+            console.log('✅ Successfully fetched and processed', studentsWithAssignmentInfo.length, 'assigned students');
             setStudents(studentsWithAssignmentInfo);
 
-            // Calculate profile completeness for each student
-            const studentsWithCompleteness = studentsWithAssignmentInfo.map(student => ({
-                ...student,
-                completeness: calculateProfileCompleteness(student)
-            }));
-
-            setStudents(studentsWithCompleteness);
-
-            // Fetch note counts and demographic data
-            await fetchStudentNoteCounts(mentorId, studentsWithCompleteness);
-            await fetchDemographicData(studentsWithCompleteness);
-            await fetchStatistics(mentorId);
+            // Fetch additional data
+            await fetchStudentNoteCounts(currentMentorId, studentsWithAssignmentInfo);
+            await fetchDemographicData(studentsWithAssignmentInfo);
+            await fetchStatistics(currentMentorId);
 
         } catch (error) {
-            console.error('Error in fetchAssignedStudents:', error);
+            console.error('❌ Error in fetchAssignedStudents:', error);
             toast.error('Failed to load assigned students');
         } finally {
             setLoading(false);
@@ -820,22 +823,53 @@ const MentorDashboard = () => {
                 <div className="flex-1 overflow-auto">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                         {/* ─── Stats Overview ────────────────────────────────────────────────────── */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                            <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-                                <div className="text-4xl font-bold text-indigo-600 mb-2">{students.length}</div>
-                                <div className="text-gray-500 text-sm">Assigned Students</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Assigned Students</p>
+                                        <p className="text-3xl font-bold text-gray-900">{students.length}</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                                        <Users className="h-6 w-6 text-blue-600" />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-                                <div className="text-4xl font-bold text-green-600 mb-2">{stats.totalMeetings}</div>
-                                <div className="text-gray-500 text-sm">Meetings Scheduled</div>
+
+                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Notes Created</p>
+                                        <p className="text-3xl font-bold text-gray-900">{stats.notesMade}</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                                        <FileText className="h-6 w-6 text-green-600" />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-                                <div className="text-4xl font-bold text-purple-600 mb-2">{stats.meetingsThisMonth}</div>
-                                <div className="text-gray-500 text-sm">Meetings This Month</div>
+
+                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Acknowledged Notes</p>
+                                        <p className="text-3xl font-bold text-gray-900">{stats.notesAcknowledged}</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                                        <CheckCircle className="h-6 w-6 text-purple-600" />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center">
-                                <div className="text-4xl font-bold text-blue-600 mb-2">{stats.notesMade}</div>
-                                <div className="text-gray-500 text-sm">Notes Made</div>
+
+                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">Meetings Held</p>
+                                        <p className="text-3xl font-bold text-gray-900">{stats.totalMeetings}</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                                        <Calendar className="h-6 w-6 text-orange-600" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

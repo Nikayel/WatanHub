@@ -2,29 +2,65 @@
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "./Navigation/Navbar";
 import Welcome from "./Sections/Welcome";
-import UpcomingEvents from "./Sections/UpcomingEvents";
-import FAQ from "./Sections/FAQ";
+
+
 import About from "./Sections/About";
 import Contact from "./Sections/Contact";
 import Footer from "./Footer";
 import SignUpSteps from "./Sections/SingUpSteps";
 import BlogList from "../pages/BlogList";
-import { motion, useInView } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { motion, useInView, AnimatePresence } from "framer-motion";
+import { ArrowRight, X, GraduationCap, Calendar, Sparkles } from "lucide-react";
+import { supabase } from '../lib/supabase';
+import FAQ from "./Sections/FAQ";
 
 const HomePage = () => {
   const [activeTab, setActiveTab] = useState("home");
   const [contactOpen, setContactOpen] = useState(false);
+  const [showFellowshipPopup, setShowFellowshipPopup] = useState(false);
+  const [fellowshipInfo, setFellowshipInfo] = useState({
+    start_date: 'August 1st, 2024',
+    description: 'An intensive 8-week program designed to empower Afghan students with skills, mentorship, and opportunities for academic and professional success.'
+  });
 
   // Refs for scroll animation sections
   const blogSectionRef = useRef(null);
   const signupSectionRef = useRef(null);
   const faqSectionRef = useRef(null);
 
+
   // Check if sections are in view
   const isBlogInView = useInView(blogSectionRef, { once: false, amount: 0.2 });
   const isSignupInView = useInView(signupSectionRef, { once: false, amount: 0.2 });
   const isFaqInView = useInView(faqSectionRef, { once: false, amount: 0.2 });
+
+
+  useEffect(() => {
+    // Show fellowship popup after 3 seconds
+    const timer = setTimeout(() => {
+      setShowFellowshipPopup(true);
+    }, 3000);
+
+    // Fetch fellowship info
+    fetchFellowshipInfo();
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const fetchFellowshipInfo = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('fellowship_settings')
+        .select('*')
+        .single();
+
+      if (!error && data) {
+        setFellowshipInfo(data);
+      }
+    } catch (error) {
+      console.log('Using default fellowship info');
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -104,7 +140,13 @@ const HomePage = () => {
                   </div>
                 </motion.div>
               </motion.section>
+
             </div>
+
+            {/* Page Sections */}
+            <About />
+
+            <Contact />
           </>
         )}
 
@@ -126,6 +168,53 @@ const HomePage = () => {
       {contactOpen && (
         <Contact isOpen={contactOpen} onClose={() => setContactOpen(false)} />
       )}
+
+      {/* Fellowship Popup */}
+      <AnimatePresence>
+        {showFellowshipPopup && (
+          <motion.div
+            initial={{ x: 400, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 400, opacity: 0 }}
+            className="fixed top-4 right-4 z-50 max-w-sm"
+          >
+            <div className="bg-white/95 backdrop-blur-lg rounded-xl p-4 shadow-xl border border-gray-200">
+              <div className="flex items-start space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <GraduationCap className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-gray-900 text-sm">Fellowship Program</h4>
+                  <p className="text-xs text-gray-600 mt-1">Starting {fellowshipInfo.start_date}</p>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <button
+                      onClick={() => {
+                        setShowFellowshipPopup(false);
+                        window.location.href = '/mentors';
+                      }}
+                      className="text-xs bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                      Learn More
+                    </button>
+                    <button
+                      onClick={() => setShowFellowshipPopup(false)}
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowFellowshipPopup(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

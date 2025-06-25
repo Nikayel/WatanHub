@@ -17,21 +17,23 @@ CREATE INDEX IF NOT EXISTS idx_student_resumes_student_id ON student_resumes(stu
 -- Enable RLS
 ALTER TABLE student_resumes ENABLE ROW LEVEL SECURITY;
 
+-- Drop old policies first
+DROP POLICY IF EXISTS student_resumes_mentor_policy ON student_resumes;
+DROP POLICY IF EXISTS "Mentors can view student resumes" ON storage.objects;
+
 -- Policy for students to manage their own resumes
 CREATE POLICY student_resumes_student_policy ON student_resumes
   FOR ALL TO authenticated
   USING (auth.uid() = student_id)
   WITH CHECK (auth.uid() = student_id);
 
--- Policy for mentors to view their students' resumes
+-- Updated policy for mentors to view their students' resumes using mentor_student table
 CREATE POLICY student_resumes_mentor_policy ON student_resumes
   FOR SELECT TO authenticated
   USING (EXISTS (
-    SELECT 1 FROM students s
-    JOIN mentor_student ms ON s.id = ms.student_id
-    JOIN mentors m ON ms.mentor_id = m.id
-    WHERE s.user_id = student_resumes.student_id 
-    AND m.user_id = auth.uid()
+    SELECT 1 FROM mentor_student ms
+    WHERE ms.student_id = student_resumes.student_id 
+    AND ms.mentor_id = auth.uid()
   ));
 
 -- Policy for admins to view all resumes
@@ -60,17 +62,15 @@ CREATE POLICY "Students can delete their own resumes" ON storage.objects
   FOR DELETE TO authenticated
   USING (bucket_id = 'student-resumes' AND auth.uid()::text = (storage.foldername(name))[1]);
 
--- Policy for mentors to view student resumes using correct table structure
+-- Updated policy for mentors to view student resumes using mentor_student table
 CREATE POLICY "Mentors can view student resumes" ON storage.objects
   FOR SELECT TO authenticated
   USING (
     bucket_id = 'student-resumes' 
     AND EXISTS (
-      SELECT 1 FROM students s
-      JOIN mentor_student ms ON s.id = ms.student_id
-      JOIN mentors m ON ms.mentor_id = m.id
-      WHERE s.user_id::text = (storage.foldername(name))[1]
-      AND m.user_id = auth.uid()
+      SELECT 1 FROM mentor_student ms
+      WHERE ms.student_id::text = (storage.foldername(name))[1]
+      AND ms.mentor_id = auth.uid()
     )
   );
 
