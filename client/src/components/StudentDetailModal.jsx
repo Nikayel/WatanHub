@@ -25,27 +25,18 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
             // Get the student user_id - could be passed as user_id or id depending on source
             const userId = student.user_id || student.id;
 
-            // Fetch complete student profile with email from users table
+            // Fetch complete student profile from profiles table directly
             const { data: profileData, error: profileError } = await supabase
-                .from('students')
-                .select(`
-                    *,
-                    users:user_id (
-                        email
-                    )
-                `)
-                .eq('user_id', userId)
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
                 .single();
 
             if (profileError) {
                 console.error('Error fetching student profile:', profileError);
+                toast.error('Failed to load student profile');
             } else {
-                // Merge student data with email
-                const completeProfile = {
-                    ...profileData,
-                    email: profileData.users?.email || student.email
-                };
-                setStudentProfile(completeProfile);
+                setStudentProfile(profileData);
             }
 
             // Fetch student resume
@@ -86,14 +77,20 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
     const calculateProfileCompleteness = (profile) => {
         if (!profile) return 0;
 
-        const fields = [
-            'first_name', 'last_name', 'email', 'date_of_birth', 'gender',
-            'phone_number', 'education_level', 'english_level', 'interests',
-            'bio', 'place_of_birth', 'place_of_residence'
-        ];
+        // Use the same field list as the main profile completeness calculation
+        const criticalFields = ['first_name', 'last_name', 'email'];
+        const veryImportantFields = ['date_of_birth', 'gender', 'phone_number', 'education_level', 'english_level'];
+        const importantFields = ['interests', 'bio', 'place_of_birth', 'place_of_residence'];
+        const optionalFields = ['gpa', 'toefl_score', 'extracurricular_activities', 'province', 'school_type', 'religion'];
 
-        const completed = fields.filter(field => profile[field] && profile[field].toString().trim() !== '').length;
-        return Math.round((completed / fields.length) * 100);
+        const allFields = [...criticalFields, ...veryImportantFields, ...importantFields, ...optionalFields];
+
+        const completed = allFields.filter(field => {
+            const value = profile[field];
+            return value !== null && value !== undefined && value !== '' && value !== '[]' && value.toString().trim() !== '';
+        });
+
+        return Math.round((completed.length / allFields.length) * 100);
     };
 
     if (!isOpen) return null;
@@ -331,30 +328,75 @@ const StudentDetailModal = ({ student, isOpen, onClose }) => {
                                     <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Resume & Documents</h3>
 
                                     {studentResume ? (
-                                        <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center space-x-4">
-                                                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                                        <FileText className="h-6 w-6 text-blue-600" />
+                                        <div className="space-y-4">
+                                            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center space-x-4">
+                                                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                            <FileText className="h-6 w-6 text-blue-600" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-medium text-gray-800">{studentResume.file_name}</h4>
+                                                            <p className="text-sm text-gray-500">
+                                                                Uploaded on {formatDate(studentResume.uploaded_at)}
+                                                            </p>
+                                                            <p className="text-xs text-gray-400">
+                                                                Size: {Math.round(studentResume.file_size / 1024)} KB
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <h4 className="font-medium text-gray-800">{studentResume.file_name}</h4>
-                                                        <p className="text-sm text-gray-500">
-                                                            Uploaded on {formatDate(studentResume.uploaded_at)}
-                                                        </p>
-                                                        <p className="text-xs text-gray-400">
-                                                            Size: {Math.round(studentResume.file_size / 1024)} KB
+                                                    <button
+                                                        onClick={downloadResume}
+                                                        className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                                                    >
+                                                        <Download className="h-4 w-4" />
+                                                        <span>Download</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* PDF Viewer */}
+                                            {studentResume.file_type === 'application/pdf' && (
+                                                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                                    <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                                                        <h4 className="font-medium text-gray-800">Resume Preview</h4>
+                                                    </div>
+                                                    <div className="h-96 w-full">
+                                                        <iframe
+                                                            src={`${studentResume.file_url}#toolbar=0&navpanes=0&scrollbar=1`}
+                                                            className="w-full h-full"
+                                                            title="Resume Preview"
+                                                            onError={() => {
+                                                                console.log('PDF preview failed, falling back to download link');
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="bg-gray-50 px-4 py-2 border-t border-gray-200 text-center">
+                                                        <p className="text-xs text-gray-500">
+                                                            Can't see the preview?
+                                                            <button
+                                                                onClick={downloadResume}
+                                                                className="ml-1 text-indigo-600 hover:text-indigo-700 underline"
+                                                            >
+                                                                Download the file
+                                                            </button>
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <button
-                                                    onClick={downloadResume}
-                                                    className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                                                >
-                                                    <Download className="h-4 w-4" />
-                                                    <span>Download</span>
-                                                </button>
-                                            </div>
+                                            )}
+
+                                            {/* Non-PDF files info */}
+                                            {studentResume.file_type !== 'application/pdf' && (
+                                                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                                                    <div className="flex items-center space-x-2">
+                                                        <FileText className="h-5 w-5 text-blue-600" />
+                                                        <p className="text-sm text-blue-800">
+                                                            This is a {studentResume.file_type.split('/')[1].toUpperCase()} file.
+                                                            Click download to view it.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">

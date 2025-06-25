@@ -127,7 +127,7 @@ const MentorDashboard = () => {
         try {
             console.log('🔍 DEBUG: Starting fetchAssignedStudents with mentorUserId:', mentorUserId);
 
-            // Get students assigned to this mentor using profile IDs directly
+            // Get students assigned to this mentor - fetch from profiles table directly
             const { data, error } = await supabase
                 .from('mentor_student')
                 .select(`
@@ -184,7 +184,7 @@ const MentorDashboard = () => {
 
     const fetchDemographicData = async (students) => {
         try {
-            // Age ranges
+            // Age ranges - using date_of_birth instead of birth_year
             const ageData = students.reduce((acc, student) => {
                 if (student.date_of_birth) {
                     const birthDate = new Date(student.date_of_birth);
@@ -203,28 +203,26 @@ const MentorDashboard = () => {
                 return acc;
             }, []);
 
-            // Gender distribution
+            // Gender data
             const genderData = students.reduce((acc, student) => {
-                if (student.gender) {
-                    const existing = acc.find((item) => item.name === student.gender);
-                    if (existing) existing.value++;
-                    else acc.push({ name: student.gender, value: 1 });
-                }
+                const gender = student.gender || 'Not specified';
+                const existing = acc.find((item) => item.name === gender);
+                if (existing) existing.value++;
+                else acc.push({ name: gender, value: 1 });
                 return acc;
             }, []);
 
-            // Religion distribution
+            // Religion data
             const religionData = students.reduce((acc, student) => {
-                if (student.religion) {
-                    const existing = acc.find((item) => item.name === student.religion);
-                    if (existing) existing.value++;
-                    else acc.push({ name: student.religion, value: 1 });
-                }
+                const religion = student.religion || 'Not specified';
+                const existing = acc.find((item) => item.name === religion);
+                if (existing) existing.value++;
+                else acc.push({ name: religion, value: 1 });
                 return acc;
             }, []);
 
             setDemographicData({
-                age: ageData.sort((a, b) => parseInt(a.name.split('-')[0]) - parseInt(b.name.split('-')[0])),
+                age: ageData,
                 gender: genderData,
                 religion: religionData
             });

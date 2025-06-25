@@ -1,10 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner'; // for notifications
 
-const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL,
-  process.env.REACT_APP_SUPABASE_ANON_KEY
-);
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables:', {
+    url: !!supabaseUrl,
+    key: !!supabaseAnonKey
+  });
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Reusable safe fetch for SELECT
 export async function safeSelect(table, columns = '*', filters = {}) {
@@ -51,16 +58,13 @@ export async function safeInsert(table, payload) {
   return data;
 }
 
-
-
-
 // Reusable safe UPDATE
 export async function safeUpdate(table, updates, matchKey, matchValue) {
   const { data, error } = await supabase
-  .from(table)
-  .update(updates, { returning: "representation" })  // 👈 Proper way
-  .eq(matchKey, matchValue); // 👈 ADD `.select()`
-  
+    .from(table)
+    .update(updates, { returning: "representation" })  // 👈 Proper way
+    .eq(matchKey, matchValue); // 👈 ADD `.select()`
+
   if (error) {
     console.error(`❌ Error updating ${table}:`, error);
     toast.error(`Failed to update ${table}.`);
