@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from './supabase';
 import { ROLES, getUserRole, getStudentProfile, getMentorProfile } from './UserRoles';
 import * as UserTerms from './UserTerms';
+import { sessionManager } from './SessionManager';
 
 const AuthContext = createContext();
 
