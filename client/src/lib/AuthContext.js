@@ -217,18 +217,32 @@ export const AuthProvider = ({ children }) => {
               setUser(session.user);
               await handleUserProfile(session.user);
             } else if (event === 'SIGNED_OUT') {
-              setUser(null);
-              setProfile(null);
-              setUserRole(null);
-              setIsAdmin(false);
-              setIsMentor(false);
-              setIsStudent(false);
+              clearUserState();
             }
           }
         );
 
+        // Setup session manager listeners
+        const removeSessionListener = sessionManager.addListener((event, data) => {
+          switch (event) {
+            case 'session_expired':
+            case 'force_logout':
+            case 'global_logout':
+              clearUserState();
+              break;
+            case 'session_error':
+              console.error('Session error:', data);
+              setError('Session validation failed');
+              break;
+            case 'token_refreshed':
+              console.log('Token refreshed successfully');
+              break;
+          }
+        });
+
         return () => {
           subscription?.unsubscribe();
+          removeSessionListener();
         };
       } catch (err) {
         setError(err.message);
@@ -239,6 +253,17 @@ export const AuthProvider = ({ children }) => {
 
     setupAuthListener();
   }, []);
+
+  // Clear all user state
+  const clearUserState = () => {
+    setUser(null);
+    setProfile(null);
+    setUserRole(null);
+    setIsAdmin(false);
+    setIsMentor(false);
+    setIsStudent(false);
+    setHasAcceptedTermsOfService(false);
+  };
 
   const signUp = async (email, password, firstName, lastName) => {
     try {

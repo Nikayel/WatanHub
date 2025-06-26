@@ -1,96 +1,63 @@
-import React, { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Points, PointMaterial } from '@react-three/drei';
-import * as THREE from 'three';
+import React from 'react';
 
-// Animated floating particles component
-function AnimatedStars({ count = 100, ...props }) {
-    const ref = useRef();
-
-    // Generate random positions for stars
-    const positions = useMemo(() => {
-        const positions = new Float32Array(count * 3);
-        for (let i = 0; i < count; i++) {
-            positions[i * 3] = (Math.random() - 0.5) * 10;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * 10;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 10;
-        }
-        return positions;
-    }, [count]);
-
-    // Animate the stars
-    useFrame((state, delta) => {
-        if (ref.current) {
-            ref.current.rotation.x -= delta / 10;
-            ref.current.rotation.y -= delta / 15;
-        }
-    });
-
-    return (
-        <group rotation={[0, 0, Math.PI / 4]}>
-            <Points ref={ref} positions={positions} stride={3} frustumCulled={false} {...props}>
-                <PointMaterial
-                    transparent
-                    color="#6366f1"
-                    size={0.05}
-                    sizeAttenuation={true}
-                    depthWrite={false}
-                    opacity={0.6}
-                />
-            </Points>
-        </group>
-    );
-}
-
-// Floating geometric shapes
-function FloatingShapes() {
-    const groupRef = useRef();
-
-    useFrame((state) => {
-        if (groupRef.current) {
-            groupRef.current.rotation.y = state.clock.elapsedTime * 0.1;
-            groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.2) * 0.1;
-        }
-    });
-
-    return (
-        <group ref={groupRef}>
-            {/* Floating cubes */}
-            <mesh position={[2, 1, -2]}>
-                <boxGeometry args={[0.3, 0.3, 0.3]} />
-                <meshBasicMaterial color="#8b5cf6" transparent opacity={0.3} />
-            </mesh>
-
-            <mesh position={[-2, -1, -1]}>
-                <octahedronGeometry args={[0.4]} />
-                <meshBasicMaterial color="#06b6d4" transparent opacity={0.4} />
-            </mesh>
-
-            <mesh position={[1, -2, 1]}>
-                <tetrahedronGeometry args={[0.5]} />
-                <meshBasicMaterial color="#10b981" transparent opacity={0.3} />
-            </mesh>
-
-            <mesh position={[-1, 2, 0]}>
-                <icosahedronGeometry args={[0.3]} />
-                <meshBasicMaterial color="#f59e0b" transparent opacity={0.4} />
-            </mesh>
-        </group>
-    );
-}
-
-// Main 3D background component
+// Lightweight CSS-based animated background (replaces heavy 3D components)
 const Three3DBackground = ({ className = "" }) => {
     return (
         <div className={`absolute inset-0 overflow-hidden ${className}`} style={{ zIndex: -1 }}>
-            <Canvas
-                camera={{ position: [0, 0, 5], fov: 60 }}
-                style={{ background: 'transparent' }}
-            >
-                <AnimatedStars count={150} />
-                <FloatingShapes />
-                <ambientLight intensity={0.5} />
-            </Canvas>
+            {/* Animated gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-blue-900 to-purple-900 animate-pulse"
+                style={{ animation: 'gradientShift 8s ease-in-out infinite' }} />
+
+            {/* Floating CSS particles */}
+            <div className="absolute inset-0">
+                {/* CSS Stars */}
+                {[...Array(30)].map((_, i) => (
+                    <div
+                        key={i}
+                        className="absolute bg-white rounded-full opacity-60"
+                        style={{
+                            width: Math.random() * 3 + 1 + 'px',
+                            height: Math.random() * 3 + 1 + 'px',
+                            left: Math.random() * 100 + '%',
+                            top: Math.random() * 100 + '%',
+                            animation: `twinkle ${Math.random() * 3 + 2}s infinite alternate`,
+                            animationDelay: Math.random() * 2 + 's'
+                        }}
+                    />
+                ))}
+
+                {/* CSS Geometric shapes */}
+                <div className="absolute top-1/4 left-1/4 w-8 h-8 bg-indigo-500/20 rounded-lg transform rotate-45 animate-bounce"
+                    style={{ animationDuration: '4s', animationDelay: '0s' }} />
+                <div className="absolute top-3/4 right-1/4 w-6 h-6 bg-purple-500/20 rounded-full animate-pulse"
+                    style={{ animationDuration: '3s', animationDelay: '1s' }} />
+                <div className="absolute top-1/2 left-3/4 w-4 h-4 bg-blue-500/20 transform rotate-12 animate-bounce"
+                    style={{ animationDuration: '5s', animationDelay: '2s' }} />
+                <div className="absolute bottom-1/4 left-1/2 w-5 h-5 bg-cyan-500/20 rounded-lg transform -rotate-45 animate-pulse"
+                    style={{ animationDuration: '4s', animationDelay: '1.5s' }} />
+            </div>
+
+            {/* CSS Animations */}
+            <style jsx>{`
+                @keyframes gradientShift {
+                    0%, 100% { 
+                        background: linear-gradient(135deg, #1e1b4b, #1e3a8a, #581c87);
+                    }
+                    50% { 
+                        background: linear-gradient(135deg, #1e3a8a, #581c87, #1e1b4b);
+                    }
+                }
+                
+                @keyframes twinkle {
+                    0% { opacity: 0.3; transform: scale(1); }
+                    100% { opacity: 1; transform: scale(1.2); }
+                }
+                
+                @keyframes float {
+                    0%, 100% { transform: translateY(0px) rotate(0deg); }
+                    50% { transform: translateY(-20px) rotate(180deg); }
+                }
+            `}</style>
         </div>
     );
 };

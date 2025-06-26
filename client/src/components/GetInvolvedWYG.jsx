@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Heart, Target, Globe, ArrowRight, BookOpen, GraduationCap, Award, Star, Briefcase, ChevronDown } from 'lucide-react';
+import { Users, Heart, Target, Globe, ArrowRight, BookOpen, GraduationCap, Award, Star, Briefcase, ChevronDown, Mail, Instagram } from 'lucide-react';
 
 const TypewriterText = ({ text, className, delay = 0 }) => {
     const [displayText, setDisplayText] = useState('');
@@ -38,7 +38,7 @@ const GetInvolvedWYG = () => {
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-red-500/3 rounded-full blur-3xl"></div>
             </div>
 
-            <div className="relative z-10 max-w-7xl mx-auto px-4 py-16">
+            <div className="relative z-10 max-w-7xl mx-auto px-4 py-16 pb-24 sm:pb-16">
 
                 {/* Hero Section */}
                 <motion.div
@@ -64,9 +64,9 @@ const GetInvolvedWYG = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4, duration: 0.6 }}
-                        className="text-5xl md:text-6xl font-light text-slate-800 mb-6 leading-tight"
+                        className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-light text-slate-800 mb-6 leading-tight px-4"
                     >
-                        Join Us & Be Part of <br />
+                        Join Us & Be Part of <br className="hidden sm:block" />
                         <span className="font-semibold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
                             <TypewriterText text="Something Bigger" delay={200} />
                         </span>
@@ -76,7 +76,7 @@ const GetInvolvedWYG = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6, duration: 0.6 }}
-                        className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light"
+                        className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light px-4"
                     >
                         Connect with the global Afghan community through <span className="font-medium text-emerald-700">Watan Youth Group</span> -
                         a platform for growth, mentorship, and meaningful impact.
@@ -263,29 +263,55 @@ const GetInvolvedWYG = () => {
                     </div>
                 </motion.div>
 
-                {/* CTA Section */}
+                {/* CTA Section - Enhanced for Mobile */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 1.8, duration: 0.8 }}
-                    className="text-center"
+                    className="text-center relative"
                 >
+                    {/* Main CTA Button - Enhanced for mobile */}
                     <motion.a
                         href="https://docs.google.com/forms/d/e/1FAIpQLSfJ32GfxZeBkEOsyPs9tnFleZTeGVLBCUx75M8-LAReFcDyLw/viewform?usp=sf_link"
                         target="_blank"
                         rel="noopener noreferrer"
                         whileHover={{ scale: 1.02, y: -2 }}
                         whileTap={{ scale: 0.98 }}
-                        className="inline-flex items-center space-x-4 backdrop-blur-xl bg-gradient-to-r from-emerald-500/90 to-green-600/90 text-white px-12 py-4 rounded-2xl font-medium text-lg shadow-xl hover:shadow-2xl transition-all duration-300 border border-white/20"
+                        className="inline-flex items-center space-x-4 backdrop-blur-xl bg-gradient-to-r from-emerald-500/90 to-green-600/90 text-white px-8 sm:px-12 py-4 sm:py-5 rounded-2xl font-bold text-base sm:text-lg shadow-xl hover:shadow-2xl transition-all duration-300 border border-white/20 w-full sm:w-auto justify-center"
                     >
                         <img
                             src="/web-app-manifest-192x192.png"
                             alt="WatanHub Logo"
-                            className="h-6 w-6"
+                            className="h-6 w-6 sm:h-7 sm:w-7"
                         />
-                        <span>Apply to Watan Youth Group</span>
-                        <ArrowRight className="h-5 w-5" />
+                        <span className="text-center">Apply to Watan Youth Group</span>
+                        <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6" />
                     </motion.a>
+
+                    {/* Mobile Quick Action Buttons */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 2.2, duration: 0.6 }}
+                        className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto sm:hidden"
+                    >
+                        <a
+                            href="mailto:watan8681@gmail.com"
+                            className="flex items-center justify-center space-x-2 bg-white/80 backdrop-blur-sm text-emerald-700 px-4 py-3 rounded-xl font-medium shadow-lg border border-emerald-200 hover:bg-emerald-50 transition-all duration-300"
+                        >
+                            <Mail className="h-4 w-4" />
+                            <span>Email Us</span>
+                        </a>
+                        <a
+                            href="https://www.instagram.com/watan.youth.group"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center space-x-2 bg-white/80 backdrop-blur-sm text-emerald-700 px-4 py-3 rounded-xl font-medium shadow-lg border border-emerald-200 hover:bg-emerald-50 transition-all duration-300"
+                        >
+                            <Instagram className="h-4 w-4" />
+                            <span>Instagram</span>
+                        </a>
+                    </motion.div>
 
                     {/* Contact fallback information */}
                     <motion.div
@@ -294,20 +320,45 @@ const GetInvolvedWYG = () => {
                         transition={{ delay: 2, duration: 0.6 }}
                         className="mt-6 text-center"
                     >
-                        <p className="text-slate-600 text-sm mb-2">
+                        <p className="text-slate-600 text-sm sm:text-base mb-2 px-4">
                             🇦🇫 Empowering Afghan youth worldwide through education, mentorship, and community
                         </p>
-                        <p className="text-slate-500 text-xs">
+                        <p className="text-slate-500 text-xs sm:text-sm px-4">
                             Having trouble with the form? Email us at{" "}
-                            <a href="mailto:watan8681@gmail.com" className="text-emerald-600 hover:text-emerald-700 underline">
+                            <a href="mailto:watan8681@gmail.com" className="text-emerald-600 hover:text-emerald-700 underline font-medium">
                                 watan8681@gmail.com
                             </a>{" "}
                             or{" "}
-                            <a href="mailto:watanyouthgp@gmail.com" className="text-emerald-600 hover:text-emerald-700 underline">
+                            <a href="mailto:watanyouthgp@gmail.com" className="text-emerald-600 hover:text-emerald-700 underline font-medium">
                                 watanyouthgp@gmail.com
                             </a>
                         </p>
                     </motion.div>
+                </motion.div>
+
+                {/* Sticky Mobile CTA Bar - Only shows on mobile */}
+                <motion.div
+                    initial={{ opacity: 0, y: 100 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 3, duration: 0.8 }}
+                    className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-r from-emerald-500 to-green-600 p-4 shadow-2xl border-t-4 border-yellow-400"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="text-white">
+                            <p className="font-bold text-sm">Ready to Join?</p>
+                            <p className="text-xs text-green-100">Tap to apply now!</p>
+                        </div>
+                        <motion.a
+                            href="https://docs.google.com/forms/d/e/1FAIpQLSfJ32GfxZeBkEOsyPs9tnFleZTeGVLBCUx75M8-LAReFcDyLw/viewform?usp=sf_link"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            whileTap={{ scale: 0.95 }}
+                            className="bg-white text-emerald-600 px-6 py-3 rounded-full font-bold text-sm shadow-lg flex items-center space-x-2 active:bg-gray-100 transition-all duration-200"
+                        >
+                            <span>Apply Now</span>
+                            <ArrowRight className="h-4 w-4" />
+                        </motion.a>
+                    </div>
                 </motion.div>
             </div>
         </div>

@@ -183,109 +183,159 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
             </ul>
           </div>
 
-          {/* Professional WYG Attention Component */}
-          {location.pathname === "/" && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 3, duration: 0.6, type: "spring", damping: 25 }}
-              className="hidden lg:flex fixed right-8 top-24 z-40"
-            >
-              <div className="relative">
+          {/* Mobile-First Join Watan Youth Group Banner */}
+          {(location.pathname === "/" || location.pathname === "/dashboard") && (
+            <>
+              {/* Mobile Full-Width Banner - Shows on all mobile devices */}
+              <motion.div
+                initial={{ opacity: 0, y: -50 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.5, duration: 0.8 }}
+                className="lg:hidden fixed top-16 left-2 right-2 z-50"
+                id="mobile-watan-banner"
+              >
                 <motion.div
                   animate={{
-                    rotate: [0, -1, 1, -1, 0],
-                    scale: [1, 1.01, 1]
+                    boxShadow: [
+                      "0 8px 25px rgba(16, 185, 129, 0.6)",
+                      "0 12px 35px rgba(220, 38, 38, 0.8)",
+                      "0 8px 25px rgba(16, 185, 129, 0.6)"
+                    ]
                   }}
                   transition={{
-                    duration: 5,
+                    duration: 4,
                     repeat: Infinity,
-                    repeatDelay: 8
+                    repeatDelay: 6
                   }}
                   onClick={() => navigate("/get-involved")}
-                  className="relative rounded-2xl p-4 shadow-xl border-2 overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-300"
+                  className="relative rounded-3xl p-4 shadow-2xl border-3 overflow-hidden cursor-pointer active:scale-95 transition-all duration-300"
                   style={{
                     background: 'linear-gradient(135deg, #059669 0%, #16a34a 40%, #dc2626 100%)',
-                    borderColor: '#f59e0b'
+                    borderColor: '#f59e0b',
+                    borderWidth: '3px'
                   }}
                 >
-                  {/* Afghan pattern overlay */}
-                  <div className="absolute inset-0 opacity-20" style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='white' fill-opacity='0.3'%3E%3Ccircle cx='10' cy='10' r='1'/%3E%3C/g%3E%3C/svg%3E")`,
-                    backgroundSize: '20px 20px'
+                  {/* Enhanced Afghan pattern overlay */}
+                  <div className="absolute inset-0 opacity-30" style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='30' height='30' viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='white' fill-opacity='0.5'%3E%3Ccircle cx='15' cy='15' r='2'/%3E%3C/g%3E%3C/svg%3E")`,
+                    backgroundSize: '30px 30px'
                   }}></div>
 
-                  <div className="relative z-10 flex items-center space-x-3">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                      className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30"
-                    >
-                      <img
-                        src="/web-app-manifest-192x192.png"
-                        alt="WatanHub Logo"
-                        className="h-5 w-5"
-                      />
-                    </motion.div>
-                    <div className="text-white">
-                      <p className="text-sm font-bold whitespace-nowrap">Join Watan Youth Group! 🇦🇫</p>
-                      <p className="text-xs text-green-100">Click Get Involved ↗</p>
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                        className="w-12 h-12 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white/50"
+                      >
+                        <img
+                          src="/web-app-manifest-192x192.png"
+                          alt="WatanHub Logo"
+                          className="h-7 w-7"
+                        />
+                      </motion.div>
+                      <div className="text-white flex-1">
+                        <p className="text-base sm:text-lg font-bold">Join Watan Youth Group! 🇦🇫</p>
+                        <p className="text-xs sm:text-sm text-green-100">Tap here to apply now →</p>
+                      </div>
                     </div>
+
+                    <motion.div
+                      animate={{ x: [0, 8, 0] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="text-white"
+                    >
+                      <ChevronRight className="h-6 w-6 sm:h-8 sm:w-8" />
+                    </motion.div>
                   </div>
 
-                  {/* Professional Arrow pointing to Get Involved */}
+                  {/* Enhanced pulsing effect for mobile */}
                   <motion.div
                     animate={{
-                      y: [0, -2, 0],
-                      opacity: [0.8, 1, 0.8]
-                    }}
-                    transition={{ duration: 2.5, repeat: Infinity }}
-                    className="absolute -top-2 right-4"
-                  >
-                    <div className="w-0 h-0 border-l-3 border-r-3 border-b-4 border-l-transparent border-r-transparent border-b-emerald-600"></div>
-                  </motion.div>
-
-                  {/* Subtle sparkle effects */}
-                  <motion.div
-                    animate={{
-                      scale: [0, 1, 0],
-                      opacity: [0, 0.8, 0]
+                      scale: [1, 1.02, 1],
+                      opacity: [0.2, 0.4, 0.2]
                     }}
                     transition={{
                       duration: 3,
-                      repeat: Infinity,
-                      delay: 0.5
+                      repeat: Infinity
                     }}
-                    className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full"
-                  ></motion.div>
-                  <motion.div
-                    animate={{
-                      scale: [0, 0.8, 0],
-                      opacity: [0, 0.6, 0]
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      delay: 1.5
-                    }}
-                    className="absolute -bottom-1 -left-1 w-1.5 h-1.5 bg-orange-400 rounded-full"
+                    className="absolute inset-0 bg-white rounded-3xl"
                   ></motion.div>
                 </motion.div>
 
-                {/* Dismissible feature */}
+                {/* Enhanced dismissible button for mobile */}
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    e.currentTarget.parentElement.parentElement.style.display = 'none';
+                    document.getElementById('mobile-watan-banner').style.display = 'none';
                   }}
-                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-red-600 transition-colors shadow-md"
+                  className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center text-lg font-bold hover:bg-red-600 active:bg-red-700 transition-colors shadow-lg border-2 border-white"
                 >
                   ×
                 </motion.button>
-              </div>
-            </motion.div>
+              </motion.div>
+
+              {/* Desktop Banner (original smaller version) */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 3, duration: 0.6, type: "spring", damping: 25 }}
+                className="hidden lg:flex fixed right-8 top-24 z-40"
+              >
+                <div className="relative">
+                  <motion.div
+                    animate={{
+                      rotate: [0, -1, 1, -1, 0],
+                      scale: [1, 1.01, 1]
+                    }}
+                    transition={{
+                      duration: 5,
+                      repeat: Infinity,
+                      repeatDelay: 8
+                    }}
+                    onClick={() => navigate("/get-involved")}
+                    className="relative rounded-2xl p-4 shadow-xl border-2 overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-300"
+                    style={{
+                      background: 'linear-gradient(135deg, #059669 0%, #16a34a 40%, #dc2626 100%)',
+                      borderColor: '#f59e0b'
+                    }}
+                  >
+                    <div className="relative z-10 flex items-center space-x-3">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                        className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30"
+                      >
+                        <img
+                          src="/web-app-manifest-192x192.png"
+                          alt="WatanHub Logo"
+                          className="h-5 w-5"
+                        />
+                      </motion.div>
+                      <div className="text-white">
+                        <p className="text-sm font-bold whitespace-nowrap">Join Watan Youth Group! 🇦🇫</p>
+                        <p className="text-xs text-green-100">Click Get Involved ↗</p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Dismissible feature for desktop */}
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.currentTarget.parentElement.parentElement.style.display = 'none';
+                    }}
+                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-red-600 transition-colors shadow-md"
+                  >
+                    ×
+                  </motion.button>
+                </div>
+              </motion.div>
+            </>
           )}
 
           {/* Desktop Auth Buttons */}

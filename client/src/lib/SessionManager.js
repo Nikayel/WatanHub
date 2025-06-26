@@ -5,12 +5,13 @@ import Logger from '../utils/logger';
 class SessionManager {
     constructor() {
         this.sessionTimeout = 24 * 60 * 60 * 1000; // 24 hours
-        this.inactivityTimeout = 2 * 60 * 60 * 1000; // 2 hours of inactivity
-        this.checkInterval = 5 * 60 * 1000; // Check every 5 minutes
+        this.inactivityTimeout = 8 * 60 * 60 * 1000; // 8 hours of inactivity (much more lenient)
+        this.checkInterval = 60 * 60 * 1000; // Check every 1 hour (much less frequent)
         this.lastActivity = Date.now();
         this.isActive = true;
         this.intervalId = null;
         this.listeners = new Set();
+        this.isInitialized = false;
 
         this.init();
     }
@@ -48,15 +49,15 @@ class SessionManager {
                 this.isActive = true;
                 this.lastActivity = Date.now();
                 Logger.debug('Tab became visible, resuming session checks');
-                this.validateSession();
+                // Don't validate session on every tab switch - too aggressive
             }
         });
 
-        // Handle window focus/blur
+        // Handle window focus/blur - but don't validate session immediately
         window.addEventListener('focus', () => {
             this.isActive = true;
             this.lastActivity = Date.now();
-            this.validateSession();
+            // Removed automatic session validation on focus
         });
 
         window.addEventListener('blur', () => {
@@ -101,37 +102,49 @@ class SessionManager {
 
             if (error) {
                 Logger.error('Session validation error:', error);
+                // Don't immediately trigger logout on validation errors
                 this.notifyListeners('session_error', error);
                 return false;
             }
 
             if (!session) {
                 Logger.info('No active session found');
-                this.notifyListeners('session_expired');
+                // Only logout if we've been running for a while (not immediately on startup)
+                if (this.isInitialized) {
+                    this.notifyListeners('session_expired');
+                }
                 return false;
             }
 
-            // Check if session is expired
+            // Check if session is expired with safety buffer
             const now = Date.now();
             const sessionTime = new Date(session.expires_at).getTime();
+            const safetyBuffer = 60 * 1000; // 1 minute buffer for clock differences
 
-            if (sessionTime <= now) {
+            if (sessionTime <= (now - safetyBuffer)) {
                 Logger.info('Session expired, forcing logout');
                 await this.forceLogout('Session expired');
                 return false;
             }
 
-            // Check token expiry (refresh if needed)
+            // Check token expiry (refresh if needed) - more conservative
             const timeUntilExpiry = sessionTime - now;
-            if (timeUntilExpiry < 5 * 60 * 1000) { // Less than 5 minutes
+            if (timeUntilExpiry < 10 * 60 * 1000) { // Less than 10 minutes (increased from 5)
                 Logger.info('Token expiring soon, attempting refresh');
                 await this.refreshToken();
+            }
+
+            // Mark as initialized after first successful validation
+            if (!this.isInitialized) {
+                this.isInitialized = true;
+                Logger.info('Session manager initialized successfully');
             }
 
             this.notifyListeners('session_valid', session);
             return true;
         } catch (error) {
             Logger.error('Session validation failed:', error);
+            // Don't trigger logout on network/connection errors
             this.notifyListeners('session_error', error);
             return false;
         }
@@ -142,8 +155,9 @@ class SessionManager {
         const now = Date.now();
         const timeSinceActivity = now - this.lastActivity;
 
-        if (timeSinceActivity > this.inactivityTimeout) {
-            Logger.info('User inactive for too long, logging out');
+        // Only check inactivity if we're properly initialized and tab is active
+        if (this.isInitialized && this.isActive && timeSinceActivity > this.inactivityTimeout) {
+            Logger.info(`User inactive for ${Math.round(timeSinceActivity / (1000 * 60))} minutes, logging out`);
             this.forceLogout('Inactive session timeout');
         }
     }
@@ -155,7 +169,8 @@ class SessionManager {
 
             if (error) {
                 Logger.error('Token refresh failed:', error);
-                await this.forceLogout('Token refresh failed');
+                // Don't immediately logout - just warn and let normal session validation handle it
+                this.notifyListeners('token_refresh_failed', error);
                 return false;
             }
 
@@ -164,7 +179,8 @@ class SessionManager {
             return true;
         } catch (error) {
             Logger.error('Token refresh error:', error);
-            await this.forceLogout('Token refresh error');
+            // Don't immediately logout on network errors - just warn
+            this.notifyListeners('token_refresh_error', error);
             return false;
         }
     }
@@ -172,6 +188,17 @@ class SessionManager {
     // Force logout with reason
     async forceLogout(reason = 'Session ended') {
         try {
+            // Add debugging info
+            console.log('🚨 FORCE LOGOUT TRIGGERED:', {
+                reason,
+                lastActivity: new Date(this.lastActivity).toLocaleString(),
+                timeSinceActivity: Math.round((Date.now() - this.lastActivity) / (1000 * 60)),
+                isActive: this.isActive,
+                isInitialized: this.isInitialized,
+                inactivityTimeout: Math.round(this.inactivityTimeout / (1000 * 60)),
+                stackTrace: new Error().stack
+            });
+
             Logger.info('Force logout initiated:', reason);
 
             // Signal other tabs

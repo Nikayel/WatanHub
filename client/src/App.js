@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Toaster } from 'sonner';
 import { Analytics } from "@vercel/analytics/react"
 import { Routes, Route } from 'react-router-dom';
@@ -9,49 +9,61 @@ import ErrorBoundary from './components/ErrorBoundary';
 import config from './config/environment';
 import Logger from './utils/logger';
 
-// Context and Protection
+// Context and Protection (keep these as regular imports for faster auth checks)
 import ProtectedRoute from './components/Routes/ProtectedRoute';
 import AdminRoute from './components/adminRoute';
 
-import MentorsPage from './pages/MentorsPage';
-
-// Public Pages
-import HomePage from './components/HomePage';
-import GetInvolvedPage from './pages/GetInvolvedPage';
-import OurVisionPage from './pages/OurVisionPage';
-import TimelineDemo from './components/ui/timeline-demo';
-import BlogList from './pages/BlogList';
-import BlogDetail from './pages/BlogDetails';
-
-// Auth Pages
-import Login from './components/Auth/Login';
-import SignUp from './components/Auth/SignUp';
-
-// User Terms
+// User Terms (keep as regular import for immediate loading)
 import TermsChecker from './components/TermsChecker';
 
-// Admin Pages
-import AdminDashboard from './pages/admin/Dashboard';
-import AdminBlogManage from './pages/admin/AdminBlogManage';
-import AdminBlogCreate from './pages/admin/AdminBlogCreate';
-import AdminBlogEdit from './pages/admin/AdminBlogEdit';
-import AdminAnnouncementSend from './pages/admin/AdminAnnouncementSend'; // 👈 import it
-import MigrationTool from './pages/admin/MigrationTool'; // 👈 import migration tool
-import FellowshipSettingsAdmin from './pages/admin/FellowshipSettingsAdmin';
-
-//mentor section
-import MentorApplicationPage from './pages/MentorApplicationPage';
-// User Pages
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
-import OnboardingSurvey from './pages/OnboardingSurvey';
-import MentorRoute from './components/Routes/MentorRoute';
-import MentorDashboard from './pages/mentor/mentor_dashboard';
-
-// Profile Tutorial Modal
+// Profile Tutorial Modal (keep as regular import for immediate access)
 import ProfileTutorial from './components/ProfileTutorial';
-import Terms from './pages/Terms';
-import Privacy from './pages/Privacy';
+
+// Lazy load all major page components
+const HomePage = React.lazy(() => import('./components/HomePage'));
+const MentorsPage = React.lazy(() => import('./pages/MentorsPage'));
+const GetInvolvedPage = React.lazy(() => import('./pages/GetInvolvedPage'));
+const OurVisionPage = React.lazy(() => import('./pages/OurVisionPage'));
+const TimelineDemo = React.lazy(() => import('./components/ui/timeline-demo'));
+const BlogList = React.lazy(() => import('./pages/BlogList'));
+const BlogDetail = React.lazy(() => import('./pages/BlogDetails'));
+
+// Auth Pages
+const Login = React.lazy(() => import('./components/Auth/Login'));
+const SignUp = React.lazy(() => import('./components/Auth/SignUp'));
+
+// Admin Pages (lazy loaded - only for admins)
+const AdminDashboard = React.lazy(() => import('./pages/admin/Dashboard'));
+const AdminBlogManage = React.lazy(() => import('./pages/admin/AdminBlogManage'));
+const AdminBlogCreate = React.lazy(() => import('./pages/admin/AdminBlogCreate'));
+const AdminBlogEdit = React.lazy(() => import('./pages/admin/AdminBlogEdit'));
+const AdminAnnouncementSend = React.lazy(() => import('./pages/admin/AdminAnnouncementSend'));
+const MigrationTool = React.lazy(() => import('./pages/admin/MigrationTool'));
+const FellowshipSettingsAdmin = React.lazy(() => import('./pages/admin/FellowshipSettingsAdmin'));
+
+// Mentor section
+const MentorApplicationPage = React.lazy(() => import('./pages/MentorApplicationPage'));
+const MentorRoute = React.lazy(() => import('./components/Routes/MentorRoute'));
+const MentorDashboard = React.lazy(() => import('./pages/mentor/mentor_dashboard'));
+
+// User Pages (lazy loaded)
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const OnboardingSurvey = React.lazy(() => import('./pages/OnboardingSurvey'));
+
+// Static Pages (lazy loaded)
+const Terms = React.lazy(() => import('./pages/Terms'));
+const Privacy = React.lazy(() => import('./pages/Privacy'));
+
+// Loading component for Suspense
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
+    <div className="flex flex-col items-center space-y-4">
+      <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      <p className="text-white text-lg font-medium">Loading WatanHub...</p>
+    </div>
+  </div>
+);
 
 function App() {
   // Initialize performance monitoring in development
@@ -70,94 +82,100 @@ function App() {
       <Toaster position="top-center" richColors />
       <ProfileTutorial />
       <TermsChecker />
-      <Routes>
 
-        {/* Public Routes */}
-        <Route path="/mentors" element={<MentorsPage />} />
-        <Route path="/get-involved" element={<GetInvolvedPage />} />
-        <Route path="/our-vision" element={<OurVisionPage />} />
-        <Route path="/" element={<HomePage />} />
-        <Route path="/timeline" element={<TimelineDemo />} />
-        <Route path="/blogs" element={<BlogList />} />
-        <Route path="/blog/:id" element={<BlogDetail />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/mentor-application" element={<MentorApplicationPage />} />
-        <Route path="/admin/announcements/send" element={
-          <AdminRoute>
-            <AdminAnnouncementSend />
-          </AdminRoute>
-        } />
-        <Route path="/signup" element={<SignUp isOpen={true} onClose={() => { }} />} />
+      <Suspense fallback={<LoadingSpinner />}>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/mentors" element={<MentorsPage />} />
+          <Route path="/get-involved" element={<GetInvolvedPage />} />
+          <Route path="/our-vision" element={<OurVisionPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/timeline" element={<TimelineDemo />} />
+          <Route path="/blogs" element={<BlogList />} />
+          <Route path="/blog/:id" element={<BlogDetail />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/mentor-application" element={<MentorApplicationPage />} />
+          <Route path="/signup" element={<SignUp isOpen={true} onClose={() => { }} />} />
 
-        {/* Protected Routes (Logged-in Users Only) */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
+          {/* Protected Routes (Logged-in Users Only) */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
 
-        <Route path="/profile" element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
 
-        <Route path="/onboarding-survey" element={
-          <ProtectedRoute>
-            <OnboardingSurvey />
-          </ProtectedRoute>
-        } />
+          <Route path="/onboarding-survey" element={
+            <ProtectedRoute>
+              <OnboardingSurvey />
+            </ProtectedRoute>
+          } />
 
-        {/* Mentor Routes */}
-        <Route path="/mentor/dashboard" element={
-          <MentorRoute>
-            <MentorDashboard />
-          </MentorRoute>
-        } />
+          {/* Mentor Routes */}
+          <Route path="/mentor/dashboard" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <MentorRoute>
+                <MentorDashboard />
+              </MentorRoute>
+            </Suspense>
+          } />
 
-        {/* Admin Routes (Admins Only) */}
-        <Route path="/admin/dashboard" element={
-          <AdminRoute>
-            <AdminDashboard />
-          </AdminRoute>
-        } />
+          {/* Admin Routes (Admins Only) */}
+          <Route path="/admin/dashboard" element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          } />
 
-        <Route path="/admin/blogs/manage" element={
-          <AdminRoute>
-            <AdminBlogManage />
-          </AdminRoute>
-        } />
+          <Route path="/admin/blogs/manage" element={
+            <AdminRoute>
+              <AdminBlogManage />
+            </AdminRoute>
+          } />
 
-        <Route path="/admin/blogs/create" element={
-          <AdminRoute>
-            <AdminBlogCreate />
-          </AdminRoute>
-        } />
+          <Route path="/admin/blogs/create" element={
+            <AdminRoute>
+              <AdminBlogCreate />
+            </AdminRoute>
+          } />
 
-        <Route path="/admin/blogs/edit/:id" element={
-          <AdminRoute>
-            <AdminBlogEdit />
-          </AdminRoute>
-        } />
+          <Route path="/admin/blogs/edit/:id" element={
+            <AdminRoute>
+              <AdminBlogEdit />
+            </AdminRoute>
+          } />
 
-        {/* New Migration Tool Route */}
-        <Route path="/admin/migration" element={
-          <AdminRoute>
-            <MigrationTool />
-          </AdminRoute>
-        } />
+          <Route path="/admin/announcements/send" element={
+            <AdminRoute>
+              <AdminAnnouncementSend />
+            </AdminRoute>
+          } />
 
-        {/* Fellowship Settings Admin Route */}
-        <Route path="/admin/fellowship-settings" element={
-          <AdminRoute>
-            <FellowshipSettingsAdmin />
-          </AdminRoute>
-        } />
+          {/* Migration Tool Route */}
+          <Route path="/admin/migration" element={
+            <AdminRoute>
+              <MigrationTool />
+            </AdminRoute>
+          } />
 
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
+          {/* Fellowship Settings Admin Route */}
+          <Route path="/admin/fellowship-settings" element={
+            <AdminRoute>
+              <FellowshipSettingsAdmin />
+            </AdminRoute>
+          } />
 
-      </Routes>
+          {/* Static Pages */}
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+        </Routes>
+      </Suspense>
+
       <Analytics />
     </ErrorBoundary>
   );

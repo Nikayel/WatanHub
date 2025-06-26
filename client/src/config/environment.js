@@ -33,17 +33,56 @@ const config = {
     supabase: {
         url: process.env.REACT_APP_SUPABASE_URL,
         anonKey: process.env.REACT_APP_SUPABASE_ANON_KEY,
-        // Additional security options for production
+        // Enhanced security and session management options
         options: {
             auth: {
                 autoRefreshToken: true,
                 persistSession: true,
-                detectSessionInUrl: true
+                detectSessionInUrl: false, // Prevent state inconsistencies from URL
+                storageKey: 'watanhub-auth',
+                storage: {
+                    getItem: (key) => {
+                        try {
+                            return localStorage.getItem(key);
+                        } catch {
+                            return null;
+                        }
+                    },
+                    setItem: (key, value) => {
+                        try {
+                            localStorage.setItem(key, value);
+                        } catch {
+                            // Ignore storage errors
+                        }
+                    },
+                    removeItem: (key) => {
+                        try {
+                            localStorage.removeItem(key);
+                        } catch {
+                            // Ignore storage errors
+                        }
+                    }
+                },
+                // Additional security headers
+                flowType: 'pkce'
             },
             global: {
-                headers: isProduction ? {
-                    'X-Client-Info': 'watanhub-web'
-                } : {}
+                headers: {
+                    'X-Client-Info': 'watanhub-web',
+                    ...(isProduction ? {
+                        'X-Client-Version': config.app.version
+                    } : {})
+                }
+            },
+            // Add request timeout
+            fetch: (url, options) => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+                return fetch(url, {
+                    ...options,
+                    signal: controller.signal
+                }).finally(() => clearTimeout(timeoutId));
             }
         }
     },

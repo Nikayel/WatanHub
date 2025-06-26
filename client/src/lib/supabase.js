@@ -22,22 +22,38 @@ const supabase = createClient(
 
 // Reusable safe fetch for SELECT
 export async function safeSelect(table, columns = '*', filters = {}) {
-  let query = supabase.from(table).select(columns);
+  try {
+    let query = supabase.from(table).select(columns);
 
-  // Apply filters
-  Object.entries(filters).forEach(([key, value]) => {
-    query = query.eq(key, value);
-  });
+    // Apply filters
+    Object.entries(filters).forEach(([key, value]) => {
+      query = query.eq(key, value);
+    });
 
-  const { data, error } = await query;
+    const { data, error } = await query;
 
-  if (error) {
-    Logger.error(`Error selecting from ${table}:`, error);
-    toast.error(`Failed to fetch ${table}.`);
+    if (error) {
+      // Log the specific error for debugging
+      Logger.error(`Error selecting from ${table}:`, {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        filters
+      });
+
+      // Don't show toast for certain expected errors
+      if (error.code !== '42P01' && error.code !== 'PGRST116') { // Table doesn't exist, RLS policy
+        toast.error(`Failed to fetch ${table}.`);
+      }
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    Logger.error(`Unexpected error selecting from ${table}:`, error);
     return null;
   }
-
-  return data;
 }
 
 // Reusable safe INSERT

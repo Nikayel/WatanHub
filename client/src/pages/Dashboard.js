@@ -1,45 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+// Import only the icons we actually use to reduce bundle size
 import {
     User,
-    Bell,
     CheckCircle,
     Clock,
-    CheckSquare,
-    Loader,
-    Sparkles,
-    Brain,
-    BarChart,
-    LineChart,
-    School,
-    Edit,
-    MessageSquare,
-    Users,
-    GraduationCap,
-    Book,
-    Award,
     FileText,
-    MapPin,
-    Phone,
-    Mail,
     ChevronRight,
     TrendingUp,
     Lock,
-    Unlock,
-    Calendar,
     Upload,
     UserCheck,
-    Shield,
     Target,
     BookOpen,
-    Heart,
-    Settings,
     Activity,
-    Timer,
     Handshake,
-    Play,
     Star,
-    Bookmark
+    GraduationCap,
+    Shield,
+    Users,
+    MessageSquare,
+    Mail
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
@@ -66,7 +47,6 @@ const Dashboard = () => {
     const [mentorInfo, setMentorInfo] = useState(null);
     const [hasResume, setHasResume] = useState(false);
     const [sessionData, setSessionData] = useState({
-        currentSessionTime: 0,
         totalPlatformTime: 0,
         sessionsToday: 0
     });
@@ -80,69 +60,14 @@ const Dashboard = () => {
     // Profile walkthrough state
     const [showWalkthrough, setShowWalkthrough] = useState(false);
 
-    // Session tracking
-    const [sessionStartTime, setSessionStartTime] = useState(Date.now());
-
     useEffect(() => {
         if (user && profile) {
             fetchStudentStats();
             fetchMentorInfo();
             checkResumeStatus();
-            initializeSession();
             fetchSessionData();
         }
     }, [user, profile]);
-
-    // Session timer
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setSessionData(prev => ({
-                ...prev,
-                currentSessionTime: Math.floor((Date.now() - sessionStartTime) / 1000)
-            }));
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [sessionStartTime]);
-
-    // Save session on unmount
-    useEffect(() => {
-        const handleBeforeUnload = () => {
-            saveCurrentSession();
-        };
-
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            saveCurrentSession();
-        };
-    }, []);
-
-    const initializeSession = () => {
-        const startTime = Date.now();
-        setSessionStartTime(startTime);
-        localStorage.setItem('sessionStartTime', startTime.toString());
-    };
-
-    const saveCurrentSession = async () => {
-        if (!user?.id) return;
-
-        const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 1000);
-        if (sessionDuration < 10) return; // Don't save sessions less than 10 seconds
-
-        try {
-            await supabase
-                .from('user_sessions')
-                .insert({
-                    user_id: user.id,
-                    session_start: new Date(sessionStartTime).toISOString(),
-                    session_end: new Date().toISOString(),
-                    duration_seconds: sessionDuration
-                });
-        } catch (error) {
-            console.error('Error saving session:', error);
-        }
-    };
 
     const fetchSessionData = async () => {
         if (!user?.id) return;
@@ -173,9 +98,23 @@ const Dashboard = () => {
                     totalPlatformTime,
                     sessionsToday
                 }));
+            } else {
+                // If user_sessions table doesn't exist, set default values
+                console.log('user_sessions table not available, using defaults');
+                setSessionData(prev => ({
+                    ...prev,
+                    totalPlatformTime: 0,
+                    sessionsToday: 0
+                }));
             }
         } catch (error) {
             console.error('Error fetching session data:', error);
+            // Set default values on error
+            setSessionData(prev => ({
+                ...prev,
+                totalPlatformTime: 0,
+                sessionsToday: 0
+            }));
         }
     };
 
@@ -288,20 +227,6 @@ const Dashboard = () => {
         }
     };
 
-    const formatTime = (seconds) => {
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const secs = seconds % 60;
-
-        if (hours > 0) {
-            return `${hours}h ${minutes}m`;
-        } else if (minutes > 0) {
-            return `${minutes}m ${secs}s`;
-        } else {
-            return `${secs}s`;
-        }
-    };
-
     const formatTotalTime = (seconds) => {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
@@ -359,12 +284,8 @@ const Dashboard = () => {
                                 <div className="flex items-center space-x-4">
                                     <div className="hidden sm:flex items-center space-x-4 text-sm text-gray-600">
                                         <div className="flex items-center space-x-1">
-                                            <Timer className="h-4 w-4" />
-                                            <span>{formatTime(sessionData.currentSessionTime)}</span>
-                                        </div>
-                                        <div className="flex items-center space-x-1">
                                             <Activity className="h-4 w-4" />
-                                            <span>{sessionData.sessionsToday} today</span>
+                                            <span>{sessionData.sessionsToday} sessions today</span>
                                         </div>
                                     </div>
                                 </div>
@@ -563,17 +484,7 @@ const Dashboard = () => {
                                                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
                                                     <h4 className="font-semibold text-blue-900 mb-4">Current Session</h4>
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                        <div className="bg-white rounded-lg p-4 border border-blue-200">
-                                                            <div className="flex items-center space-x-3">
-                                                                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                                                    <Timer className="h-5 w-5 text-blue-600" />
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-sm font-medium text-gray-900">Session Time</p>
-                                                                    <p className="text-xl font-bold text-blue-600">{formatTime(sessionData.currentSessionTime)}</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                                        {/* Removed Session Time card - no longer needed */}
 
                                                         <div className="bg-white rounded-lg p-4 border border-blue-200">
                                                             <div className="flex items-center space-x-3">

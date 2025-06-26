@@ -7,8 +7,6 @@
     "@radix-ui/react-accordion": "^1.2.4",
     "@radix-ui/react-dialog": "^1.1.10",
     "@radix-ui/react-dropdown-menu": "^2.1.11",
-    "@react-three/drei": "^10.1.2",
-    "@react-three/fiber": "^9.1.2",
     "@supabase/supabase-js": "^2.49.4",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -35,7 +33,6 @@
     "recharts": "^2.15.3",
     "sonner": "^2.0.3",
     "tailwindcss-animate": "^1.0.7",
-    "three": "^0.177.0",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
