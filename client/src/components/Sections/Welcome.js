@@ -68,7 +68,7 @@ const Welcome = ({ onScrollClick }) => {
 
     const createParticles = () => {
       const particleCount = Math.min(Math.floor(window.innerWidth / 25), 60);
-      for (let i = 0; i < particleCount; i++) {
+      for (let particleIndex = 0; particleIndex < particleCount; particleIndex++) {
         particles.push(new Particle());
       }
     };
@@ -77,12 +77,12 @@ const Welcome = ({ onScrollClick }) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Update and draw particles
-      for (let i = particles.length - 1; i >= 0; i--) {
-        particles[i].update();
-        particles[i].draw();
+      for (let particleIdx = particles.length - 1; particleIdx >= 0; particleIdx--) {
+        particles[particleIdx].update();
+        particles[particleIdx].draw();
 
-        if (particles[i].isDead()) {
-          particles.splice(i, 1);
+        if (particles[particleIdx].isDead()) {
+          particles.splice(particleIdx, 1);
         }
       }
 

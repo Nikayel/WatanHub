@@ -391,8 +391,8 @@ export const AuthProvider = ({ children }) => {
       }
 
       // 3. Clear all potential Supabase-related localStorage items
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
+      for (let authIndex = 0; authIndex < localStorage.length; authIndex++) {
+        const key = localStorage.key(authIndex);
         if (key && (
           key.startsWith('sb-') ||
           key.includes('supabase') ||

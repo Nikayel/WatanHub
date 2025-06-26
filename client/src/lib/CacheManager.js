@@ -40,8 +40,8 @@ class CacheManager {
         try {
             const now = Date.now();
 
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
+            for (let cacheIndex = 0; cacheIndex < localStorage.length; cacheIndex++) {
+                const key = localStorage.key(cacheIndex);
                 if (key && key.startsWith(this.prefix)) {
                     const cacheKey = key.replace(this.prefix, '');
                     const rawData = localStorage.getItem(key);
@@ -182,8 +182,8 @@ class CacheManager {
         // Clear from localStorage
         try {
             const keysToRemove = [];
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
+            for (let clearIndex = 0; clearIndex < localStorage.length; clearIndex++) {
+                const key = localStorage.key(clearIndex);
                 if (key && key.startsWith(this.prefix)) {
                     keysToRemove.push(key);
                 }

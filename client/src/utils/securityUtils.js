@@ -69,7 +69,7 @@ class SecurityUtils {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         let result = '';
 
-        for (let i = 0; i < length; i++) {
+        for (let tokenIndex = 0; tokenIndex < length; tokenIndex++) {
             result += chars.charAt(Math.floor(Math.random() * chars.length));
         }
 

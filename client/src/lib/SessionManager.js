@@ -246,8 +246,8 @@ class SessionManager {
         const keysToRemove = [];
 
         // Collect keys to remove
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
+        for (let sessionIndex = 0; sessionIndex < localStorage.length; sessionIndex++) {
+            const key = localStorage.key(sessionIndex);
             if (key && (
                 key.startsWith('sb-') ||
                 key.includes('supabase') ||
