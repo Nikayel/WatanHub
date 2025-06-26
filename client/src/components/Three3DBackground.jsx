@@ -11,9 +11,9 @@ const Three3DBackground = ({ className = "" }) => {
             {/* Floating CSS particles */}
             <div className="absolute inset-0">
                 {/* CSS Stars */}
-                {[...Array(30)].map((_, i) => (
+                {[...Array(30)].map((_, starIndex) => (
                     <div
-                        key={i}
+                        key={starIndex}
                         className="absolute bg-white rounded-full opacity-60"
                         style={{
                             width: Math.random() * 3 + 1 + 'px',

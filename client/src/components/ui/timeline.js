@@ -51,12 +51,12 @@ const Timeline = ({ data, horizontal = false }) => {
             />
           </div>
           <div className="flex justify-between mt-2">
-            {data.map((item, i) => (
+            {data.map((item, timelineIndex) => (
               <motion.div
-                key={i}
+                key={timelineIndex}
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: i * 0.1, duration: 0.4 }}
+                transition={{ delay: timelineIndex * 0.1, duration: 0.4 }}
                 className="text-xs font-medium text-gray-600"
               >
                 {item.title}
@@ -71,7 +71,7 @@ const Timeline = ({ data, horizontal = false }) => {
           // Calculate left position based on year
           const year = parseInt(item.title);
           const yearPosition = ((year - startYear) / yearRange) * 100;
-          
+
           return (
             <motion.div
               key={index}

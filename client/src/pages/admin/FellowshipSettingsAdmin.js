@@ -222,8 +222,8 @@ const FellowshipSettingsAdmin = () => {
     const updateHighlight = (index, value) => {
         setSettings(prev => ({
             ...prev,
-            program_highlights: prev.program_highlights.map((item, i) =>
-                i === index ? value : item
+            program_highlights: prev.program_highlights.map((item, idx) =>
+                idx === index ? value : item
             )
         }));
     };
@@ -231,7 +231,7 @@ const FellowshipSettingsAdmin = () => {
     const removeHighlight = (index) => {
         setSettings(prev => ({
             ...prev,
-            program_highlights: prev.program_highlights.filter((_, i) => i !== index)
+            program_highlights: prev.program_highlights.filter((_, idx) => idx !== index)
         }));
     };
 
@@ -245,8 +245,8 @@ const FellowshipSettingsAdmin = () => {
     const updateRequirement = (index, value) => {
         setSettings(prev => ({
             ...prev,
-            who_can_apply: prev.who_can_apply.map((item, i) =>
-                i === index ? value : item
+            who_can_apply: prev.who_can_apply.map((item, idx) =>
+                idx === index ? value : item
             )
         }));
     };
@@ -254,7 +254,7 @@ const FellowshipSettingsAdmin = () => {
     const removeRequirement = (index) => {
         setSettings(prev => ({
             ...prev,
-            who_can_apply: prev.who_can_apply.filter((_, i) => i !== index)
+            who_can_apply: prev.who_can_apply.filter((_, idx) => idx !== index)
         }));
     };
 
