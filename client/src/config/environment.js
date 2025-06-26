@@ -70,7 +70,7 @@ const config = {
                 headers: {
                     'X-Client-Info': 'watanhub-web',
                     ...(isProduction ? {
-                        'X-Client-Version': config.app.version
+                        'X-Client-Version': process.env.REACT_APP_VERSION || '1.0.0'
                     } : {})
                 }
             },
