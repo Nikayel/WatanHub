@@ -140,41 +140,41 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex md:flex-1 justify-center">
             <ul className="flex items-center h-full">
-              {navItems.map((i) => (
-                <li key={i.id} className="px-4 h-full">
-                  {i.id === "mentors" || i.id === "our-vision" ? (
+              {navItems.map((navItem) => (
+                <li key={navItem.id} className="px-4 h-full">
+                  {navItem.id === "mentors" || navItem.id === "our-vision" ? (
                     <Link
-                      to={i.href}
+                      to={navItem.href}
                       className="relative h-full flex flex-col items-center justify-center group"
                     >
                       <span className={cn(
                         "flex items-center transition-colors duration-300",
-                        activeSection === i.id
+                        activeSection === navItem.id
                           ? "text-indigo-600 dark:text-indigo-400"
                           : "text-gray-600 dark:text-gray-300 group-hover:text-indigo-500 dark:group-hover:text-indigo-300"
                       )}>
-                        {i.id === "mentors" && <Users size={20} />}
-                        {i.id === "our-vision" && <Target size={20} />}
-                        <span className="ml-2 font-medium">{i.label}</span>
+                        {navItem.id === "mentors" && <Users size={20} />}
+                        {navItem.id === "our-vision" && <Target size={20} />}
+                        <span className="ml-2 font-medium">{navItem.label}</span>
                       </span>
                     </Link>
                   ) : (
                     <a
-                      href={i.href}
-                      onClick={(e) => clickItem(e, i.href, i.id)}
+                      href={navItem.href}
+                      onClick={(e) => clickItem(e, navItem.href, navItem.id)}
                       className="relative h-full flex flex-col items-center justify-center group"
                     >
                       <span className={cn(
                         "flex items-center transition-colors duration-300",
-                        activeSection === i.id
+                        activeSection === navItem.id
                           ? "text-indigo-600 dark:text-indigo-400"
                           : "text-gray-600 dark:text-gray-300 group-hover:text-indigo-500 dark:group-hover:text-indigo-300"
                       )}>
-                        {i.id === "home" && <Home size={20} />}
-                        {i.id === "about" && <Info size={20} />}
-                        {i.id === "contact" && <Mail size={20} />}
-                        {i.id === "get-involved" && <Rocket size={20} />}
-                        <span className="ml-2 font-medium">{i.label}</span>
+                        {navItem.id === "home" && <Home size={20} />}
+                        {navItem.id === "about" && <Info size={20} />}
+                        {navItem.id === "contact" && <Mail size={20} />}
+                        {navItem.id === "get-involved" && <Rocket size={20} />}
+                        <span className="ml-2 font-medium">{navItem.label}</span>
                       </span>
                     </a>
                   )}
@@ -407,22 +407,22 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
 
                 {/* Mobile Nav Items */}
                 <div className="flex flex-col h-full p-4 space-y-1 mt-12 text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900">
-                  {navItems.map((i) => (
-                    <div key={i.id}>
-                      {i.id === "mentors" || i.id === "our-vision" ? (
-                        <Link to={i.href} onClick={() => setMobileMenuOpen(false)}>
+                  {navItems.map((mobileNavItem) => (
+                    <div key={mobileNavItem.id}>
+                      {mobileNavItem.id === "mentors" || mobileNavItem.id === "our-vision" ? (
+                        <Link to={mobileNavItem.href} onClick={() => setMobileMenuOpen(false)}>
                           <Button variant="ghost" className="w-full flex justify-between py-6">
-                            {i.label}
+                            {mobileNavItem.label}
                             <ChevronRight size={16} />
                           </Button>
                         </Link>
                       ) : (
                         <Button
                           variant="ghost"
-                          onClick={(e) => clickItem(e, i.href, i.id)}
+                          onClick={(e) => clickItem(e, mobileNavItem.href, mobileNavItem.id)}
                           className="w-full flex justify-between py-6"
                         >
-                          {i.label}
+                          {mobileNavItem.label}
                           <ChevronRight size={16} />
                         </Button>
                       )}
