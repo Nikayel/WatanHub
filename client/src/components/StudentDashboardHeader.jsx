@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 
 const StudentDashboardHeader = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const [studentInfo, setStudentInfo] = useState(null);
 
     useEffect(() => {
@@ -15,23 +15,34 @@ const StudentDashboardHeader = () => {
 
             try {
                 const { data, error } = await supabase
-                    .from('students')
+                    .from('profiles')
                     .select('first_name, student_id')
-                    .eq('user_id', user.id)
+                    .eq('id', user.id)
                     .single();
 
-                if (error) {
+                if (error && error.code !== 'PGRST116') {
                     console.error('Error fetching student info:', error);
-                } else {
+                } else if (data) {
                     setStudentInfo(data);
+                } else if (profile) {
+                    setStudentInfo({
+                        first_name: profile.first_name,
+                        student_id: profile.student_id
+                    });
                 }
             } catch (error) {
                 console.error('Error fetching student info:', error);
+                if (profile) {
+                    setStudentInfo({
+                        first_name: profile.first_name,
+                        student_id: profile.student_id
+                    });
+                }
             }
         };
 
         fetchStudentInfo();
-    }, [user]);
+    }, [user, profile]);
 
     return (
         <div className="bg-white shadow-sm border-b px-4 py-3">
@@ -52,9 +63,12 @@ const StudentDashboardHeader = () => {
                             <span className="text-xl font-bold text-gray-900">WatanHub</span>
                             <span className="text-sm text-gray-500 ml-2">Student Dashboard</span>
                         </div>
-                        {studentInfo && (
+                        {(studentInfo || profile) && (
                             <div className="text-xs text-gray-600 mt-1">
-                                Hi, {studentInfo.first_name} • ID: {studentInfo.student_id}
+                                Hi, {studentInfo?.first_name || profile?.first_name}
+                                {(studentInfo?.student_id || profile?.student_id) && (
+                                    <span> • ID: {studentInfo?.student_id || profile?.student_id}</span>
+                                )}
                             </div>
                         )}
                     </div>

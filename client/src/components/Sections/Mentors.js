@@ -364,7 +364,7 @@ const AboutUs = () => {
         {
           name: 'Kaaj School Partnership',
           description: 'In March 2023, we partnered with Kaaj School to organize a transformative book reading contest that promoted literacy and educational excellence among students. These brave girls were targets of a terrorist attack in 2022 but courageously returned to continue their education.',
-          impact: 'Engaged 150+ students in reading initiatives',
+          impact: 'Engaged 100+ students in reading initiatives',
           images: ['/kaajpartnership/IMG_2608.jpg', '/kaajpartnership/IMG_2606 (1).PNG', '/kaajpartnership/IMG_2607.PNG'],
           articleLink: 'https://www.aljazeera.com/news/2022/10/1/kabul-attack-death-toll-rises-to-35-mostly-girls-young-women',
           articleTitle: 'Kabul attack: Death toll rises to 35 mostly girls, young women - Al Jazeera'
@@ -457,7 +457,7 @@ const AboutUs = () => {
 
                   <div className="bg-blue-50 rounded-2xl p-6 mb-8">
                     <h3 className="text-2xl font-bold text-blue-800 mb-3 italic">
-                      "Her Future, My Mission"
+                      "Learning Today, Leading Tomorrow"
                     </h3>
                     <p className="text-blue-700 font-medium">Our Mentor Motto</p>
                   </div>
@@ -519,14 +519,7 @@ const AboutUs = () => {
                       <h3 className="text-2xl font-bold text-slate-800 mb-6">About Our Mentors</h3>
                       <div className="space-y-6 text-lg text-slate-600 leading-relaxed">
                         <p>
-                          Our mentors are passionate Afghan professionals, students, and alumni from top universities
-                          worldwide. They volunteer their time to guide the next generation of Afghan leaders through
-                          personalized mentorship, academic support, and career guidance.
-                        </p>
-                        <p>
-                          Each mentor brings unique expertise in fields ranging from engineering and medicine to
-                          business and the arts. Together, they form a supportive community dedicated to empowering
-                          Afghan youth to achieve their dreams and make meaningful contributions to society.
+                          Our dedicated mentors provide personalized guidance and support to help Afghan youth achieve their educational and career goals through one-on-one mentorship programs.
                         </p>
                       </div>
                     </div>
@@ -653,7 +646,7 @@ const AboutUs = () => {
                               <h4 className="text-lg font-bold text-slate-800 mb-4 text-center">Our Impact</h4>
                               <div className="space-y-4">
                                 <div className="text-center">
-                                  <div className="text-3xl font-bold text-blue-600">150+</div>
+                                  <div className="text-3xl font-bold text-blue-600">100+</div>
                                   <div className="text-sm text-slate-600">Students Mentored</div>
                                 </div>
                                 <div className="text-center">

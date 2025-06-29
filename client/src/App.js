@@ -6,6 +6,7 @@ import './App.css';
 
 // Production optimizations
 import ErrorBoundary from './components/ErrorBoundary';
+import AuthErrorBoundary from './components/AuthErrorBoundary';
 import config from './config/environment';
 import Logger from './utils/logger';
 
@@ -55,6 +56,11 @@ const OnboardingSurvey = React.lazy(() => import('./pages/OnboardingSurvey'));
 const Terms = React.lazy(() => import('./pages/Terms'));
 const Privacy = React.lazy(() => import('./pages/Privacy'));
 
+// PWA Components
+const PWAInstallPrompt = React.lazy(() => import('./components/PWAInstallPrompt'));
+const PWAStatus = React.lazy(() => import('./components/PWAStatus'));
+const PWARefreshPrompt = React.lazy(() => import('./components/PWARefreshPrompt'));
+
 // Loading component for Suspense
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
@@ -79,104 +85,109 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Toaster position="top-center" richColors />
-      <ProfileTutorial />
-      <TermsChecker />
+      <AuthErrorBoundary>
+        <Toaster position="top-center" richColors />
+        <ProfileTutorial />
+        <TermsChecker />
+        <PWAInstallPrompt />
+        <PWAStatus />
+        <PWARefreshPrompt />
 
-      <Suspense fallback={<LoadingSpinner />}>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/mentors" element={<MentorsPage />} />
-          <Route path="/get-involved" element={<GetInvolvedPage />} />
-          <Route path="/our-vision" element={<OurVisionPage />} />
-          <Route path="/" element={<HomePage />} />
-          <Route path="/timeline" element={<TimelineDemo />} />
-          <Route path="/blogs" element={<BlogList />} />
-          <Route path="/blog/:id" element={<BlogDetail />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/mentor-application" element={<MentorApplicationPage />} />
-          <Route path="/signup" element={<SignUp isOpen={true} onClose={() => { }} />} />
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/mentors" element={<MentorsPage />} />
+            <Route path="/get-involved" element={<GetInvolvedPage />} />
+            <Route path="/our-vision" element={<OurVisionPage />} />
+            <Route path="/" element={<HomePage />} />
+            <Route path="/timeline" element={<TimelineDemo />} />
+            <Route path="/blogs" element={<BlogList />} />
+            <Route path="/blog/:id" element={<BlogDetail />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/mentor-application" element={<MentorApplicationPage />} />
+            <Route path="/signup" element={<SignUp isOpen={true} onClose={() => { }} />} />
 
-          {/* Protected Routes (Logged-in Users Only) */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
+            {/* Protected Routes (Logged-in Users Only) */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
 
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } />
 
-          <Route path="/onboarding-survey" element={
-            <ProtectedRoute>
-              <OnboardingSurvey />
-            </ProtectedRoute>
-          } />
+            <Route path="/onboarding-survey" element={
+              <ProtectedRoute>
+                <OnboardingSurvey />
+              </ProtectedRoute>
+            } />
 
-          {/* Mentor Routes */}
-          <Route path="/mentor/dashboard" element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <MentorRoute>
-                <MentorDashboard />
-              </MentorRoute>
-            </Suspense>
-          } />
+            {/* Mentor Routes */}
+            <Route path="/mentor/dashboard" element={
+              <Suspense fallback={<LoadingSpinner />}>
+                <MentorRoute>
+                  <MentorDashboard />
+                </MentorRoute>
+              </Suspense>
+            } />
 
-          {/* Admin Routes (Admins Only) */}
-          <Route path="/admin/dashboard" element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          } />
+            {/* Admin Routes (Admins Only) */}
+            <Route path="/admin/dashboard" element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } />
 
-          <Route path="/admin/blogs/manage" element={
-            <AdminRoute>
-              <AdminBlogManage />
-            </AdminRoute>
-          } />
+            <Route path="/admin/blogs/manage" element={
+              <AdminRoute>
+                <AdminBlogManage />
+              </AdminRoute>
+            } />
 
-          <Route path="/admin/blogs/create" element={
-            <AdminRoute>
-              <AdminBlogCreate />
-            </AdminRoute>
-          } />
+            <Route path="/admin/blogs/create" element={
+              <AdminRoute>
+                <AdminBlogCreate />
+              </AdminRoute>
+            } />
 
-          <Route path="/admin/blogs/edit/:id" element={
-            <AdminRoute>
-              <AdminBlogEdit />
-            </AdminRoute>
-          } />
+            <Route path="/admin/blogs/edit/:id" element={
+              <AdminRoute>
+                <AdminBlogEdit />
+              </AdminRoute>
+            } />
 
-          <Route path="/admin/announcements/send" element={
-            <AdminRoute>
-              <AdminAnnouncementSend />
-            </AdminRoute>
-          } />
+            <Route path="/admin/announcements/send" element={
+              <AdminRoute>
+                <AdminAnnouncementSend />
+              </AdminRoute>
+            } />
 
-          {/* Migration Tool Route */}
-          <Route path="/admin/migration" element={
-            <AdminRoute>
-              <MigrationTool />
-            </AdminRoute>
-          } />
+            {/* Migration Tool Route */}
+            <Route path="/admin/migration" element={
+              <AdminRoute>
+                <MigrationTool />
+              </AdminRoute>
+            } />
 
-          {/* Fellowship Settings Admin Route */}
-          <Route path="/admin/fellowship-settings" element={
-            <AdminRoute>
-              <FellowshipSettingsAdmin />
-            </AdminRoute>
-          } />
+            {/* Fellowship Settings Admin Route */}
+            <Route path="/admin/fellowship-settings" element={
+              <AdminRoute>
+                <FellowshipSettingsAdmin />
+              </AdminRoute>
+            } />
 
-          {/* Static Pages */}
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
-        </Routes>
-      </Suspense>
+            {/* Static Pages */}
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+          </Routes>
+        </Suspense>
 
-      <Analytics />
+        <Analytics />
+      </AuthErrorBoundary>
     </ErrorBoundary>
   );
 }

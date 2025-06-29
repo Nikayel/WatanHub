@@ -3,43 +3,78 @@ import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { User, ChevronLeft, Save, X, Edit2 } from 'lucide-react';
+import { User, ChevronLeft, Save, X, Edit2, RefreshCcw } from 'lucide-react';
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, profile: authProfile } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [savingChanges, setSavingChanges] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchProfile = async (showRefreshIndicator = false) => {
+    if (!user) return;
+
+    if (showRefreshIndicator) {
+      setRefreshing(true);
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        toast.error('Failed to load profile data');
+      } else {
+        setProfile(data);
+        setEditForm(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch profile:', err);
+      toast.error('Unable to fetch profile information');
+    } finally {
+      setLoading(false);
+      if (showRefreshIndicator) {
+        setRefreshing(false);
+      }
+    }
+  };
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
+    // Use profile from AuthContext if available, otherwise fetch fresh
+    if (authProfile && user) {
+      setProfile(authProfile);
+      setEditForm(authProfile);
+      setLoading(false);
+    } else if (user) {
+      fetchProfile();
+    }
 
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching profile:', error);
-        } else {
-          setProfile(data);
-          setEditForm(data);
-        }
-      } catch (err) {
-        console.error('Failed to fetch profile:', err);
-      } finally {
+    // Add timeout fallback for loading state
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.warn('Profile: Loading timeout reached');
         setLoading(false);
+        if (!profile && user) {
+          toast.error('Profile loading timeout. Please refresh the page.');
+        }
       }
-    };
+    }, 15000); // 15 second timeout
 
-    fetchProfile();
-  }, [user]);
+    return () => clearTimeout(timer);
+  }, [user, authProfile, loading, profile]);
+
+  const handleRefresh = () => {
+    toast.info('Refreshing profile data...');
+    fetchProfile(true);
+  };
 
   const handleInputChange = (key, value) => {
     setEditForm(prev => ({ ...prev, [key]: value }));
@@ -130,15 +165,27 @@ export default function Profile() {
 
         <h1 className="text-3xl sm:text-4xl font-bold text-center sm:text-left flex-grow">My Profile</h1>
 
-        {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center transition-colors"
-          >
-            <Edit2 size={16} className="mr-2" />
-            Edit Profile
-          </button>
-        )}
+        <div className="flex items-center space-x-2">
+          {!editing && (
+            <>
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg flex items-center transition-colors disabled:opacity-50"
+                title="Refresh profile data"
+              >
+                <RefreshCcw size={16} className={`${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={() => setEditing(true)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center transition-colors"
+              >
+                <Edit2 size={16} className="mr-2" />
+                Edit Profile
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

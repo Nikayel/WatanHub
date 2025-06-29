@@ -203,55 +203,116 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const setupAuthListener = async () => {
       setLoading(true);
+      setError(null);
+
       try {
-        const { data } = await supabase.auth.getSession();
+        // Get initial session with proper error handling
+        const { data, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error('Session retrieval error:', sessionError);
+          throw new Error(`Authentication failed: ${sessionError.message}`);
+        }
 
         if (data?.session?.user) {
           setUser(data.session.user);
-          await handleUserProfile(data.session.user);
+
+          // Handle profile setup with error isolation
+          try {
+            await handleUserProfile(data.session.user);
+          } catch (profileError) {
+            console.error('Profile setup failed:', profileError);
+            // Don't fail auth just because profile setup failed
+            // User is still authenticated, just profile might be incomplete
+            setError('Profile setup incomplete. Some features may be limited.');
+          }
         }
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
+            console.log('Auth state change:', event, session?.user?.email);
+
             if (event === 'SIGNED_IN' && session?.user) {
               setUser(session.user);
-              await handleUserProfile(session.user);
+              setError(null); // Clear any previous errors
+
+              try {
+                await handleUserProfile(session.user);
+              } catch (profileError) {
+                console.error('Profile setup failed on sign in:', profileError);
+                setError('Profile setup incomplete. Please check your profile settings.');
+              }
             } else if (event === 'SIGNED_OUT') {
+              console.log('User signed out, clearing state');
               clearUserState();
+            } else if (event === 'TOKEN_REFRESHED') {
+              console.log('Token refreshed successfully');
+              setError(null); // Clear any auth errors
             }
           }
         );
 
-        // Setup session manager listeners
+        // Setup session manager listeners with better error handling
         const removeSessionListener = sessionManager.addListener((event, data) => {
+          console.log('Session manager event:', event, data);
+
           switch (event) {
             case 'session_expired':
+              console.log('Session expired, logging out');
+              clearUserState();
+              setError('Your session has expired. Please sign in again.');
+              break;
             case 'force_logout':
+              console.log('Force logout triggered');
+              clearUserState();
+              setError('You have been logged out for security reasons.');
+              break;
             case 'global_logout':
+              console.log('Global logout detected');
               clearUserState();
               break;
             case 'session_error':
-              console.error('Session error:', data);
-              setError('Session validation failed');
+              console.error('Session validation error:', data);
+              // Don't show error to user for transient session issues
+              // Only log for debugging - user experience should be seamless
               break;
             case 'token_refreshed':
               console.log('Token refreshed successfully');
+              setError(null); // Clear any auth errors
               break;
+            default:
+              console.log('Unknown session event:', event);
           }
         });
 
         return () => {
+          console.log('Cleaning up auth listeners');
           subscription?.unsubscribe();
           removeSessionListener();
         };
       } catch (err) {
-        setError(err.message);
+        console.error('Auth setup failed:', err);
+        setError(err.message || 'Authentication initialization failed');
       } finally {
         setLoading(false);
       }
     };
 
+    // Add timeout for loading state - more conservative
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn('Auth setup taking too long, forcing completion');
+        setLoading(false);
+        // Don't set error immediately - let user continue and retry if needed
+        console.log('Auth timeout reached but continuing without error');
+      }
+    }, 10000); // 10 seconds timeout - reduced to avoid conflicts with Dashboard
+
     setupAuthListener();
+
+    return () => {
+      clearTimeout(loadingTimeout);
+    };
   }, []);
 
   // Clear all user state
@@ -391,6 +452,8 @@ export const AuthProvider = ({ children }) => {
       }
 
       // 3. Clear all potential Supabase-related localStorage items
+      // Safer iteration: collect keys first, then remove them
+      const keysToRemove = [];
       for (let authIndex = 0; authIndex < localStorage.length; authIndex++) {
         const key = localStorage.key(authIndex);
         if (key && (
@@ -398,10 +461,19 @@ export const AuthProvider = ({ children }) => {
           key.includes('supabase') ||
           key.includes('auth'))
         ) {
-          console.log('Removing localStorage key:', key);
-          localStorage.removeItem(key);
+          keysToRemove.push(key);
         }
       }
+
+      // Now safely remove all collected keys
+      keysToRemove.forEach(key => {
+        console.log('Removing localStorage key:', key);
+        try {
+          localStorage.removeItem(key);
+        } catch (removeError) {
+          console.warn('Failed to remove key:', key, removeError);
+        }
+      });
 
       // 4. Clear session cookies
       document.cookie.split(";").forEach(function (c) {

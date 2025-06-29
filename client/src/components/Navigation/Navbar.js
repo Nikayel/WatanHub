@@ -390,28 +390,28 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
           <div className="flex md:hidden">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger>
-                <Button variant="ghost" size="icon" className="rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700">
+                <Button variant="ghost" size="icon" className="rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200">
                   <Menu className="h-6 w-6" />
                 </Button>
               </SheetTrigger>
-              <SheetContent>
+              <SheetContent className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-r border-gray-200 dark:border-gray-700">
                 {/* Close Button */}
                 <div className="flex justify-end p-4">
                   <button
                     onClick={() => setMobileMenuOpen(false)}
-                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
                   >
                     <X size={24} />
                   </button>
                 </div>
 
                 {/* Mobile Nav Items */}
-                <div className="flex flex-col h-full p-4 space-y-1 mt-12 text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900">
+                <div className="flex flex-col h-full p-4 space-y-1 mt-12 text-gray-800 dark:text-gray-100">
                   {navItems.map((mobileNavItem) => (
                     <div key={mobileNavItem.id}>
                       {mobileNavItem.id === "mentors" || mobileNavItem.id === "our-vision" ? (
                         <Link to={mobileNavItem.href} onClick={() => setMobileMenuOpen(false)}>
-                          <Button variant="ghost" className="w-full flex justify-between py-6">
+                          <Button variant="ghost" className="w-full flex justify-between py-6 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">
                             {mobileNavItem.label}
                             <ChevronRight size={16} />
                           </Button>
@@ -420,7 +420,7 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
                         <Button
                           variant="ghost"
                           onClick={(e) => clickItem(e, mobileNavItem.href, mobileNavItem.id)}
-                          className="w-full flex justify-between py-6"
+                          className="w-full flex justify-between py-6 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                         >
                           {mobileNavItem.label}
                           <ChevronRight size={16} />
@@ -435,18 +435,18 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
                   {user ? (
                     <>
                       <Link to={getDashboardLink()} onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="outline" className="w-full">
+                        <Button variant="outline" className="w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
                           {getDashboardText()}
                         </Button>
                       </Link>
                       {!isAdmin && (
                         <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
-                          <Button variant="outline" className="w-full">
+                          <Button variant="outline" className="w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
                             Profile
                           </Button>
                         </Link>
                       )}
-                      <Button variant="destructive" onClick={doLogout} disabled={loggingOut} className="w-full flex items-center justify-center gap-2">
+                      <Button variant="destructive" onClick={doLogout} disabled={loggingOut} className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white">
                         {loggingOut ? (
                           <>
                             <span className="animate-spin h-4 w-4 mr-2 border-2 border-b-0 border-r-0 border-white rounded-full"></span>
@@ -463,12 +463,12 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
                   ) : (
                     <>
                       <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="outline" className="w-full">
+                        <Button variant="outline" className="w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
                           Login
                         </Button>
                       </Link>
                       <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
-                        <Button className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700">
+                        <Button className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white">
                           Join Now
                         </Button>
                       </Link>

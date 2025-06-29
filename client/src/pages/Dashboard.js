@@ -13,14 +13,15 @@ import {
     UserCheck,
     Target,
     BookOpen,
-    Activity,
     Handshake,
     Star,
     GraduationCap,
     Shield,
     Users,
     MessageSquare,
-    Mail
+    Mail,
+    RefreshCcw,
+    AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
@@ -35,6 +36,7 @@ import Three3DBackground from '../components/Three3DBackground';
 import StudentDashboardHeader from '../components/StudentDashboardHeader';
 import FellowshipSidebar from '../components/Dashboard/FellowshipSidebar';
 import FellowshipContent from '../components/Dashboard/FellowshipContent';
+import OfflineFellowshipContent from '../components/OfflineFellowshipContent';
 import EnglishTestLock from '../components/EnglishTestLock';
 import ProfileTutorial from '../components/ProfileTutorial';
 
@@ -59,57 +61,87 @@ const Dashboard = () => {
 
     // Profile walkthrough state
     const [showWalkthrough, setShowWalkthrough] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [dataStale, setDataStale] = useState(false);
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
 
     useEffect(() => {
-        if (user && profile) {
-            fetchStudentStats();
-            fetchMentorInfo();
-            checkResumeStatus();
-            fetchSessionData();
-        }
-    }, [user, profile]);
+        // Only fetch data when we have both user and profile, and not already loading
+        if (user && profile && loading) {
+            const fetchAllData = async () => {
+                try {
+                    await Promise.all([
+                        fetchStudentStats(),
+                        fetchMentorInfo(),
+                        checkResumeStatus(),
+                        fetchSessionData()
+                    ]);
+                } catch (error) {
+                    console.error('Error fetching dashboard data:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
 
-    const fetchSessionData = async () => {
+            fetchAllData();
+        } else if (user && !profile) {
+            // Handle case where user exists but profile is still loading
+            // Don't set loading to false immediately, give profile time to load
+            console.log('Dashboard: User exists, waiting for profile...');
+        } else if (!user && !loading) {
+            // User is not authenticated and we're not loading
+            console.log('Dashboard: No user, staying in non-loading state');
+        }
+    }, [user, profile]); // Remove 'loading' from dependencies to prevent loops
+
+    const fetchSessionData = async (timestamp = null) => {
         if (!user?.id) return;
 
         try {
-            // Get today's sessions
-            const today = new Date().toISOString().split('T')[0];
-
-            const { data: todaySessions, error: todayError } = await supabase
+            // Check if user_sessions table exists before querying
+            const { data: tableCheck } = await supabase
                 .from('user_sessions')
-                .select('duration_seconds')
-                .eq('user_id', user.id)
-                .gte('session_start', `${today}T00:00:00`)
-                .lt('session_start', `${today}T23:59:59`);
+                .select('id')
+                .limit(1);
 
-            // Get total platform time
-            const { data: allSessions, error: totalError } = await supabase
-                .from('user_sessions')
-                .select('duration_seconds')
-                .eq('user_id', user.id);
+            if (tableCheck !== null) {
+                // Get today's sessions
+                const today = new Date().toISOString().split('T')[0];
 
-            if (!todayError && !totalError) {
-                const totalPlatformTime = allSessions?.reduce((sum, session) => sum + (session.duration_seconds || 0), 0) || 0;
-                const sessionsToday = todaySessions?.length || 0;
+                const { data: todaySessions, error: todayError } = await supabase
+                    .from('user_sessions')
+                    .select('duration_seconds')
+                    .eq('user_id', user.id)
+                    .gte('session_start', `${today}T00:00:00`)
+                    .lt('session_start', `${today}T23:59:59`);
 
-                setSessionData(prev => ({
-                    ...prev,
-                    totalPlatformTime,
-                    sessionsToday
-                }));
-            } else {
-                // If user_sessions table doesn't exist, set default values
-                console.log('user_sessions table not available, using defaults');
-                setSessionData(prev => ({
-                    ...prev,
-                    totalPlatformTime: 0,
-                    sessionsToday: 0
-                }));
+                // Get total platform time
+                const { data: allSessions, error: totalError } = await supabase
+                    .from('user_sessions')
+                    .select('duration_seconds')
+                    .eq('user_id', user.id);
+
+                if (!todayError && !totalError) {
+                    const totalPlatformTime = allSessions?.reduce((sum, session) => sum + (session.duration_seconds || 0), 0) || 0;
+                    const sessionsToday = todaySessions?.length || 0;
+
+                    setSessionData(prev => ({
+                        ...prev,
+                        totalPlatformTime,
+                        sessionsToday
+                    }));
+                    return;
+                }
             }
+
+            // If user_sessions table doesn't exist or query fails, set default values
+            setSessionData(prev => ({
+                ...prev,
+                totalPlatformTime: 0,
+                sessionsToday: 0
+            }));
         } catch (error) {
-            console.error('Error fetching session data:', error);
-            // Set default values on error
+            // Don't log errors for missing tables, just set defaults
             setSessionData(prev => ({
                 ...prev,
                 totalPlatformTime: 0,
@@ -118,7 +150,7 @@ const Dashboard = () => {
         }
     };
 
-    const checkResumeStatus = async () => {
+    const checkResumeStatus = async (timestamp = null) => {
         if (!user?.id) return;
 
         try {
@@ -134,7 +166,7 @@ const Dashboard = () => {
         }
     };
 
-    const fetchMentorInfo = async () => {
+    const fetchMentorInfo = async (timestamp = null) => {
         try {
             if (!user?.id) return;
 
@@ -146,7 +178,6 @@ const Dashboard = () => {
                 .single();
 
             if (assignmentError || !assignmentData) {
-                console.log('No mentor assignment found');
                 setMentorInfo(null);
                 return;
             }
@@ -182,7 +213,7 @@ const Dashboard = () => {
         }
     };
 
-    const fetchStudentStats = async () => {
+    const fetchStudentStats = async (timestamp = null) => {
         try {
             // Calculate profile completion with comprehensive field list
             const fields = [
@@ -197,14 +228,23 @@ const Dashboard = () => {
             }).length;
             const profileCompletion = Math.round((completedFields / fields.length) * 100);
 
-            // Fetch student notes count
-            const { data: notesData } = await supabase
-                .from('mentor_notes')
-                .select('acknowledged')
-                .eq('student_id', user.id);
+            // Fetch student notes count - handle if mentor_notes table doesn't exist
+            let notesCount = 0;
+            let acknowledgedNotes = 0;
 
-            const notesCount = notesData?.length || 0;
-            const acknowledgedNotes = notesData?.filter(note => note.acknowledged)?.length || 0;
+            try {
+                const { data: notesData } = await supabase
+                    .from('mentor_notes')
+                    .select('acknowledged')
+                    .eq('student_id', user.id);
+
+                notesCount = notesData?.length || 0;
+                acknowledgedNotes = notesData?.filter(note => note.acknowledged)?.length || 0;
+            } catch (notesError) {
+                // Table might not exist, use defaults
+                notesCount = 0;
+                acknowledgedNotes = 0;
+            }
 
             setStudentStats({
                 profileCompletion,
@@ -214,10 +254,37 @@ const Dashboard = () => {
             });
         } catch (error) {
             console.error('Error fetching student stats:', error);
-        } finally {
-            setLoading(false);
         }
     };
+
+    // Simple loading timeout without conflicts
+    useEffect(() => {
+        if (!user || !profile) {
+            // Simple timeout for loading state - no conflicts with other systems
+            const loadingTimeout = setTimeout(() => {
+                if (loading) {
+                    console.log('Dashboard: Loading timeout reached, forcing completion');
+                    setLoading(false);
+                }
+            }, 8000); // 8 seconds - reasonable timeout
+
+            return () => clearTimeout(loadingTimeout);
+        }
+    }, [user, profile, loading]);
+
+    // Monitor online/offline status
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
     const handleCompleteProfile = () => {
         if (isProfileComplete) {
@@ -240,10 +307,115 @@ const Dashboard = () => {
         }
     };
 
+    const handleRefreshData = async () => {
+        if (!user || !profile) return;
+
+        setRefreshing(true);
+        setDataStale(false);
+
+        try {
+            // Clear browser cache for API responses
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(
+                        cacheNames.map(cacheName =>
+                            caches.open(cacheName).then(cache => {
+                                // Clear API cache entries
+                                return cache.keys().then(keys => {
+                                    const apiKeys = keys.filter(key =>
+                                        key.url.includes('/api/') ||
+                                        key.url.includes('supabase')
+                                    );
+                                    return Promise.all(apiKeys.map(key => cache.delete(key)));
+                                });
+                            })
+                        )
+                    );
+                } catch (cacheError) {
+                    console.log('Cache clearing failed:', cacheError);
+                }
+            }
+
+            // Force refresh all dashboard data with cache busting
+            const timestamp = Date.now();
+            await Promise.all([
+                fetchStudentStats(timestamp),
+                fetchMentorInfo(timestamp),
+                checkResumeStatus(timestamp),
+                fetchSessionData(timestamp)
+            ]);
+
+            // Communicate with service worker to refresh cache
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'FORCE_REFRESH',
+                    timestamp: timestamp
+                });
+            }
+
+            toast.success('Dashboard data refreshed successfully');
+        } catch (error) {
+            console.error('Error refreshing dashboard data:', error);
+            toast.error('Failed to refresh dashboard data. Please try again.');
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <div className="flex flex-col items-center space-y-6">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                    <div className="text-center">
+                        <h3 className="text-lg font-medium text-gray-900">Loading Dashboard</h3>
+                        <p className="text-sm text-gray-500 mt-1">Preparing your personalized experience...</p>
+                    </div>
+
+                    {/* Emergency access button after 3 seconds */}
+                    <div className="mt-4">
+                        <button
+                            onClick={() => {
+                                console.log('User requested emergency access');
+                                setLoading(false);
+                                toast.info('Loading forced complete. Some features may be limited.');
+                            }}
+                            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm transition-colors"
+                        >
+                            Continue Anyway
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Handle case where auth failed or no user data
+    if (!user && !loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="mb-4">
+                        <Shield className="h-16 w-16 text-gray-400 mx-auto" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Required</h2>
+                    <p className="text-gray-600 mb-6">Please sign in to access your dashboard.</p>
+                    <div className="space-x-3">
+                        <button
+                            onClick={() => navigate('/login')}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                        >
+                            Sign In
+                        </button>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+                        >
+                            Refresh Page
+                        </button>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -281,14 +453,24 @@ const Dashboard = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center space-x-4">
-                                    <div className="hidden sm:flex items-center space-x-4 text-sm text-gray-600">
-                                        <div className="flex items-center space-x-1">
-                                            <Activity className="h-4 w-4" />
-                                            <span>{sessionData.sessionsToday} sessions today</span>
+
+                                <div className="flex items-center space-x-2">
+                                    {dataStale && (
+                                        <div className="flex items-center space-x-1 text-amber-600 text-sm">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <span>Data may be stale</span>
                                         </div>
-                                    </div>
+                                    )}
+                                    <button
+                                        onClick={handleRefreshData}
+                                        disabled={refreshing}
+                                        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg flex items-center transition-colors disabled:opacity-50"
+                                        title="Refresh dashboard data"
+                                    >
+                                        <RefreshCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                                    </button>
                                 </div>
+
                             </div>
 
                             {/* Main Tab Navigation */}
@@ -347,13 +529,7 @@ const Dashboard = () => {
                                             </div>
                                             <span className="text-sm font-bold text-green-600">{studentStats.acknowledgedNotes}</span>
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center space-x-2">
-                                                <Clock className="h-4 w-4 text-purple-600" />
-                                                <span className="text-sm text-gray-600">Platform Time</span>
-                                            </div>
-                                            <span className="text-sm font-bold text-purple-600">{formatTotalTime(sessionData.totalPlatformTime)}</span>
-                                        </div>
+
                                     </div>
                                 </div>
 
@@ -480,37 +656,7 @@ const Dashboard = () => {
                                             <div className="space-y-6">
                                                 <h3 className="text-xl font-bold text-gray-900">Welcome to Your Dashboard</h3>
 
-                                                {/* Current Session Activity */}
-                                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                                                    <h4 className="font-semibold text-blue-900 mb-4">Current Session</h4>
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                        {/* Removed Session Time card - no longer needed */}
 
-                                                        <div className="bg-white rounded-lg p-4 border border-blue-200">
-                                                            <div className="flex items-center space-x-3">
-                                                                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                                                                    <Activity className="h-5 w-5 text-purple-600" />
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-sm font-medium text-gray-900">Today's Sessions</p>
-                                                                    <p className="text-xl font-bold text-purple-600">{sessionData.sessionsToday}</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="bg-white rounded-lg p-4 border border-blue-200">
-                                                            <div className="flex items-center space-x-3">
-                                                                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                                                                    <Clock className="h-5 w-5 text-green-600" />
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-sm font-medium text-gray-900">Total Time</p>
-                                                                    <p className="text-xl font-bold text-green-600">{formatTotalTime(sessionData.totalPlatformTime)}</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
 
                                                 {/* Quick Actions Grid */}
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -660,73 +806,35 @@ const Dashboard = () => {
                     )}
 
                     {activeMainTab === 'fellowship' && (
-                        <div className="max-w-5xl mx-auto">
-                            <div className="bg-white rounded-xl shadow-md border border-gray-100 p-8">
-                                <div className="text-center">
-                                    <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <Handshake className="h-10 w-10 text-indigo-600" />
-                                    </div>
-                                    <h2 className="text-3xl font-bold text-gray-900 mb-4">Fellowship Program</h2>
-                                    <p className="text-xl text-gray-600 mb-8">
-                                        Join our upcoming cohort and take your education journey to the next level.
-                                    </p>
+                        <div className="max-w-7xl mx-auto">
+                            <OfflineFellowshipContent
+                                isOnline={isOnline}
+                                userProgress={{}}
+                            />
 
-                                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-8 mb-8">
-                                        <h3 className="text-xl font-semibold text-indigo-900 mb-3">Ready to Apply?</h3>
-                                        <p className="text-indigo-700 mb-6 text-lg">
-                                            Contact your mentor or reach out to us directly to learn more about enrollment in our upcoming fellowship cohort.
-                                        </p>
-
-                                        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                                            {mentorInfo ? (
-                                                <div className="flex items-center space-x-3 text-indigo-700 bg-white px-6 py-3 rounded-lg border border-indigo-200">
-                                                    <Mail className="h-5 w-5" />
-                                                    <span className="font-medium">
-                                                        Contact your mentor: {mentorInfo.email || mentorInfo.full_name}
-                                                    </span>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center space-x-3 text-indigo-700 bg-white px-6 py-3 rounded-lg border border-indigo-200">
-                                                    <Mail className="h-5 w-5" />
-                                                    <span className="font-medium">Email us: watanyouthgp@gmail.com</span>
-                                                </div>
-                                            )}
+                            {/* Mentor Contact Section */}
+                            {mentorInfo && (
+                                <div className="mt-8 bg-white rounded-xl shadow-md border border-gray-100 p-6">
+                                    <div className="flex items-center space-x-4">
+                                        <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                                            <Users className="h-6 w-6 text-indigo-600" />
                                         </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-                                        <div className="bg-gray-50 rounded-lg p-6">
-                                            <div className="w-14 h-14 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                                                <GraduationCap className="h-7 w-7 text-blue-600" />
-                                            </div>
-                                            <h4 className="font-semibold text-gray-900 mb-2">Academic Excellence</h4>
-                                            <p className="text-sm text-gray-600">
-                                                Advanced learning opportunities with dedicated mentorship and resources.
-                                            </p>
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-gray-900">Your Mentor</h3>
+                                            <p className="text-gray-600">{mentorInfo.first_name} {mentorInfo.last_name}</p>
                                         </div>
-
-                                        <div className="bg-gray-50 rounded-lg p-6">
-                                            <div className="w-14 h-14 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                                                <Users className="h-7 w-7 text-green-600" />
-                                            </div>
-                                            <h4 className="font-semibold text-gray-900 mb-2">Community</h4>
-                                            <p className="text-sm text-gray-600">
-                                                Connect with like-minded peers and build lasting professional relationships.
-                                            </p>
-                                        </div>
-
-                                        <div className="bg-gray-50 rounded-lg p-6">
-                                            <div className="w-14 h-14 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                                                <Target className="h-7 w-7 text-purple-600" />
-                                            </div>
-                                            <h4 className="font-semibold text-gray-900 mb-2">Career Growth</h4>
-                                            <p className="text-sm text-gray-600">
-                                                Gain skills and experience that will accelerate your career trajectory.
-                                            </p>
+                                        <div className="ml-auto">
+                                            <a
+                                                href={`mailto:${mentorInfo.email}`}
+                                                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                                            >
+                                                <Mail className="h-4 w-4" />
+                                                <span>Contact</span>
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     )}
                 </div>

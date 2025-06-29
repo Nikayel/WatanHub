@@ -6,12 +6,13 @@ class SessionManager {
     constructor() {
         this.sessionTimeout = 24 * 60 * 60 * 1000; // 24 hours
         this.inactivityTimeout = 8 * 60 * 60 * 1000; // 8 hours of inactivity (much more lenient)
-        this.checkInterval = 60 * 60 * 1000; // Check every 1 hour (much less frequent)
+        this.checkInterval = 5 * 60 * 1000; // Check every 5 minutes (more reasonable)
         this.lastActivity = Date.now();
         this.isActive = true;
         this.intervalId = null;
         this.listeners = new Set();
         this.isInitialized = false;
+        this.initTime = Date.now(); // Track when session manager was initialized
 
         this.init();
     }
@@ -38,26 +39,25 @@ class SessionManager {
         });
     }
 
-    // Handle tab visibility changes
+    // Handle tab visibility changes - simplified to avoid conflicts
     setupVisibilityTracking() {
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 this.isActive = false;
                 this.saveActivityToStorage();
-                Logger.debug('Tab became hidden, pausing session checks');
+                Logger.debug('Tab became hidden, saving activity');
             } else {
                 this.isActive = true;
                 this.lastActivity = Date.now();
-                Logger.debug('Tab became visible, resuming session checks');
-                // Don't validate session on every tab switch - too aggressive
+                Logger.debug('Tab became visible, updating activity');
+                // REMOVED: Session validation - let other systems handle refresh logic
             }
         });
 
-        // Handle window focus/blur - but don't validate session immediately
+        // Handle window focus/blur - simplified tracking only
         window.addEventListener('focus', () => {
             this.isActive = true;
             this.lastActivity = Date.now();
-            // Removed automatic session validation on focus
         });
 
         window.addEventListener('blur', () => {
@@ -95,13 +95,21 @@ class SessionManager {
         });
     }
 
-    // Validate current session
-    async validateSession() {
+    // Validate current session with retry logic
+    async validateSession(retryCount = 0) {
         try {
             const { data: { session }, error } = await supabase.auth.getSession();
 
             if (error) {
                 Logger.error('Session validation error:', error);
+
+                // Implement retry logic for network errors
+                if (retryCount < 2 && (error.message.includes('network') || error.message.includes('fetch'))) {
+                    Logger.info(`Retrying session validation (attempt ${retryCount + 1})`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+                    return this.validateSession(retryCount + 1);
+                }
+
                 // Don't immediately trigger logout on validation errors
                 this.notifyListeners('session_error', error);
                 return false;
@@ -110,8 +118,13 @@ class SessionManager {
             if (!session) {
                 Logger.info('No active session found');
                 // Only logout if we've been running for a while (not immediately on startup)
-                if (this.isInitialized) {
+                // More conservative check - wait at least 60 seconds after initialization
+                const timeSinceInit = this.isInitialized ? Date.now() - this.initTime : 0;
+                if (this.isInitialized && timeSinceInit > 60000) {
+                    Logger.info('Session expired after grace period, triggering logout');
                     this.notifyListeners('session_expired');
+                } else {
+                    Logger.info('No session found but within grace period, not logging out');
                 }
                 return false;
             }
@@ -137,6 +150,7 @@ class SessionManager {
             // Mark as initialized after first successful validation
             if (!this.isInitialized) {
                 this.isInitialized = true;
+                this.initTime = Date.now(); // Update init time on successful validation
                 Logger.info('Session manager initialized successfully');
             }
 
