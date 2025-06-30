@@ -158,7 +158,34 @@ const BlogHomepageSection = () => {
                                                 className="w-full h-48 md:h-56 lg:h-48 object-cover group-hover:scale-110 transition-transform duration-700"
                                                 loading="lazy"
                                                 onError={(e) => {
-                                                    e.target.src = '/api/placeholder/400/240';
+                                                    console.error('🖼️ Image failed to load:', {
+                                                        src: e.target.src,
+                                                        blogId: blog.id,
+                                                        title: blog.title,
+                                                        error: 'Image load failure'
+                                                    });
+
+                                                    // Try to detect if it's a Supabase storage URL
+                                                    if (e.target.src.includes('supabase')) {
+                                                        console.log('🔧 Supabase storage image failed - check:');
+                                                        console.log('1. Storage bucket exists and is public');
+                                                        console.log('2. RLS policies allow public access');
+                                                        console.log('3. CORS settings include your domain');
+                                                    }
+
+                                                    // Set a fallback placeholder
+                                                    e.target.style.display = 'none';
+                                                    e.target.parentElement.innerHTML = `
+                                                        <div class="h-48 md:h-56 lg:h-48 bg-gradient-to-br from-red-400 via-orange-400 to-yellow-500 flex items-center justify-center">
+                                                            <div class="text-center text-white p-6">
+                                                                <svg class="w-12 h-12 mx-auto mb-3 opacity-80" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                                                                </svg>
+                                                                <div class="text-sm font-medium opacity-90">Image Unavailable</div>
+                                                                <div class="text-xs opacity-70 mt-1">Production loading issue</div>
+                                                            </div>
+                                                        </div>
+                                                    `;
                                                 }}
                                             />
                                         </div>

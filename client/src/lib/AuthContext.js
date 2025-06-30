@@ -266,7 +266,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         console.log('Auth timeout reached but continuing without error');
       }
-    }, 30000);
+    }, 10000); // Reduced from 30 seconds to 10 seconds for faster response
 
     setupAuth();
 

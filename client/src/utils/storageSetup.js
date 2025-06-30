@@ -42,26 +42,72 @@ export class StorageManager {
     // Initialize storage bucket with better error handling
     static async initializeBucket() {
         try {
-            // Just check if bucket exists, don't try to create it
+            // Check if bucket exists
             const { data: buckets, error: listError } = await supabase.storage.listBuckets();
 
             if (listError) {
                 console.warn('⚠️ Could not check storage buckets:', listError.message);
+
+                // Production-specific error handling
+                if (listError.message.includes('CORS')) {
+                    console.error('🚨 CORS ERROR: Your production domain is not allowed in Supabase');
+                    console.log('🔧 Fix: Add your production domain to Supabase Dashboard > Authentication > URL Configuration');
+                }
+
                 return false;
             }
 
             const bucketExists = buckets.some(bucket => bucket.name === this.BUCKET_NAME);
 
             if (!bucketExists) {
-                console.warn('⚠️ blog-images bucket not found. Please create it manually in Supabase Dashboard > Storage');
+                console.warn('⚠️ blog-images bucket not found in production');
+                console.log('🔧 Production Fix Required:');
+                console.log('1. Go to Supabase Dashboard > Storage');
+                console.log('2. Create bucket "blog-images" with Public = true');
+                console.log('3. Set up storage policies for public access');
                 return false;
             } else {
                 console.log('✅ Blog images bucket exists');
+
+                // Test bucket access in production
+                await this.testBucketAccess();
             }
 
             return true;
         } catch (error) {
             console.warn('⚠️ Storage check failed:', error.message);
+
+            // Detect common production issues
+            if (error.message.includes('NetworkError') || error.message.includes('fetch')) {
+                console.error('🚨 NETWORK ERROR: Cannot reach Supabase storage in production');
+                console.log('🔧 Check: Is your Supabase project active and accessible?');
+            }
+
+            return false;
+        }
+    }
+
+    // Test bucket access - production debugging
+    static async testBucketAccess() {
+        try {
+            // Try to list files in the bucket to verify access
+            const { data, error } = await supabase.storage
+                .from(this.BUCKET_NAME)
+                .list('', { limit: 1 });
+
+            if (error) {
+                console.error('🚨 BUCKET ACCESS ERROR:', error.message);
+                if (error.message.includes('row-level security')) {
+                    console.log('🔧 RLS Policy Missing: Storage bucket needs public SELECT policy');
+                    console.log('Policy needed: bucket_id = "blog-images" for public SELECT');
+                }
+                return false;
+            }
+
+            console.log('✅ Bucket access verified');
+            return true;
+        } catch (error) {
+            console.error('🚨 Bucket access test failed:', error);
             return false;
         }
     }

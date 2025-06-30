@@ -45,7 +45,7 @@ const StudentDashboardHeader = () => {
     }, [user, profile]);
 
     return (
-        <div className="bg-white shadow-sm border-b">
+        <div className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
             {/* Mobile Layout */}
             <div className="block sm:hidden">
                 <div className="px-4 py-3 space-y-3">
@@ -53,7 +53,7 @@ const StudentDashboardHeader = () => {
                     <div className="flex items-center justify-between">
                         <button
                             onClick={() => navigate('/')}
-                            className="flex items-center text-gray-600 hover:text-blue-600 transition-colors p-2 -ml-2 rounded-lg hover:bg-blue-50"
+                            className="flex items-center text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-2 -ml-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
                         >
                             <ArrowLeft className="h-5 w-5 mr-1" />
                             <span className="text-sm font-medium">Home</span>
@@ -61,7 +61,7 @@ const StudentDashboardHeader = () => {
 
                         <Link
                             to="/profile"
-                            className="flex items-center text-gray-600 hover:text-blue-600 transition-colors p-2 -mr-2 rounded-lg hover:bg-blue-50"
+                            className="flex items-center text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-2 -mr-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
                         >
                             <User className="h-5 w-5 mr-1" />
                             <span className="text-sm font-medium">Profile</span>
@@ -70,13 +70,13 @@ const StudentDashboardHeader = () => {
 
                     {/* Brand Row */}
                     <div className="text-center py-2">
-                        <h1 className="text-2xl font-bold text-gray-900 mb-1">WatanHub</h1>
-                        <div className="text-sm text-blue-600 font-medium">Student Dashboard</div>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">WatanHub</h1>
+                        <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">Student Dashboard</div>
                         {(studentInfo || profile) && (
-                            <div className="text-xs text-gray-500 mt-2 px-4 py-1 bg-gray-50 rounded-full inline-block">
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-2 px-4 py-1 bg-gray-100 dark:bg-gray-800 rounded-full inline-block">
                                 Welcome, {studentInfo?.first_name || profile?.first_name}
                                 {(studentInfo?.student_id || profile?.student_id) && (
-                                    <span className="text-gray-400"> • ID: {studentInfo?.student_id || profile?.student_id}</span>
+                                    <span className="text-gray-500 dark:text-gray-500"> • ID: {studentInfo?.student_id || profile?.student_id}</span>
                                 )}
                             </div>
                         )}
@@ -91,7 +91,7 @@ const StudentDashboardHeader = () => {
                         {/* Back Button */}
                         <button
                             onClick={() => navigate('/')}
-                            className="flex items-center text-gray-600 hover:text-blue-600 transition-colors p-2 -ml-2 rounded-lg hover:bg-blue-50"
+                            className="flex items-center text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-2 -ml-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
                         >
                             <ArrowLeft className="h-5 w-5 mr-2" />
                             <span className="font-medium">Back to Home</span>
@@ -101,16 +101,16 @@ const StudentDashboardHeader = () => {
                         <div className="flex items-center">
                             <div className="text-center">
                                 <div className="flex items-center space-x-3">
-                                    <span className="text-2xl font-bold text-gray-900">WatanHub</span>
-                                    <span className="text-sm text-blue-600 font-medium bg-blue-50 px-3 py-1 rounded-full">
+                                    <span className="text-2xl font-bold text-gray-900 dark:text-white">WatanHub</span>
+                                    <span className="text-sm text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
                                         Student Dashboard
                                     </span>
                                 </div>
                                 {(studentInfo || profile) && (
-                                    <div className="text-sm text-gray-600 mt-2">
+                                    <div className="text-sm text-gray-700 dark:text-gray-300 mt-2">
                                         Welcome back, {studentInfo?.first_name || profile?.first_name}
                                         {(studentInfo?.student_id || profile?.student_id) && (
-                                            <span className="text-gray-400"> • Student ID: {studentInfo?.student_id || profile?.student_id}</span>
+                                            <span className="text-gray-500 dark:text-gray-500"> • Student ID: {studentInfo?.student_id || profile?.student_id}</span>
                                         )}
                                     </div>
                                 )}
@@ -120,7 +120,7 @@ const StudentDashboardHeader = () => {
                         {/* Profile Button */}
                         <Link
                             to="/profile"
-                            className="flex items-center text-gray-600 hover:text-blue-600 transition-colors p-3 -mr-2 rounded-lg hover:bg-blue-50"
+                            className="flex items-center text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-3 -mr-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
                         >
                             <User className="h-5 w-5 mr-2" />
                             <span className="font-medium">Profile</span>

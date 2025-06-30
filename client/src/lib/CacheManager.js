@@ -246,6 +246,64 @@ class CacheManager {
 
         Logger.debug(`Cache cleanup: removed ${expiredKeys.length} expired items`);
     }
+
+    // Emergency cache clear for troubleshooting
+    emergencyClear() {
+        console.log('🚨 Emergency cache clear initiated');
+
+        // Clear all in-memory cache
+        this.clear();
+
+        // Clear all localStorage with watanhub prefix
+        try {
+            const allKeys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('watanhub') || key.startsWith('sb-') || key.includes('supabase'))) {
+                    allKeys.push(key);
+                }
+            }
+            allKeys.forEach(key => localStorage.removeItem(key));
+            console.log(`🧹 Cleared ${allKeys.length} localStorage keys`);
+        } catch (error) {
+            console.warn('Failed to clear localStorage in emergency clear:', error);
+        }
+
+        // Clear sessionStorage
+        try {
+            sessionStorage.clear();
+            console.log('🧹 Cleared sessionStorage');
+        } catch (error) {
+            console.warn('Failed to clear sessionStorage:', error);
+        }
+
+        // Clear browser cache if possible
+        if ('caches' in window) {
+            caches.keys().then(cacheNames => {
+                cacheNames.forEach(cacheName => {
+                    if (cacheName.includes('watanhub')) {
+                        caches.delete(cacheName);
+                        console.log(`🧹 Cleared cache: ${cacheName}`);
+                    }
+                });
+            }).catch(error => {
+                console.warn('Failed to clear browser caches:', error);
+            });
+        }
+    }
+
+    // Force refresh all cached data
+    forceRefreshAll() {
+        console.log('🔄 Force refreshing all cached data');
+
+        // Clear all cache
+        this.clear();
+
+        // Notify all components that cache was cleared
+        window.dispatchEvent(new CustomEvent('cache-cleared', {
+            detail: { timestamp: Date.now() }
+        }));
+    }
 }
 
 // Cache wrapper for API calls

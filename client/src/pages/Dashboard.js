@@ -84,15 +84,20 @@ const Dashboard = () => {
             };
 
             fetchAllData();
-        } else if (user && !profile) {
-            // Handle case where user exists but profile is still loading
-            // Don't set loading to false immediately, give profile time to load
-            console.log('Dashboard: User exists, waiting for profile...');
         } else if (!user && !loading) {
             // User is not authenticated and we're not loading
             console.log('Dashboard: No user, staying in non-loading state');
+            setLoading(false);
+        } else if (user && !profile) {
+            // Set a simple timeout if profile is taking too long
+            const profileTimeout = setTimeout(() => {
+                console.log('Dashboard: Profile loading timeout, forcing load completion');
+                setLoading(false);
+            }, 5000); // 5 seconds
+
+            return () => clearTimeout(profileTimeout);
         }
-    }, [user, profile]); // Remove 'loading' from dependencies to prevent loops
+    }, [user, profile, loading]);
 
     const fetchSessionData = async (timestamp = null) => {
         if (!user?.id) return;
@@ -257,20 +262,7 @@ const Dashboard = () => {
         }
     };
 
-    // Simple loading timeout without conflicts
-    useEffect(() => {
-        if (!user || !profile) {
-            // Simple timeout for loading state - no conflicts with other systems
-            const loadingTimeout = setTimeout(() => {
-                if (loading) {
-                    console.log('Dashboard: Loading timeout reached, forcing completion');
-                    setLoading(false);
-                }
-            }, 8000); // 8 seconds - reasonable timeout
-
-            return () => clearTimeout(loadingTimeout);
-        }
-    }, [user, profile, loading]);
+    // Remove all conflicting timeout logic - let AuthContext handle loading state
 
     // Monitor online/offline status
     useEffect(() => {

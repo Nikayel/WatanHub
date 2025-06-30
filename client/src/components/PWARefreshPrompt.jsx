@@ -47,11 +47,11 @@ const PWARefreshPrompt = () => {
                 const timeAway = Date.now() - lastActivity;
                 console.log('App became visible, time away:', timeAway / 1000, 'seconds');
 
-                // Only consider stale if away for more than 10 minutes (increased from 2)
-                if (timeAway > 10 * 60 * 1000) {
+                // Only consider stale if away for more than 30 minutes (increased from 10)
+                if (timeAway > 30 * 60 * 1000) {
                     setIsStale(true);
-                    // Only show refresh prompt if away for more than 20 minutes (increased from 10)
-                    if (timeAway > 20 * 60 * 1000) {
+                    // Only show refresh prompt if away for more than 60 minutes (increased from 20)
+                    if (timeAway > 60 * 60 * 1000) {
                         setShowRefreshPrompt(true);
                     }
                 } else {

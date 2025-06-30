@@ -14,7 +14,7 @@ const ProtectedRoute = ({ children }) => {
                 console.warn('ProtectedRoute: Loading timeout reached');
                 setTimeoutReached(true);
             }
-        }, 25000); // 25 second timeout - aligned with AuthContext
+        }, 12000); // 12 second timeout - aligned with AuthContext (10s + 2s buffer)
 
         return () => clearTimeout(timer);
     }, [loading]);

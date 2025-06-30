@@ -1,4 +1,6 @@
 import React from 'react';
+import { AlertTriangle, RefreshCw, Home, Settings, Download } from 'lucide-react';
+import { cacheManager } from '../lib/CacheManager';
 import Logger from '../utils/logger';
 import config from '../config/environment';
 
@@ -9,12 +11,36 @@ class ErrorBoundary extends React.Component {
             hasError: false,
             error: null,
             errorInfo: null,
-            errorId: null
+            retryCount: 0,
+            infiniteLoadingDetected: false
         };
+
+        this.loadingCheckInterval = null;
+        this.loadingStartTime = Date.now();
     }
 
     static getDerivedStateFromError(error) {
         return { hasError: true };
+    }
+
+    componentDidMount() {
+        // Detect potential infinite loading states
+        this.loadingCheckInterval = setInterval(() => {
+            const loadingElements = document.querySelectorAll('[data-loading="true"], .animate-spin');
+            const now = Date.now();
+
+            if (loadingElements.length > 0 && (now - this.loadingStartTime) > 30000) {
+                console.warn('⚠️ Potential infinite loading detected');
+                this.setState({ infiniteLoadingDetected: true });
+                clearInterval(this.loadingCheckInterval);
+            }
+        }, 5000);
+    }
+
+    componentWillUnmount() {
+        if (this.loadingCheckInterval) {
+            clearInterval(this.loadingCheckInterval);
+        }
     }
 
     componentDidCatch(error, errorInfo) {
@@ -72,8 +98,40 @@ class ErrorBoundary extends React.Component {
         }
     };
 
-    handleReload = () => {
+    handleRetry = () => {
+        this.setState(prevState => ({
+            hasError: false,
+            error: null,
+            errorInfo: null,
+            infiniteLoadingDetected: false,
+            retryCount: prevState.retryCount + 1
+        }));
+
+        // Clear cache on retry
+        if (this.state.retryCount > 0) {
+            cacheManager.emergencyClear();
+        }
+
         window.location.reload();
+    };
+
+    handleEmergencyReset = () => {
+        // Nuclear option - clear everything and restart
+        cacheManager.emergencyClear();
+
+        // Clear all auth tokens
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // Clear service worker cache
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(registration => registration.unregister());
+            });
+        }
+
+        // Redirect to home
+        window.location.href = '/';
     };
 
     handleGoHome = () => {
@@ -81,85 +139,72 @@ class ErrorBoundary extends React.Component {
     };
 
     render() {
-        if (this.state.hasError) {
-            const { fallback: Fallback } = this.props;
-
-            if (Fallback) {
-                return (
-                    <Fallback
-                        error={this.state.error}
-                        errorInfo={this.state.errorInfo}
-                        errorId={this.state.errorId}
-                        onReload={this.handleReload}
-                        onGoHome={this.handleGoHome}
-                    />
-                );
-            }
+        if (this.state.hasError || this.state.infiniteLoadingDetected) {
+            const isLoadingIssue = this.state.infiniteLoadingDetected;
 
             return (
-                <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                    <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
-                        <div className="flex items-center mb-4">
-                            <div className="flex-shrink-0">
-                                <svg
-                                    className="h-8 w-8 text-red-500"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                                    />
-                                </svg>
-                            </div>
-                            <div className="ml-3">
-                                <h1 className="text-lg font-semibold text-gray-900">
-                                    Something went wrong
-                                </h1>
-                            </div>
-                        </div>
+                <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+                    <div className="sm:mx-auto sm:w-full sm:max-w-md">
+                        <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow-xl rounded-lg sm:px-10 border border-gray-200 dark:border-gray-700">
+                            <div className="text-center">
+                                <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
 
-                        <div className="mb-4">
-                            <p className="text-sm text-gray-600 mb-2">
-                                We apologize for the inconvenience. An unexpected error occurred while loading this page.
-                            </p>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                                    {isLoadingIssue ? 'Loading Issue Detected' : 'Something Went Wrong'}
+                                </h2>
 
-                            {config.isDevelopment && this.state.error && (
-                                <details className="mt-4 p-3 bg-gray-100 rounded text-xs">
-                                    <summary className="cursor-pointer font-medium text-gray-700 mb-2">
-                                        Error Details (Development)
-                                    </summary>
-                                    <div className="text-red-600 font-mono whitespace-pre-wrap">
-                                        {this.state.error.message}
-                                        {'\n\n'}
-                                        {this.state.error.stack}
-                                    </div>
-                                </details>
-                            )}
-
-                            {this.state.errorId && (
-                                <p className="text-xs text-gray-500 mt-2">
-                                    Error ID: {this.state.errorId}
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                                    {isLoadingIssue
+                                        ? 'The app seems to be stuck loading. This usually happens due to connectivity issues or browser cache problems.'
+                                        : 'We encountered an unexpected error. This is usually temporary and can be fixed with a simple refresh.'
+                                    }
                                 </p>
-                            )}
-                        </div>
 
-                        <div className="flex space-x-3">
-                            <button
-                                onClick={this.handleReload}
-                                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-                            >
-                                Reload Page
-                            </button>
-                            <button
-                                onClick={this.handleGoHome}
-                                className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
-                            >
-                                Go Home
-                            </button>
+                                {/* Error details for developers */}
+                                {this.state.error && process.env.NODE_ENV === 'development' && (
+                                    <details className="mb-6 text-left">
+                                        <summary className="text-sm text-gray-500 cursor-pointer mb-2">
+                                            Error Details (Development)
+                                        </summary>
+                                        <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto max-h-32">
+                                            {this.state.error.toString()}
+                                        </pre>
+                                    </details>
+                                )}
+
+                                {/* Action buttons */}
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={this.handleRetry}
+                                        className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+                                    >
+                                        <RefreshCw className="h-4 w-4 mr-2" />
+                                        Try Again
+                                    </button>
+
+                                    <button
+                                        onClick={this.handleGoHome}
+                                        className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center"
+                                    >
+                                        <Home className="h-4 w-4 mr-2" />
+                                        Go to Home
+                                    </button>
+
+                                    {(this.state.retryCount > 1 || isLoadingIssue) && (
+                                        <button
+                                            onClick={this.handleEmergencyReset}
+                                            className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center"
+                                        >
+                                            <Settings className="h-4 w-4 mr-2" />
+                                            Emergency Reset
+                                        </button>
+                                    )}
+                                </div>
+
+                                <p className="text-xs text-gray-500 mt-4">
+                                    If problems persist, try clearing your browser cache or contact support.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

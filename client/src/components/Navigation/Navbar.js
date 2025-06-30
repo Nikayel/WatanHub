@@ -184,7 +184,7 @@ const Navbar = ({ onHomeClick, onAboutClick, onContactClick }) => {
           </div>
 
           {/* Mobile-First Join Watan Youth Group Banner */}
-          {(location.pathname === "/" || location.pathname === "/dashboard") && (
+          {(location.pathname === "/" || location.pathname === "/dashboard") && !user && (
             <>
               {/* Mobile Full-Width Banner - Shows on all mobile devices */}
               <motion.div

@@ -97,7 +97,7 @@ const NotificationPanel = ({ fellowshipInfo }) => {
     if (!user || notifications.length === 0) return null;
 
     return (
-        <div className="fixed top-4 right-4 z-50">
+        <div className="fixed top-4 right-16 sm:right-4 z-50">
             {/* Notification Bell */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -187,9 +187,9 @@ const NotificationPanel = ({ fellowshipInfo }) => {
                                                     <button
                                                         onClick={notification.action}
                                                         className={`mt-2 text-xs font-medium px-3 py-1 rounded-full transition-colors ${notification.color === 'blue' ? 'bg-blue-600 hover:bg-blue-700 text-white' :
-                                                                notification.color === 'green' ? 'bg-green-600 hover:bg-green-700 text-white' :
-                                                                    notification.color === 'purple' ? 'bg-purple-600 hover:bg-purple-700 text-white' :
-                                                                        'bg-yellow-600 hover:bg-yellow-700 text-white'
+                                                            notification.color === 'green' ? 'bg-green-600 hover:bg-green-700 text-white' :
+                                                                notification.color === 'purple' ? 'bg-purple-600 hover:bg-purple-700 text-white' :
+                                                                    'bg-yellow-600 hover:bg-yellow-700 text-white'
                                                             }`}
                                                     >
                                                         {notification.actionText}

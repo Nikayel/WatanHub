@@ -61,7 +61,7 @@ class SessionManager {
                 this.isActive = true;
                 this.lastActivity = Date.now();
                 Logger.debug('Tab became visible, updating activity');
-                // REMOVED: Session validation - let other systems handle refresh logic
+                // REMOVED: All session validation - let other systems handle refresh logic
             }
         });
 
@@ -69,11 +69,13 @@ class SessionManager {
         window.addEventListener('focus', () => {
             this.isActive = true;
             this.lastActivity = Date.now();
+            Logger.debug('Window focused, updating activity');
         });
 
         window.addEventListener('blur', () => {
             this.isActive = false;
             this.saveActivityToStorage();
+            Logger.debug('Window blurred, saving activity');
         });
     }
 
