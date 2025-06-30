@@ -57,43 +57,55 @@ export async function safeSelect(table, columns = '*', filters = {}) {
 }
 
 // Reusable safe INSERT
-export async function safeInsert(table, payload) {
-  const { data, error } = await supabase.from(table).insert(payload).select();
+export async function safeInsert(table, data) {
+  try {
+    const { data: result, error } = await supabase
+      .from(table)
+      .insert(data)
+      .select();
 
-  if (error) {
-    if (error.code === '23505') {
-      Logger.warn(`Duplicate entry prevented in '${table}'`);
-      toast.error(`You have already submitted an application.`);
-    } else {
-      Logger.error(`safeInsert failed for '${table}':`, {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        payload,
-      });
+    if (error) {
+      Logger.error(`Error inserting into ${table}:`, error);
       toast.error(`Failed to insert into ${table}.`);
+      return null;
     }
 
+    return result;
+  } catch (exception) {
+    Logger.error(`Exception in safeInsert for ${table}:`, exception);
+    toast.error(`Failed to insert into ${table}.`);
     return null;
   }
-
-  return data;
 }
 
 // Reusable safe UPDATE
 export async function safeUpdate(table, updates, matchKey, matchValue) {
-  const { data, error } = await supabase
-    .from(table)
-    .update(updates, { returning: "representation" })  // 👈 Proper way
-    .eq(matchKey, matchValue); // 👈 ADD `.select()`
+  try {
+    const { data, error } = await supabase
+      .from(table)
+      .update(updates)
+      .eq(matchKey, matchValue)
+      .select();
 
-  if (error) {
-    Logger.error(`Error updating ${table}:`, error);
-    toast.error(`Failed to update ${table}.`);
+    if (error) {
+      Logger.error(`Error updating ${table}:`, error);
+      toast.error(`Failed to update ${table}: ${error.message}`);
+      return null;
+    }
+
+    // Check if data is empty array (no rows updated)
+    if (Array.isArray(data) && data.length === 0) {
+      console.warn(`No ${table} record found to update with ${matchKey}: ${matchValue}`);
+      toast.error(`No ${table} record found to update.`);
+      return null;
+    }
+
+    return data;
+  } catch (exception) {
+    Logger.error(`Exception in safeUpdate for ${table}:`, exception);
+    toast.error(`Failed to update ${table}: ${exception.message}`);
     return null;
   }
-
-  return data;
 }
 
 // Reusable safe DELETE

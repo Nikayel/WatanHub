@@ -13,25 +13,17 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const { user, signIn, signInWithGoogle, error, loading, isMentor, isAdmin } = useAuth();
+    const { user, signIn, signInWithGoogle, error, loading, isMentor, isAdmin, profile } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         const { success } = await signIn(email, password);
-        if (success) {
-            // Check if this is a login after a new signup
-            const isNewSignup = localStorage.getItem('newSignup') === 'true';
-            if (isNewSignup) {
-                // Clear the flag once used
-                localStorage.removeItem('newSignup');
-            }
-            // Redirect will happen in the useEffect
-        }
+        // Navigation will be handled by AuthContext auth state listener
     };
 
     useEffect(() => {
-        if (user) {
+        if (user && !loading) {
             // Redirect based on user role
             if (isAdmin) {
                 navigate('/admin/dashboard');
@@ -41,7 +33,7 @@ const Login = () => {
                 navigate('/dashboard');
             }
         }
-    }, [user, navigate, isMentor, isAdmin]);
+    }, [user, loading, navigate, isMentor, isAdmin]);
 
     const handleGoogleSignIn = async () => {
         const { success } = await signInWithGoogle();

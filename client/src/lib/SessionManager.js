@@ -4,15 +4,26 @@ import Logger from '../utils/logger';
 
 class SessionManager {
     constructor() {
-        this.sessionTimeout = 24 * 60 * 60 * 1000; // 24 hours
-        this.inactivityTimeout = 8 * 60 * 60 * 1000; // 8 hours of inactivity (much more lenient)
-        this.checkInterval = 5 * 60 * 1000; // Check every 5 minutes (more reasonable)
+        // Enhanced PWA detection and session management
+        this.isPWA = this.checkIfPWA();
+        this.isMobile = this.checkIfMobile();
+        this.shouldExtendSession = this.isPWA || this.isMobile;
+
+        // Dynamic session timeouts based on platform
+        this.sessionTimeout = this.shouldExtendSession ? 24 * 60 * 60 * 1000 : 4 * 60 * 60 * 1000; // 24h for PWA/mobile, 4h for desktop
+        this.inactivityTimeout = this.shouldExtendSession ? 12 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000; // 12h for PWA/mobile, 2h for desktop
+        this.checkInterval = this.shouldExtendSession ? 10 * 60 * 1000 : 5 * 60 * 1000; // Check every 10min for PWA/mobile, 5min for desktop
+
         this.lastActivity = Date.now();
         this.isActive = true;
         this.intervalId = null;
         this.listeners = new Set();
         this.isInitialized = false;
         this.initTime = Date.now(); // Track when session manager was initialized
+        this.isLoggingOut = false; // Flag to prevent conflicts during logout
+
+        console.log(`🔧 SessionManager: PWA=${this.isPWA}, Mobile=${this.isMobile}, ExtendedSession=${this.shouldExtendSession}`);
+        console.log(`⏱️ SessionManager: Timeout=${this.sessionTimeout / 1000 / 60}min, Inactivity=${this.inactivityTimeout / 1000 / 60}min`);
 
         this.init();
     }
@@ -69,6 +80,11 @@ class SessionManager {
     // Setup periodic session validation
     setupSessionChecking() {
         this.intervalId = setInterval(() => {
+            // Skip all checks if logout is in progress
+            if (this.isLoggingOut) {
+                return;
+            }
+
             if (this.isActive) {
                 this.validateSession();
                 this.checkInactivity();
@@ -82,6 +98,9 @@ class SessionManager {
             if (e.key === 'watanhub_session_logout') {
                 Logger.info('Logout detected in another tab');
                 this.handleGlobalLogout();
+            } else if (e.key === 'watanhub_controlled_logout') {
+                Logger.info('Controlled logout detected, stopping session management');
+                this.isLoggingOut = true;
             } else if (e.key === 'watanhub_last_activity') {
                 this.lastActivity = parseInt(e.newValue) || Date.now();
             }
@@ -97,6 +116,20 @@ class SessionManager {
 
     // Validate current session with retry logic
     async validateSession(retryCount = 0) {
+        // Don't validate if we're in the middle of logging out
+        if (this.isLoggingOut) {
+            Logger.debug('Skipping session validation - logout in progress');
+            return false;
+        }
+
+        // Check for controlled logout signal
+        const controlledLogout = localStorage.getItem('watanhub_controlled_logout');
+        if (controlledLogout) {
+            Logger.info('Controlled logout detected, stopping validation');
+            this.isLoggingOut = true;
+            return false;
+        }
+
         try {
             const { data: { session }, error } = await supabase.auth.getSession();
 
@@ -120,11 +153,11 @@ class SessionManager {
                 // Only logout if we've been running for a while (not immediately on startup)
                 // More conservative check - wait at least 60 seconds after initialization
                 const timeSinceInit = this.isInitialized ? Date.now() - this.initTime : 0;
-                if (this.isInitialized && timeSinceInit > 60000) {
+                if (this.isInitialized && timeSinceInit > 60000 && !this.isLoggingOut) {
                     Logger.info('Session expired after grace period, triggering logout');
                     this.notifyListeners('session_expired');
                 } else {
-                    Logger.info('No session found but within grace period, not logging out');
+                    Logger.info('No session found but within grace period or logout in progress, not logging out');
                 }
                 return false;
             }
@@ -136,7 +169,9 @@ class SessionManager {
 
             if (sessionTime <= (now - safetyBuffer)) {
                 Logger.info('Session expired, forcing logout');
-                await this.forceLogout('Session expired');
+                if (!this.isLoggingOut) {
+                    await this.forceLogout('Session expired');
+                }
                 return false;
             }
 
@@ -164,14 +199,34 @@ class SessionManager {
         }
     }
 
-    // Check for user inactivity
+    // Check for user inactivity - Enhanced for PWA/mobile users
     checkInactivity() {
+        // Skip inactivity check if logout is in progress
+        if (this.isLoggingOut) {
+            return;
+        }
+
         const now = Date.now();
         const timeSinceActivity = now - this.lastActivity;
 
-        // Only check inactivity if we're properly initialized and tab is active
+        // More lenient inactivity check for PWA/mobile users
         if (this.isInitialized && this.isActive && timeSinceActivity > this.inactivityTimeout) {
-            Logger.info(`User inactive for ${Math.round(timeSinceActivity / (1000 * 60))} minutes, logging out`);
+            const minutesInactive = Math.round(timeSinceActivity / (1000 * 60));
+            const hoursInactive = Math.round(minutesInactive / 60);
+
+            console.log(`⚠️ User inactive: ${hoursInactive}h ${minutesInactive % 60}m (PWA: ${this.isPWA}, Mobile: ${this.isMobile})`);
+
+            // For PWA/mobile users, give extra warning before logout
+            if (this.shouldExtendSession && timeSinceActivity < (this.inactivityTimeout + 30 * 60 * 1000)) {
+                console.log('🔔 PWA/Mobile user - showing inactivity warning instead of immediate logout');
+                this.notifyListeners('inactivity_warning', {
+                    minutesInactive,
+                    timeUntilLogout: Math.round((this.inactivityTimeout + 30 * 60 * 1000 - timeSinceActivity) / (1000 * 60))
+                });
+                return;
+            }
+
+            Logger.info(`User inactive for ${minutesInactive} minutes, logging out`);
             this.forceLogout('Inactive session timeout');
         }
     }
@@ -317,6 +372,37 @@ class SessionManager {
             isActive: this.isActive,
             timeSinceActivity: Date.now() - this.lastActivity
         };
+    }
+
+    // Prepare for logout - called by AuthContext to prevent conflicts
+    prepareForLogout() {
+        console.log('🔄 SessionManager: Preparing for logout');
+        this.isLoggingOut = true;
+
+        // Clear the interval to stop all checks
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+        }
+
+        // Stop listening for storage events that might interfere
+        this.clearAllStorage();
+
+        Logger.info('SessionManager prepared for logout');
+    }
+
+    // Enhanced PWA detection
+    checkIfPWA() {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone ||
+            document.referrer.includes('android-app://') ||
+            (window.location.search.includes('utm_source=pwa'));
+    }
+
+    // Mobile device detection
+    checkIfMobile() {
+        return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+            (window.innerWidth <= 768 && 'ontouchstart' in window);
     }
 }
 

@@ -201,117 +201,79 @@ export const AuthProvider = ({ children }) => {
 
   // Listen for auth state changes
   useEffect(() => {
-    const setupAuthListener = async () => {
-      setLoading(true);
-      setError(null);
+    let mounted = true;
+    let timeoutId;
 
+    const setupAuth = async () => {
       try {
-        // Get initial session with proper error handling
-        const { data, error: sessionError } = await supabase.auth.getSession();
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession();
 
-        if (sessionError) {
-          console.error('Session retrieval error:', sessionError);
-          throw new Error(`Authentication failed: ${sessionError.message}`);
+        if (error) {
+          console.error('Session error:', error);
+          if (mounted) {
+            setUser(null);
+            setProfile(null);
+            setLoading(false);
+          }
+          return;
         }
 
-        if (data?.session?.user) {
-          setUser(data.session.user);
-
-          // Handle profile setup with error isolation
-          try {
-            await handleUserProfile(data.session.user);
-          } catch (profileError) {
-            console.error('Profile setup failed:', profileError);
-            // Don't fail auth just because profile setup failed
-            // User is still authenticated, just profile might be incomplete
-            setError('Profile setup incomplete. Some features may be limited.');
-          }
+        if (session?.user && mounted) {
+          setUser(session.user);
+          await handleUserProfile(session.user);
+        } else if (mounted) {
+          setUser(null);
+          setProfile(null);
         }
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, session) => {
-            console.log('Auth state change:', event, session?.user?.email);
-
-            if (event === 'SIGNED_IN' && session?.user) {
-              setUser(session.user);
-              setError(null); // Clear any previous errors
-
-              try {
-                await handleUserProfile(session.user);
-              } catch (profileError) {
-                console.error('Profile setup failed on sign in:', profileError);
-                setError('Profile setup incomplete. Please check your profile settings.');
-              }
-            } else if (event === 'SIGNED_OUT') {
-              console.log('User signed out, clearing state');
-              clearUserState();
-            } else if (event === 'TOKEN_REFRESHED') {
-              console.log('Token refreshed successfully');
-              setError(null); // Clear any auth errors
-            }
-          }
-        );
-
-        // Setup session manager listeners with better error handling
-        const removeSessionListener = sessionManager.addListener((event, data) => {
-          console.log('Session manager event:', event, data);
-
-          switch (event) {
-            case 'session_expired':
-              console.log('Session expired, logging out');
-              clearUserState();
-              setError('Your session has expired. Please sign in again.');
-              break;
-            case 'force_logout':
-              console.log('Force logout triggered');
-              clearUserState();
-              setError('You have been logged out for security reasons.');
-              break;
-            case 'global_logout':
-              console.log('Global logout detected');
-              clearUserState();
-              break;
-            case 'session_error':
-              console.error('Session validation error:', data);
-              // Don't show error to user for transient session issues
-              // Only log for debugging - user experience should be seamless
-              break;
-            case 'token_refreshed':
-              console.log('Token refreshed successfully');
-              setError(null); // Clear any auth errors
-              break;
-            default:
-              console.log('Unknown session event:', event);
-          }
-        });
-
-        return () => {
-          console.log('Cleaning up auth listeners');
-          subscription?.unsubscribe();
-          removeSessionListener();
-        };
-      } catch (err) {
-        console.error('Auth setup failed:', err);
-        setError(err.message || 'Authentication initialization failed');
-      } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Auth setup error:', error);
+        if (mounted) {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+        }
       }
     };
 
-    // Add timeout for loading state - more conservative
-    const loadingTimeout = setTimeout(() => {
-      if (loading) {
-        console.warn('Auth setup taking too long, forcing completion');
+    // Set up auth state change listener - THIS WAS MISSING!
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
+
+        if (event === 'SIGNED_IN' && session?.user && mounted) {
+          setUser(session.user);
+          setError(null);
+          await handleUserProfile(session.user);
+        } else if (event === 'SIGNED_OUT' && mounted) {
+          console.log('User signed out, clearing state');
+          clearUserState();
+        } else if (event === 'TOKEN_REFRESHED' && mounted) {
+          console.log('Token refreshed successfully');
+          setError(null);
+        }
+      }
+    );
+
+    // Set a longer timeout for auth setup - 30 seconds instead of 15
+    timeoutId = setTimeout(() => {
+      if (mounted && loading) {
+        console.log('Auth setup taking longer than expected, forcing completion');
         setLoading(false);
-        // Don't set error immediately - let user continue and retry if needed
         console.log('Auth timeout reached but continuing without error');
       }
-    }, 10000); // 10 seconds timeout - reduced to avoid conflicts with Dashboard
+    }, 30000);
 
-    setupAuthListener();
+    setupAuth();
 
     return () => {
-      clearTimeout(loadingTimeout);
+      mounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      subscription?.unsubscribe();
     };
   }, []);
 
@@ -411,10 +373,13 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     try {
-      console.log('Starting logout process');
+      console.log('🚪 Starting logout process');
       setLoading(true);
 
-      // First clear all React state
+      // 1. FIRST: Immediately notify SessionManager to stop all checks
+      sessionManager.prepareForLogout();
+
+      // 2. Clear all React state immediately to prevent UI confusion
       setUser(null);
       setProfile(null);
       setUserRole(null);
@@ -423,75 +388,141 @@ export const AuthProvider = ({ children }) => {
       setIsStudent(false);
       setHasAcceptedTermsOfService(false);
 
-      // Get the current storage keys before logout
+      // 3. Log current storage state for debugging
       const storageKeys = Object.keys(localStorage);
-      console.log('Storage keys before logout:',
+      console.log('📦 Storage keys before logout:',
         storageKeys.filter(key => key.startsWith('sb-') || key.includes('supabase'))
       );
 
-      // 1. First attempt global sign out through Supabase
-      try {
-        console.log('Attempting Supabase global signOut');
-        const { error } = await supabase.auth.signOut({ scope: 'global' });
-        if (error) {
-          console.error('Error in Supabase signOut:', error);
+      // 4. Signal to SessionManager that this is a controlled logout
+      localStorage.setItem('watanhub_controlled_logout', Date.now().toString());
+
+      // 5. Attempt Supabase global sign out with retry logic
+      let signOutSuccess = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          console.log(`🔐 Attempting Supabase signOut (attempt ${attempt + 1})`);
+          const { error } = await supabase.auth.signOut({ scope: 'global' });
+          if (error) {
+            console.error('❌ Supabase signOut error:', error);
+            if (attempt === 2) throw error; // Throw on final attempt
+          } else {
+            console.log('✅ Supabase signOut successful');
+            signOutSuccess = true;
+            break;
+          }
+        } catch (signOutError) {
+          console.error(`❌ SignOut attempt ${attempt + 1} failed:`, signOutError);
+          if (attempt === 2) {
+            console.warn('⚠️ All signOut attempts failed, proceeding with manual cleanup');
+          }
+          await new Promise(resolve => setTimeout(resolve, 500)); // Wait before retry
         }
-      } catch (signOutError) {
-        console.error("Error during Supabase signOut call:", signOutError);
       }
 
-      // 2. Get and clear the Supabase URL from localStorage keys
+      // 6. Comprehensive localStorage cleanup
       const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || '';
       const projectRef = supabaseUrl.match(/https:\/\/(.*?)\.supabase/)?.[1] || '';
 
+      // Clear project-specific Supabase auth token
       if (projectRef) {
-        console.log('Removing Supabase storage for project ref:', projectRef);
-        // Find the specific Supabase auth key for this project
         const sbKey = `sb-${projectRef}-auth-token`;
+        console.log('🗑️ Removing project auth token:', sbKey);
         localStorage.removeItem(sbKey);
       }
 
-      // 3. Clear all potential Supabase-related localStorage items
-      // Safer iteration: collect keys first, then remove them
-      const keysToRemove = [];
-      for (let authIndex = 0; authIndex < localStorage.length; authIndex++) {
-        const key = localStorage.key(authIndex);
+      // Collect and remove all auth-related keys
+      const authKeysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
         if (key && (
           key.startsWith('sb-') ||
           key.includes('supabase') ||
-          key.includes('auth'))
-        ) {
-          keysToRemove.push(key);
+          key.includes('auth') ||
+          key.includes('watanhub')
+        )) {
+          authKeysToRemove.push(key);
         }
       }
 
-      // Now safely remove all collected keys
-      keysToRemove.forEach(key => {
-        console.log('Removing localStorage key:', key);
+      // Remove all collected keys
+      authKeysToRemove.forEach(key => {
+        console.log('🗑️ Removing localStorage key:', key);
         try {
           localStorage.removeItem(key);
         } catch (removeError) {
-          console.warn('Failed to remove key:', key, removeError);
+          console.warn('⚠️ Failed to remove key:', key, removeError);
         }
       });
 
-      // 4. Clear session cookies
-      document.cookie.split(";").forEach(function (c) {
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-      });
+      // 7. Clear session storage
+      try {
+        sessionStorage.clear();
+        console.log('🗑️ Session storage cleared');
+      } catch (sessionError) {
+        console.warn('⚠️ Failed to clear session storage:', sessionError);
+      }
 
-      console.log('All auth state cleared, redirecting to home page');
+      // 8. Clear all cookies
+      try {
+        document.cookie.split(";").forEach(function (c) {
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+        console.log('🍪 Cookies cleared');
+      } catch (cookieError) {
+        console.warn('⚠️ Failed to clear cookies:', cookieError);
+      }
 
-      // 5. Force a hard redirect to the root page, no client-side routing
-      // This ensures the app completely reinitializes
+      // 9. Final verification - check if any auth tokens remain
+      const remainingKeys = Object.keys(localStorage).filter(key =>
+        key.startsWith('sb-') || key.includes('supabase') || key.includes('auth')
+      );
+
+      if (remainingKeys.length > 0) {
+        console.warn('⚠️ Warning: Some auth keys still remain:', remainingKeys);
+        // Force remove any remaining keys
+        remainingKeys.forEach(key => {
+          try {
+            localStorage.removeItem(key);
+            console.log('🗑️ Force removed:', key);
+          } catch (e) {
+            console.error('❌ Failed to force remove:', key, e);
+          }
+        });
+      }
+
+      // 10. Wait a moment for all async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      console.log('✅ Logout process completed, redirecting to home');
+
+      // 11. Force a complete page refresh to ensure clean state
+      // This prevents any remaining JavaScript state from persisting
       window.location.replace('/');
 
       return { success: true };
     } catch (err) {
-      console.error('Final error in logout process:', err);
-      setError(err.message);
+      console.error('❌ Critical error in logout process:', err);
 
-      // Even if there's an error, force a logout by reloading
+      // Emergency logout: Force clear everything and redirect
+      try {
+        // Emergency localStorage clear
+        const allKeys = Object.keys(localStorage);
+        allKeys.forEach(key => {
+          if (key.includes('sb-') || key.includes('supabase') || key.includes('auth')) {
+            localStorage.removeItem(key);
+          }
+        });
+
+        // Emergency session clear
+        sessionStorage.clear();
+
+        console.log('🚨 Emergency logout completed');
+      } catch (emergencyError) {
+        console.error('🚨 Emergency logout also failed:', emergencyError);
+      }
+
+      // Force redirect regardless of errors
       window.location.replace('/');
 
       return { success: false, error: err.message };
@@ -521,6 +552,26 @@ export const AuthProvider = ({ children }) => {
       console.error("Error updating terms acceptance:", err);
       return false;
     }
+  };
+
+  // Enhanced PWA session management
+  const checkIfPWA = () => {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone ||
+      document.referrer.includes('android-app://');
+  };
+
+  const shouldExtendSession = () => {
+    const isPWA = checkIfPWA();
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return isPWA || isMobile;
+  };
+
+  const getSessionDuration = () => {
+    if (shouldExtendSession()) {
+      return 24 * 60 * 60 * 1000; // 24 hours for PWA/mobile
+    }
+    return 2 * 60 * 60 * 1000; // 2 hours for desktop
   };
 
   return (

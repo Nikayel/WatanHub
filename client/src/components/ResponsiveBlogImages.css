@@ -1,0 +1,154 @@
+/* Responsive Blog Images CSS */
+
+/* Blog content container */
+.blog-content {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* All images in blog content */
+.blog-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin: 1.5rem 0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Image hover effects */
+.blog-content img:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+}
+
+/* Landscape images (wider than tall) */
+.blog-content img[style*="aspect-ratio"] {
+    width: 100%;
+    object-fit: cover;
+}
+
+/* Portrait images - limit max width on larger screens */
+@media (min-width: 768px) {
+    .blog-content img {
+        max-width: 100%;
+    }
+
+    /* If image is portrait (taller than wide), limit width */
+    .blog-content img[data-orientation="portrait"] {
+        max-width: 60%;
+        margin-left: auto;
+        margin-right: auto;
+        display: block;
+    }
+
+    /* Landscape images can use full width */
+    .blog-content img[data-orientation="landscape"] {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 767px) {
+    .blog-content img {
+        width: 100%;
+        margin: 1rem 0;
+    }
+}
+
+/* Image grid for multiple images */
+.blog-image-grid {
+    display: grid;
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.blog-image-grid.grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.blog-image-grid.grid-3 {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.blog-image-grid.grid-4 {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* Image captions */
+.blog-content figure {
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+.blog-content figcaption {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+/* Loading placeholder for images */
+.blog-image-loading {
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 8px;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Image zoom modal styles */
+.image-zoom-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    cursor: pointer;
+}
+
+.image-zoom-content {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+/* Preview mode specific styles */
+.preview-mode .blog-content img {
+    cursor: pointer;
+}
+
+/* Error state for broken images */
+.blog-content img[data-error="true"] {
+    background: #f3f4f6;
+    border: 2px dashed #d1d5db;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: #6b7280;
+}
+
+.blog-content img[data-error="true"]::before {
+    content: "Image failed to load";
+    font-size: 0.875rem;
+}

@@ -807,9 +807,9 @@ const Dashboard = () => {
 
                     {activeMainTab === 'fellowship' && (
                         <div className="max-w-7xl mx-auto">
-                            <OfflineFellowshipContent
-                                isOnline={isOnline}
-                                userProgress={{}}
+                            <FellowshipContent
+                                userId={user.id}
+                                userRole={profile?.user_type || 'student'}
                             />
 
                             {/* Mentor Contact Section */}

@@ -127,7 +127,7 @@ Status: ${blog.published !== false ? 'Published' : 'Draft'}
 Views: ${blog.views || 0}
 Created: ${new Date(blog.created_at).toLocaleDateString()}
 Description: ${blog.description || 'No description'}
-URL: ${window.location.origin}/blog/${blog.id}
+URL: ${window.location.origin}/blogs/${blog.id}
     `;
     navigator.clipboard.writeText(blogInfo.trim());
     toast.success('Blog info copied to clipboard!');
@@ -314,8 +314,8 @@ URL: ${window.location.origin}/blog/${blog.id}
               <button
                 onClick={() => handleSort('created_at')}
                 className={`px-4 py-3 rounded-xl border font-medium transition-colors ${sortField === 'created_at'
-                    ? 'bg-blue-100 border-blue-300 text-blue-700'
-                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
               >
                 Date {sortField === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -323,8 +323,8 @@ URL: ${window.location.origin}/blog/${blog.id}
               <button
                 onClick={() => handleSort('views')}
                 className={`px-4 py-3 rounded-xl border font-medium transition-colors ${sortField === 'views'
-                    ? 'bg-blue-100 border-blue-300 text-blue-700'
-                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
               >
                 Views {sortField === 'views' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -332,8 +332,8 @@ URL: ${window.location.origin}/blog/${blog.id}
               <button
                 onClick={() => handleSort('published')}
                 className={`px-4 py-3 rounded-xl border font-medium transition-colors ${sortField === 'published'
-                    ? 'bg-blue-100 border-blue-300 text-blue-700'
-                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
               >
                 Status {sortField === 'published' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -356,8 +356,8 @@ URL: ${window.location.origin}/blog/${blog.id}
                       )}
                     </div>
                     <div className={`px-3 py-1 rounded-full text-xs font-medium ml-3 ${blog.published !== false
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-amber-100 text-amber-800'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-amber-100 text-amber-800'
                       }`}>
                       {blog.published !== false ? 'Published' : 'Draft'}
                     </div>
@@ -376,9 +376,8 @@ URL: ${window.location.origin}/blog/${blog.id}
 
                   <div className="flex flex-wrap gap-2">
                     <Link
-                      to={`/blog/${blog.id}`}
-                      target="_blank"
-                      className="flex items-center gap-1 px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-xs font-medium transition-colors"
+                      to={`/blogs/${blog.id}`}
+                      className="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
                     >
                       <Eye size={14} /> View
                     </Link>
@@ -397,8 +396,8 @@ URL: ${window.location.origin}/blog/${blog.id}
                     <button
                       onClick={() => handlePublishToggle(blog.id, blog.published !== false)}
                       className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${blog.published !== false
-                          ? 'bg-amber-100 hover:bg-amber-200 text-amber-700'
-                          : 'bg-green-100 hover:bg-green-200 text-green-700'
+                        ? 'bg-amber-100 hover:bg-amber-200 text-amber-700'
+                        : 'bg-green-100 hover:bg-green-200 text-green-700'
                         }`}
                     >
                       {blog.published !== false ? (

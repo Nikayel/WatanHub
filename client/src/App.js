@@ -9,6 +9,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import AuthErrorBoundary from './components/AuthErrorBoundary';
 import config from './config/environment';
 import Logger from './utils/logger';
+import StorageManager from './utils/storageSetup';
 
 // Context and Protection (keep these as regular imports for faster auth checks)
 import ProtectedRoute from './components/Routes/ProtectedRoute';
@@ -72,7 +73,7 @@ const LoadingSpinner = () => (
 );
 
 function App() {
-  // Initialize performance monitoring in development
+  // Initialize performance monitoring and storage in development
   React.useEffect(() => {
     if (config.isDevelopment) {
       Logger.info('WatanHub App initialized', {
@@ -81,6 +82,11 @@ function App() {
         timestamp: new Date().toISOString()
       });
     }
+
+    // Initialize storage bucket
+    StorageManager.initializeBucket().catch(error => {
+      Logger.error('Failed to initialize storage bucket:', error);
+    });
   }, []);
 
   return (
@@ -103,6 +109,7 @@ function App() {
             <Route path="/timeline" element={<TimelineDemo />} />
             <Route path="/blogs" element={<BlogList />} />
             <Route path="/blog/:id" element={<BlogDetail />} />
+            <Route path="/blogs/:id" element={<BlogDetail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/mentor-application" element={<MentorApplicationPage />} />
             <Route path="/signup" element={<SignUp isOpen={true} onClose={() => { }} />} />

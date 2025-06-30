@@ -278,61 +278,61 @@ const OfflineFellowshipContent = ({ isOnline, userProgress = {} }) => {
     };
 
     return (
-        <div className="space-y-6">
-            {/* Gamification Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-6 text-white">
-                <div className="flex items-center justify-between mb-4">
+        <div className="space-y-4 md:space-y-6">
+            {/* Gamification Header - More compact on mobile */}
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-4 md:p-6 text-white">
+                <div className="flex items-center justify-between mb-3 md:mb-4">
                     <div>
-                        <h2 className="text-2xl font-bold">Fellowship Journey</h2>
-                        <p className="text-indigo-100">Master your path to college success</p>
+                        <h2 className="text-xl md:text-2xl font-bold">Fellowship Journey</h2>
+                        <p className="text-indigo-100 text-sm md:text-base">Path to college success</p>
                     </div>
                     <div className="text-right">
                         <div className="flex items-center space-x-2 mb-1">
-                            <Trophy className="h-5 w-5" />
-                            <span className="font-semibold">Level {currentLevel}</span>
+                            <Trophy className="h-4 w-4 md:h-5 md:w-5" />
+                            <span className="font-semibold text-sm md:text-base">Level {currentLevel}</span>
                         </div>
-                        <div className="text-indigo-100 text-sm">{totalPoints} points</div>
+                        <div className="text-indigo-100 text-xs md:text-sm">{totalPoints} points</div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2 md:gap-4">
                     <div className="text-center">
                         <div className="flex items-center justify-center space-x-1 mb-1">
-                            <Zap className="h-4 w-4" />
-                            <span className="font-semibold">{streakCount}</span>
+                            <Zap className="h-3 w-3 md:h-4 md:w-4" />
+                            <span className="font-semibold text-sm md:text-base">{streakCount}</span>
                         </div>
-                        <div className="text-xs text-indigo-100">Day Streak</div>
+                        <div className="text-xs text-indigo-100">Streak</div>
                     </div>
                     <div className="text-center">
                         <div className="flex items-center justify-center space-x-1 mb-1">
-                            <Award className="h-4 w-4" />
-                            <span className="font-semibold">{userAchievements.length}</span>
+                            <Award className="h-3 w-3 md:h-4 md:w-4" />
+                            <span className="font-semibold text-sm md:text-base">{userAchievements.length}</span>
                         </div>
-                        <div className="text-xs text-indigo-100">Achievements</div>
+                        <div className="text-xs text-indigo-100">Awards</div>
                     </div>
                     <div className="text-center">
                         <div className="flex items-center justify-center space-x-1 mb-1">
-                            <BarChart3 className="h-4 w-4" />
-                            <span className="font-semibold">
+                            <BarChart3 className="h-3 w-3 md:h-4 md:w-4" />
+                            <span className="font-semibold text-sm md:text-base">
                                 {fellowshipModules.filter(m => userProgress[m.id]?.completed).length}
                             </span>
                         </div>
-                        <div className="text-xs text-indigo-100">Completed</div>
+                        <div className="text-xs text-indigo-100">Done</div>
                     </div>
                 </div>
             </div>
 
-            {/* Connection Status */}
-            <div className={`flex items-center space-x-2 px-4 py-2 rounded-lg ${isOnline ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+            {/* Connection Status - More compact */}
+            <div className={`flex items-center space-x-2 px-3 md:px-4 py-2 rounded-lg ${isOnline ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
                 }`}>
-                {isOnline ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
-                <span className="text-sm font-medium">
-                    {isOnline ? 'Online - All content available' : 'Offline - Cached content only'}
+                {isOnline ? <Wifi className="h-3 w-3 md:h-4 md:w-4" /> : <WifiOff className="h-3 w-3 md:h-4 md:w-4" />}
+                <span className="text-xs md:text-sm font-medium">
+                    {isOnline ? 'Online' : 'Offline Mode'}
                 </span>
             </div>
 
-            {/* Fellowship Modules */}
-            <div className="grid gap-6">
+            {/* Fellowship Modules - Reduced spacing */}
+            <div className="grid gap-4 md:gap-6">
                 {fellowshipModules.map((module) => {
                     const isDownloading = downloadProgress[module.id] !== undefined && downloadProgress[module.id] < 100;
                     const isCompleted = userProgress[module.id]?.completed;
